@@ -92,7 +92,7 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
-    fun setAppLockEnabled(enabled: Boolean) {
+    fun updateAppLockEnabled(enabled: Boolean) {
         store.setAppLockEnabled(enabled)
         appLockEnabled = enabled
     }
