@@ -38,6 +38,7 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.pix.folio.MainActivity
 import com.pix.folio.data.FolioStore
+import com.pix.folio.model.ValueSnapshot
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -53,7 +54,7 @@ class FolioBalanceWidget : GlanceAppWidget() {
         val background = if (dark) 0xFF171717.toInt() else 0xFFF5F3EE.toInt()
         val foreground = if (dark) 0xFFF5F3EE.toInt() else 0xFF111111.toInt()
         val muted = if (dark) 0xFFAAA69F.toInt() else 0xFF77746E.toInt()
-        val chart = SparklineBitmap.render(context, dark)
+        val chart = SparklineBitmap.render(context, dark, summary.balanceHistory)
 
         provideContent {
             BalanceWidgetContent(
@@ -118,11 +119,13 @@ class FolioBalanceWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 private object SparklineBitmap {
-    fun render(context: Context, dark: Boolean): Bitmap {
+    fun render(context: Context, dark: Boolean, history: List<ValueSnapshot>): Bitmap {
         val density = context.resources.displayMetrics.density
         val width = (110 * density).toInt().coerceAtLeast(1)
         val height = (54 * density).toInt().coerceAtLeast(1)
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        if (history.isEmpty()) return bitmap
+
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = if (dark) 0xFFF5F3EE.toInt() else 0xFF111111.toInt()
@@ -131,7 +134,21 @@ private object SparklineBitmap {
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
         }
-        val values = floatArrayOf(.20f, .26f, .31f, .29f, .39f, .44f, .50f, .48f, .58f, .62f, .70f, .82f)
+        val source = history.takeLast(40).map { it.value }
+        val min = source.minOrNull() ?: return bitmap
+        val max = source.maxOrNull() ?: return bitmap
+        val values = if (max == min) {
+            List(source.size) { .5f }
+        } else {
+            source.map { (((it - min) / (max - min)).toFloat()).coerceIn(.1f, .9f) }
+        }
+
+        if (values.size == 1) {
+            paint.style = Paint.Style.FILL
+            canvas.drawCircle(width * .82f, height * (1f - values.first()), 2.5f * density, paint)
+            return bitmap
+        }
+
         val path = Path()
         values.forEachIndexed { index, value ->
             val x = width * index.toFloat() / (values.size - 1)
