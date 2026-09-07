@@ -1,79 +1,72 @@
 # Folio Android
 
-A minimal personal-finance companion for Android. Folio is not a brokerage and does not place trades. It gives you the same kind of overview as the Folio website: your balance, monthly expenses, investments, and recurring payments in one quiet interface.
+A minimal personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks your cash, monthly spending, budgets, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta:** `0.1.0.beta`
+**Current beta source:** `0.3.0.beta`
 
-## v0.1
+## What Folio tracks
 
-- Minimal Home overview with total balance and monthly change
-- Monthly income, expenses, investments, and payments summary
-- Expense categories with monochrome **Noto Emoji** glyphs
-- Add-expense bottom sheet
-- Read-only investment total, trend, allocation, and portfolio list
-- Upcoming / completed monthly payments
-- Add-payment bottom sheet and tap-to-mark-paid flow
-- Local persistence for expenses and payments
-- System light / dark theme
-- Nothing-inspired segmented Folio `F.` adaptive icon with themed monochrome support
-- Minimal **3×1 balance widget**
-- GitHub beta and Play build flavors
-- Settings / More → beta updater
-- GitHub prerelease discovery, APK checksum validation, and Android install handoff
+- Cash balance and net worth
+- Expenses grouped by month and category
+- Minimal monthly category budgets
+- Recurring salary / income
+- Recurring bills
+- Recurring investments linked to a holding
+- Investments added manually or resolved from an **ISIN** with OpenFIGI v3
+- Investment contribution history
+- Net-worth and portfolio history
+- Monthly overview: income, expenses, payments, invested, left
+- Upcoming salary, bills, and investment contributions on Home
+- Optional biometric / device-credential app lock
+- Minimal 3×1 balance widget
 
-The bundled values are demo data for the first beta. They are intentionally easy to replace once Folio website sync/import is wired in.
+Fresh installs start empty. Folio does not seed demo money or fake chart data.
+
+## Investment identity
+
+The Android app can resolve an ISIN through OpenFIGI v3:
+
+```text
+ISIN → OpenFIGI mapping → matching listings → user selects listing
+```
+
+Folio stores the ISIN entered by the user together with the selected FIGI, ticker, exchange code, name, and inferred holding type. An OpenFIGI API key is not bundled or required for normal use; anonymous public requests use OpenFIGI's lower rate limit.
 
 ## Visual direction
 
 - warm off-white / near-black surfaces
-- large numbers, very little decoration
+- large numbers and generous whitespace
 - no brokerage-style Buy / Sell controls
 - no dense dashboards
-- no colored emoji icons
-- Noto Emoji is requested as a Google downloadable font and rendered into monochrome bitmaps
+- monochrome Noto Emoji category glyphs
 - restrained color only for positive/negative financial state
-- native Android edge-to-edge behavior
+- Nothing-inspired Folio `F.` adaptive icon
+- fixed bottom-navigation geometry; selected tabs do not jump
 
 ## Stack
 
 - Kotlin
 - Jetpack Compose
 - Material 3 foundations with custom Folio components
+- OpenFIGI v3 via a tiny `HttpURLConnection` client
+- AndroidX Biometric + device credential fallback
 - Glance app widgets
-- SharedPreferences JSON for the first beta data layer
+- SharedPreferences JSON data layer for beta
 - GitHub Actions for CI and signed beta releases
 
 ## Repository
 
-The in-app beta updater is already configured for:
+The in-app beta updater points to the public repository:
 
 ```text
-https://github.com/0xpix/folio-android
+https://github.com/0xpix/folio-app
 ```
 
-The repository needs to be **public** for anonymous GitHub release checks from the beta APK. Do not embed a GitHub token in the app.
-
-### Create and push the repo
-
-With GitHub CLI authenticated:
-
-```bash
-./scripts/bootstrap_repo.sh
-```
-
-Or:
-
-```bash
-git init
-git add .
-git commit -m "feat: bootstrap Folio Android beta"
-git branch -M main
-gh repo create 0xpix/folio-android --public --source=. --remote=origin --push
-```
+No GitHub token is embedded in the APK.
 
 ## Beta signing
 
-Create a dedicated beta key:
+Create and keep one dedicated beta key for all future Folio beta updates:
 
 ```bash
 keytool -genkeypair \
@@ -85,7 +78,7 @@ keytool -genkeypair \
   -validity 10000
 ```
 
-Add these GitHub Actions secrets:
+GitHub Actions secrets:
 
 ```text
 FOLIO_BETA_KEYSTORE_BASE64
@@ -94,59 +87,33 @@ FOLIO_BETA_KEY_ALIAS
 FOLIO_BETA_KEY_PASSWORD
 ```
 
-Linux/macOS:
+## Publish the next beta
+
+After pushing the source:
 
 ```bash
-base64 -w 0 folio-beta.jks > folio-beta.jks.base64
+git tag v0.3.0.beta.1
+git push origin v0.3.0.beta.1
 ```
 
-PowerShell:
-
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("folio-beta.jks")) | Set-Content -NoNewline folio-beta.jks.base64
-```
-
-## Publish a beta APK
-
-```bash
-git tag v0.1.0.beta.1
-git push origin v0.1.0.beta.1
-```
-
-The workflow validates the project, builds and signs the beta APK, verifies its signature, writes a SHA-256 checksum, and publishes both in a GitHub prerelease.
-
-The beta app reads the full Releases list—including prereleases—so **More → Check for beta** can see `v0.1.0.beta.2`, `v0.1.0.beta.3`, and later builds.
+The tag run builds and signs the beta APK, verifies its signature, creates a SHA-256 checksum, and publishes both to a GitHub prerelease.
 
 ## Build locally
 
 Use JDK 17 and Android SDK/API 37:
 
 ```bash
-gradle :app:assembleBetaDebug
+gradle :app:assembleBetaDebug :app:assemblePlayDebug
 ```
 
-APK:
+Beta debug APK:
 
 ```text
 app/build/outputs/apk/beta/debug/app-beta-debug.apk
 ```
 
-## Widget
+## Data notes
 
-The first widget is deliberately simple:
+Recurring actions are month-aware. Marking salary received, a bill paid, or a recurring investment executed writes a small local ledger entry. That ledger drives Monthly Overview and preserves older months instead of only remembering the latest toggle state.
 
-```text
-Folio                       ╭──── trend ────╮
-€12,480                     ╰───────────────╯
-+ €320 this month
-```
-
-It follows light/dark mode, uses the same warm surfaces as the app, opens Folio on tap, and refreshes when local finance data changes.
-
-## Next
-
-- sync/import the existing Folio website data
-- edit income, cash balance, and investment holdings from the app
-- add backup/export
-- add a compact 2×2 expense widget only if it stays visually quiet
-- Play Store release after the beta data model is stable
+Investment contributions are also stored separately from the holding total, which allows each holding to have its own contribution history.
