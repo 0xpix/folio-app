@@ -632,7 +632,7 @@ private fun MoreScreen(vm: FolioViewModel) {
                 vm.appLockEnabled -> "On"
                 else -> "Off"
             },
-            onClick = if (lockAvailable) ({ vm.setAppLockEnabled(!vm.appLockEnabled) }) else null,
+            onClick = if (lockAvailable) ({ vm.updateAppLockEnabled(!vm.appLockEnabled) }) else null,
         )
 
         Spacer(Modifier.height(28.dp))
