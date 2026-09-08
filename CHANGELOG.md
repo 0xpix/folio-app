@@ -7,47 +7,31 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
-## [0.5.0.beta] - 2026-09-08
+## [0.5.1.beta] - 2026-09-08
 
 ### Added
-- Annual Review with yearly income, spending, investments, net-worth change, active months, contribution count, and month-by-month activity.
-- Projected Growth scenarios with editable monthly contribution, annual-return assumption, time horizon, chart, and checkpoint values.
-- Automatic net-worth milestones from €1,000 through €1,000,000.
-- Investment tags: Long term, Speculative, Retirement, CS2 case, and High risk.
-- Per-investment notes for a thesis, reminder, or personal context.
-- CS2 as a first-class manually tracked investment type for cases and other Counter-Strike assets.
-- Undo for the latest local money/data change, including expenses, budgets, recurring entries, investments, balances, tags, and notes.
-- Optional units/shares and purchase price on investment purchases and contributions.
-- Current market value, cost basis, unrealized gain/loss, and percentage performance when units and market prices are available.
-- Provider/source and last-updated timestamps on investment market-price history.
-- Transaction timeline combining income, expenses, bills, and investments.
-- Monthly comparison against the previous month.
-- Emergency-fund coverage in months based on recent outflow.
-- Investment contribution streaks.
-- Dated investment purchase history and price-history graphs with purchase markers.
-- ISIN-first instrument lookup through OpenFIGI for ETFs, stocks, funds, bonds, and indexes.
-- Recurring salary, recurring bills, and recurring investments.
-- Minimal category budgets, Monthly Overview, Net-worth History, Upcoming on Home, and biometric/device-credential app lock.
+- Expanded finance models for annual reviews, projected-growth scenarios, net-worth milestones, transaction timelines, monthly comparisons, emergency-fund coverage, and investment contribution streaks.
+- Investment tags for Long term, Speculative, Retirement, CS2 case, and High risk positions.
+- Per-investment notes and first-class Bond, Index, and CS2 investment kinds.
+- Optional investment units/shares and unit purchase price in the transaction model.
+- Investment price-history records with symbol, currency, source metadata, and last-refresh timestamps.
+- Local persistence for emergency-fund allocation, investment tags and notes, units, purchase prices, and market-price history.
+- One-step local undo snapshots for financial data mutations, including Clear All recovery.
+- Structured `CHANGELOG.md` release notes and Folio repository branding assets.
 
 ### Changed
-- Folio Android is now the primary and self-contained Folio product; Folio Web is no longer required for the product roadmap.
-- Investment totals now distinguish contributed cost basis from current market value when enough position data is available.
-- Portfolio allocation uses current market value when Folio can calculate it, otherwise it safely falls back to contributed value.
-- Refreshing market prices now records a fresh portfolio/net-worth snapshot.
-- Investment entry supports manual assets without requiring an ISIN.
-- The beta updater preserves structured release notes instead of flattening them into plain text.
-- Versioning is standardized to `v0.5.0.beta` style with no extra beta build suffix.
-- README and repository structure are product-oriented rather than scaffold/debug oriented.
-- `CHANGELOG.md` is the single source of truth for release notes.
+- Folio Android is the primary Folio product; the release work no longer depends on Folio Web.
+- Initial holdings are recorded as initial purchases while later additions remain manual contributions.
+- Portfolio and net-worth snapshots use units × latest recorded price when position data is available, with contributed value as the safe fallback.
+- Investment storage remains backward-compatible when older records do not contain the new v0.5 fields.
+- Beta versioning is standardized to `v0.5.1.beta`, without an additional beta build suffix.
+- Release notes are sourced from this changelog so GitHub releases and the in-app beta updater can present the same Added / Changed / Fixed history.
 
 ### Fixed
-- Prevented CS2/manual holdings from attempting unsupported automatic market-price refreshes.
-- Preserved legacy investment records when new units, tags, notes, and provider metadata are absent.
-- Undo data now survives a Clear All action long enough to restore the previous local state.
-- Added missing undo capture for newly created recurring investments.
-- Net-worth and investment snapshots now reflect refreshed market values when units are known.
-- Removed stale compile-fix artifacts and old per-version update notes from the product repo.
-- Removed committed beta signing-key material from the repository and blocked signing-key/base64 files via `.gitignore`.
+- Fixed the v0.5 model/store integration that prevented beta and Play debug variants from compiling after the finance-model expansion.
+- Preserved newly introduced investment metadata instead of dropping it when holdings are re-saved.
+- Preserved undo state across Clear All so the previous local financial state can still be restored.
+- Removed the unfinished `v0.5.0.beta` release marker; this completed continuation ships as `v0.5.1.beta`.
 
 ## [0.3.0.beta] - 2026-09-07
 
