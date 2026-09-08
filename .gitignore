@@ -8,5 +8,17 @@
 .externalNativeBuild/
 .cxx/
 app/build/
+
+# Release signing and secrets — never commit these
 *.jks
 *.keystore
+*.p12
+*.pfx
+keystore.properties
+release-signing.properties
+secrets.properties
+.env
+.env.*
+folio-beta-base64.txt
+*keystore*.base64
+*keystore*.b64
