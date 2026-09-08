@@ -1,5 +1,0 @@
-Verified compile fix:
-- No `import androidx.compose.foundation.layout.weight` anywhere in Kotlin sources.
-- `ExperimentalMaterial3Api` is imported.
-- `AddExpenseSheet` is annotated with `@OptIn(ExperimentalMaterial3Api::class)`.
-- `AddPaymentSheet` is annotated with `@OptIn(ExperimentalMaterial3Api::class)`.
