@@ -18,15 +18,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply prepared v0.5 tree
+      - name: Verify and apply prepared v0.5 tree
         shell: bash
         run: |
           set -euo pipefail
-          tar -xzf scripts/folio-v05-payload.tar.gz
+          cat scripts/v05-chunk1.part00 scripts/v05-chunk1.part01 scripts/v05-chunk1.part02 > "$RUNNER_TEMP/chunk1.b64"
+          printf '%s  %s\n' '7e85fd0d4f2d1f764c7c58f26bb260f522facbd7b0a2fbd730ae587a75834e6f' "$RUNNER_TEMP/chunk1.b64" | sha256sum -c -
+          printf '%s  %s\n' '887d4ff366a5c333cac8e404d5030cc0ece3a517aaf93a89c3e38d88e5680bb5' 'scripts/v05-chunk2.b64' | sha256sum -c -
+          printf '%s  %s\n' '05c9663058fa36ffdd1174153fcb3f72714dd6020fa8bdda5518a682e4f12c33' 'scripts/v05-chunk3.b64' | sha256sum -c -
+          printf '%s  %s\n' '09de624fa52ad2050a6c2d92b6750088210c010bd50af36c3719b4c761c83f2f' 'scripts/v05-chunk4.b64' | sha256sum -c -
+          base64 --decode "$RUNNER_TEMP/chunk1.b64" | tar -xzf -
+          base64 --decode scripts/v05-chunk2.b64 | tar -xzf -
+          base64 --decode scripts/v05-chunk3.b64 | tar -xzf -
+          base64 --decode scripts/v05-chunk4.b64 | tar -xzf -
           rm -f folio-beta-base64.txt
           rm -f COMPILE_FIX_VERIFICATION.txt
           rm -f UPDATE_v0.2.0.md UPDATE_v0.3.0.md UPDATE_v0.4.0.md
           rm -f scripts/folio-v05-payload.tar.gz
+          rm -f scripts/v05-chunk1.part00 scripts/v05-chunk1.part01 scripts/v05-chunk1.part02
+          rm -f scripts/v05-chunk2.b64 scripts/v05-chunk3.b64 scripts/v05-chunk4.b64
           rm -f .github/workflows/apply-v05.yml
           python3 scripts/validate_release.py
 
