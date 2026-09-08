@@ -22,7 +22,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s  %s\n' '812d520af95b75f2fa2900ba7bf3193d3cffff91ff605875e06a35d70f67a4d7' 'scripts/v05-chunk1.part00' | sha256sum -c -
+          printf '%s  %s\n' 'c44ca5d545343499c8b793734d485e5c10a4048b39e2cae58af89076f4b07ca1' 'scripts/v05-p00.00' | sha256sum -c -
+          printf '%s  %s\n' 'dde2bc049dde2a5daa8949da96a1e752391225b6e1147a5c12aea74d58c876b9' 'scripts/v05-p00.01' | sha256sum -c -
+          printf '%s  %s\n' '236c21523c49135d9a44b9c7ae34137d00c5cb8231d337351588acc596f19761' 'scripts/v05-p00.02' | sha256sum -c -
           printf '%s  %s\n' 'dce281ec8717eae222f85f460038a2da814c66f913e9435e9dd415586c7d3a96' 'scripts/v05-chunk1.part01' | sha256sum -c -
           printf '%s  %s\n' 'f82133ac0e77c9872130ac625be6e18963086aa59fecf9fc8ab03dac0ed1b9c1' 'scripts/v05-chunk1.part02' | sha256sum -c -
           printf '%s  %s\n' '887d4ff366a5c333cac8e404d5030cc0ece3a517aaf93a89c3e38d88e5680bb5' 'scripts/v05-chunk2.b64' | sha256sum -c -
@@ -33,7 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat scripts/v05-chunk1.part00 scripts/v05-chunk1.part01 scripts/v05-chunk1.part02 > "$RUNNER_TEMP/chunk1.b64"
+          cat scripts/v05-p00.00 scripts/v05-p00.01 scripts/v05-p00.02 scripts/v05-chunk1.part01 scripts/v05-chunk1.part02 > "$RUNNER_TEMP/chunk1.b64"
           printf '%s  %s\n' '7e85fd0d4f2d1f764c7c58f26bb260f522facbd7b0a2fbd730ae587a75834e6f' "$RUNNER_TEMP/chunk1.b64" | sha256sum -c -
           base64 --decode "$RUNNER_TEMP/chunk1.b64" | tar -xzf -
           base64 --decode scripts/v05-chunk2.b64 | tar -xzf -
@@ -44,6 +46,7 @@ jobs:
           rm -f UPDATE_v0.2.0.md UPDATE_v0.3.0.md UPDATE_v0.4.0.md
           rm -f scripts/folio-v05-payload.tar.gz
           rm -f scripts/v05-chunk1.part00 scripts/v05-chunk1.part01 scripts/v05-chunk1.part02
+          rm -f scripts/v05-p00.00 scripts/v05-p00.01 scripts/v05-p00.02
           rm -f scripts/v05-chunk2.b64 scripts/v05-chunk3.b64 scripts/v05-chunk4.b64
           rm -f .github/workflows/apply-v05.yml
           python3 scripts/validate_release.py
