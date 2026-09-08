@@ -1,14 +1,20 @@
 package com.pix.folio.data
 
 import android.content.Context
+import com.pix.folio.model.Budget
 import com.pix.folio.model.Expense
 import com.pix.folio.model.ExpenseCategory
 import com.pix.folio.model.FolioSummary
+import com.pix.folio.model.InvestmentEntrySource
 import com.pix.folio.model.InvestmentHolding
 import com.pix.folio.model.InvestmentKind
+import com.pix.folio.model.InvestmentTransaction
+import com.pix.folio.model.LedgerEntry
+import com.pix.folio.model.LedgerEntryType
 import com.pix.folio.model.MonthlyPayment
 import com.pix.folio.model.PaymentCategory
 import com.pix.folio.model.RecurringIncome
+import com.pix.folio.model.RecurringInvestment
 import com.pix.folio.model.ValueSnapshot
 import org.json.JSONArray
 import org.json.JSONObject
@@ -21,17 +27,28 @@ class FolioStore(context: Context) {
 
     init {
         removeLegacyDemoDataOnce()
+        migrateRecurringLedgerOnce()
     }
 
     fun summary(): FolioSummary = FolioSummary(
         cashBalance = cashBalance(),
         investments = investments(),
+        investmentTransactions = investmentTransactions(),
+        recurringInvestments = recurringInvestments(),
         expenses = expenses(),
+        budgets = budgets(),
         payments = payments(),
         incomes = incomes(),
+        ledger = ledger(),
         balanceHistory = snapshots("balance_history"),
         investmentHistory = snapshots("investment_history"),
     )
+
+    fun isAppLockEnabled(): Boolean = prefs.getBoolean("app_lock_enabled", false)
+
+    fun setAppLockEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("app_lock_enabled", enabled).apply()
+    }
 
     fun expenses(): List<Expense> = parseArray("expenses") { json ->
         Expense(
@@ -40,6 +57,13 @@ class FolioStore(context: Context) {
             amount = json.getDouble("amount"),
             date = LocalDate.parse(json.getString("date")),
             note = json.optString("note"),
+        )
+    }
+
+    fun budgets(): List<Budget> = parseArray("budgets") { json ->
+        Budget(
+            category = ExpenseCategory.valueOf(json.getString("category")),
+            monthlyLimit = json.getDouble("monthlyLimit"),
         )
     }
 
@@ -90,8 +114,46 @@ class FolioStore(context: Context) {
             symbol = json.optString("symbol"),
             kind = kind,
             amount = json.getDouble("amount"),
+            isin = json.optString("isin"),
+            figi = json.optString("figi"),
+            exchange = json.optString("exchange"),
         )
     }
+
+    fun investmentTransactions(): List<InvestmentTransaction> = parseArray("investment_transactions") { json ->
+        InvestmentTransaction(
+            id = json.getString("id"),
+            holdingId = json.getString("holdingId"),
+            amount = json.getDouble("amount"),
+            date = LocalDate.parse(json.getString("date")),
+            source = runCatching { InvestmentEntrySource.valueOf(json.optString("source")) }
+                .getOrDefault(InvestmentEntrySource.MANUAL),
+            referenceId = json.optString("referenceId"),
+        )
+    }.sortedByDescending { it.date }
+
+    fun recurringInvestments(): List<RecurringInvestment> = parseArray("recurring_investments") { json ->
+        RecurringInvestment(
+            id = json.getString("id"),
+            holdingId = json.getString("holdingId"),
+            amount = json.getDouble("amount"),
+            dayOfMonth = json.optInt("dayOfMonth", 1).coerceIn(1, 31),
+            lastAppliedMonth = json.optString("lastAppliedMonth").takeIf { it.isNotBlank() }?.let {
+                runCatching { YearMonth.parse(it) }.getOrNull()
+            },
+        )
+    }
+
+    fun ledger(): List<LedgerEntry> = parseArray("ledger") { json ->
+        LedgerEntry(
+            id = json.getString("id"),
+            type = LedgerEntryType.valueOf(json.getString("type")),
+            referenceId = json.optString("referenceId"),
+            name = json.getString("name"),
+            amount = json.getDouble("amount"),
+            date = LocalDate.parse(json.getString("date")),
+        )
+    }.sortedByDescending { it.date }
 
     fun addExpense(category: ExpenseCategory, amount: Double, note: String) {
         if (amount <= 0.0) return
@@ -106,6 +168,12 @@ class FolioStore(context: Context) {
         )
         setCashBalanceInternal((cashBalance() - amount).coerceAtLeast(0.0))
         recordSnapshots()
+    }
+
+    fun setBudget(category: ExpenseCategory, monthlyLimit: Double) {
+        val current = budgets().filterNot { it.category == category }
+        val next = if (monthlyLimit > 0.0) current + Budget(category, monthlyLimit) else current
+        writeBudgets(next.sortedBy { it.category.ordinal })
     }
 
     fun addPayment(category: PaymentCategory, name: String, amount: Double, dayOfMonth: Int) {
@@ -129,10 +197,26 @@ class FolioStore(context: Context) {
         writePayments(current.map {
             if (it.id == id) it.copy(lastPaidMonth = if (nextPaid) now else null) else it
         })
-        setCashBalanceInternal(
-            if (nextPaid) (cashBalance() - row.amount).coerceAtLeast(0.0)
-            else cashBalance() + row.amount
-        )
+
+        val currentLedger = ledger().toMutableList()
+        val marker = "payment:${row.id}:$now"
+        if (nextPaid) {
+            if (currentLedger.none { it.referenceId == marker }) {
+                currentLedger += LedgerEntry(
+                    id = UUID.randomUUID().toString(),
+                    type = LedgerEntryType.PAYMENT,
+                    referenceId = marker,
+                    name = row.name,
+                    amount = row.amount,
+                    date = row.dueDate,
+                )
+            }
+            setCashBalanceInternal((cashBalance() - row.amount).coerceAtLeast(0.0))
+        } else {
+            currentLedger.removeAll { it.referenceId == marker }
+            setCashBalanceInternal(cashBalance() + row.amount)
+        }
+        writeLedger(currentLedger)
         recordSnapshots()
     }
 
@@ -156,41 +240,144 @@ class FolioStore(context: Context) {
         writeIncomes(current.map {
             if (it.id == id) it.copy(lastReceivedMonth = if (nextReceived) now else null) else it
         })
-        setCashBalanceInternal(
-            if (nextReceived) cashBalance() + row.amount
-            else (cashBalance() - row.amount).coerceAtLeast(0.0)
-        )
+
+        val currentLedger = ledger().toMutableList()
+        val marker = "income:${row.id}:$now"
+        if (nextReceived) {
+            if (currentLedger.none { it.referenceId == marker }) {
+                currentLedger += LedgerEntry(
+                    id = UUID.randomUUID().toString(),
+                    type = LedgerEntryType.INCOME,
+                    referenceId = marker,
+                    name = row.name,
+                    amount = row.amount,
+                    date = row.dueDate,
+                )
+            }
+            setCashBalanceInternal(cashBalance() + row.amount)
+        } else {
+            currentLedger.removeAll { it.referenceId == marker }
+            setCashBalanceInternal((cashBalance() - row.amount).coerceAtLeast(0.0))
+        }
+        writeLedger(currentLedger)
         recordSnapshots()
     }
 
-    fun addInvestment(kind: InvestmentKind, name: String, symbol: String, amount: Double) {
+    fun addInvestment(
+        kind: InvestmentKind,
+        name: String,
+        symbol: String,
+        amount: Double,
+        isin: String = "",
+        figi: String = "",
+        exchange: String = "",
+    ) {
         if (amount <= 0.0 || name.isBlank()) return
         val current = investments()
         val normalizedSymbol = symbol.trim().uppercase()
+        val normalizedIsin = isin.trim().uppercase()
         val existing = current.firstOrNull {
-            it.kind == kind && (
+            (normalizedIsin.isNotBlank() && it.isin.equals(normalizedIsin, ignoreCase = true)) ||
                 (normalizedSymbol.isNotBlank() && it.symbol.equals(normalizedSymbol, ignoreCase = true)) ||
-                    it.name.equals(name.trim(), ignoreCase = true)
-                )
+                it.name.equals(name.trim(), ignoreCase = true)
         }
+
+        val holdingId: String
         val next = if (existing == null) {
+            holdingId = UUID.randomUUID().toString()
             current + InvestmentHolding(
-                id = UUID.randomUUID().toString(),
+                id = holdingId,
                 name = name.trim(),
                 symbol = normalizedSymbol,
                 kind = kind,
                 amount = amount,
+                isin = normalizedIsin,
+                figi = figi.trim(),
+                exchange = exchange.trim(),
             )
         } else {
-            current.map { if (it.id == existing.id) it.copy(amount = it.amount + amount) else it }
+            holdingId = existing.id
+            current.map {
+                if (it.id == existing.id) {
+                    it.copy(
+                        amount = it.amount + amount,
+                        isin = it.isin.ifBlank { normalizedIsin },
+                        figi = it.figi.ifBlank { figi.trim() },
+                        exchange = it.exchange.ifBlank { exchange.trim() },
+                        symbol = it.symbol.ifBlank { normalizedSymbol },
+                    )
+                } else it
+            }
         }
         writeInvestments(next)
+        appendInvestmentTransaction(holdingId, amount, InvestmentEntrySource.MANUAL)
+        recordSnapshots()
+    }
+
+    fun addInvestmentContribution(holdingId: String, amount: Double) {
+        if (amount <= 0.0) return
+        val current = investments()
+        if (current.none { it.id == holdingId }) return
+        writeInvestments(current.map { if (it.id == holdingId) it.copy(amount = it.amount + amount) else it })
+        appendInvestmentTransaction(holdingId, amount, InvestmentEntrySource.MANUAL)
+        setCashBalanceInternal((cashBalance() - amount).coerceAtLeast(0.0))
+        recordSnapshots()
+    }
+
+    fun addRecurringInvestment(holdingId: String, amount: Double, dayOfMonth: Int) {
+        if (amount <= 0.0 || investments().none { it.id == holdingId }) return
+        writeRecurringInvestments(
+            recurringInvestments() + RecurringInvestment(
+                id = UUID.randomUUID().toString(),
+                holdingId = holdingId,
+                amount = amount,
+                dayOfMonth = dayOfMonth.coerceIn(1, 31),
+            )
+        )
+    }
+
+    fun toggleRecurringInvestment(id: String) {
+        val current = recurringInvestments()
+        val row = current.firstOrNull { it.id == id } ?: return
+        val holding = investments().firstOrNull { it.id == row.holdingId } ?: return
+        val now = YearMonth.now()
+        val nextApplied = !row.applied
+        writeRecurringInvestments(current.map {
+            if (it.id == id) it.copy(lastAppliedMonth = if (nextApplied) now else null) else it
+        })
+
+        val marker = "recurring-investment:${row.id}:$now"
+        val tx = investmentTransactions().toMutableList()
+        if (nextApplied) {
+            writeInvestments(investments().map {
+                if (it.id == holding.id) it.copy(amount = it.amount + row.amount) else it
+            })
+            if (tx.none { it.referenceId == marker }) {
+                tx += InvestmentTransaction(
+                    id = UUID.randomUUID().toString(),
+                    holdingId = holding.id,
+                    amount = row.amount,
+                    date = row.dueDate,
+                    source = InvestmentEntrySource.RECURRING,
+                    referenceId = marker,
+                )
+            }
+            setCashBalanceInternal((cashBalance() - row.amount).coerceAtLeast(0.0))
+        } else {
+            writeInvestments(investments().map {
+                if (it.id == holding.id) it.copy(amount = (it.amount - row.amount).coerceAtLeast(0.0)) else it
+            })
+            tx.removeAll { it.referenceId == marker }
+            setCashBalanceInternal(cashBalance() + row.amount)
+        }
+        writeInvestmentTransactions(tx)
         recordSnapshots()
     }
 
     fun removeInvestment(id: String) {
-        val next = investments().filterNot { it.id == id }
-        writeInvestments(next)
+        writeInvestments(investments().filterNot { it.id == id })
+        writeInvestmentTransactions(investmentTransactions().filterNot { it.holdingId == id })
+        writeRecurringInvestments(recurringInvestments().filterNot { it.holdingId == id })
         recordSnapshots()
     }
 
@@ -200,7 +387,12 @@ class FolioStore(context: Context) {
     }
 
     fun clearAll() {
-        prefs.edit().clear().putBoolean("legacy_demo_removed_v3", true).apply()
+        val keepLock = isAppLockEnabled()
+        prefs.edit().clear()
+            .putBoolean("legacy_demo_removed_v3", true)
+            .putBoolean("recurring_ledger_migrated_v1", true)
+            .putBoolean("app_lock_enabled", keepLock)
+            .apply()
     }
 
     private fun cashBalance(): Double = prefs.getString("cash_balance", null)?.toDoubleOrNull() ?: 0.0
@@ -209,50 +401,97 @@ class FolioStore(context: Context) {
         prefs.edit().putString("cash_balance", value.coerceAtLeast(0.0).toString()).apply()
     }
 
-    private fun writeExpenses(rows: List<Expense>) {
-        writeArray("expenses", rows) { row ->
-            JSONObject()
-                .put("id", row.id)
-                .put("category", row.category.name)
-                .put("amount", row.amount)
-                .put("date", row.date.toString())
-                .put("note", row.note)
-        }
+    private fun appendInvestmentTransaction(
+        holdingId: String,
+        amount: Double,
+        source: InvestmentEntrySource,
+        referenceId: String = "",
+    ) {
+        val next = investmentTransactions() + InvestmentTransaction(
+            id = UUID.randomUUID().toString(),
+            holdingId = holdingId,
+            amount = amount,
+            date = LocalDate.now(),
+            source = source,
+            referenceId = referenceId,
+        )
+        writeInvestmentTransactions(next)
     }
 
-    private fun writePayments(rows: List<MonthlyPayment>) {
-        writeArray("payments", rows) { row ->
-            JSONObject()
-                .put("id", row.id)
-                .put("category", row.category.name)
-                .put("name", row.name)
-                .put("amount", row.amount)
-                .put("dayOfMonth", row.dayOfMonth)
-                .put("lastPaidMonth", row.lastPaidMonth?.toString() ?: "")
-        }
+    private fun writeExpenses(rows: List<Expense>) = writeArray("expenses", rows) { row ->
+        JSONObject()
+            .put("id", row.id)
+            .put("category", row.category.name)
+            .put("amount", row.amount)
+            .put("date", row.date.toString())
+            .put("note", row.note)
     }
 
-    private fun writeIncomes(rows: List<RecurringIncome>) {
-        writeArray("incomes", rows) { row ->
-            JSONObject()
-                .put("id", row.id)
-                .put("name", row.name)
-                .put("amount", row.amount)
-                .put("dayOfMonth", row.dayOfMonth)
-                .put("glyph", row.glyph)
-                .put("lastReceivedMonth", row.lastReceivedMonth?.toString() ?: "")
-        }
+    private fun writeBudgets(rows: List<Budget>) = writeArray("budgets", rows) { row ->
+        JSONObject()
+            .put("category", row.category.name)
+            .put("monthlyLimit", row.monthlyLimit)
     }
 
-    private fun writeInvestments(rows: List<InvestmentHolding>) {
-        writeArray("investments", rows) { row ->
-            JSONObject()
-                .put("id", row.id)
-                .put("name", row.name)
-                .put("symbol", row.symbol)
-                .put("kind", row.kind.name)
-                .put("amount", row.amount)
-        }
+    private fun writePayments(rows: List<MonthlyPayment>) = writeArray("payments", rows) { row ->
+        JSONObject()
+            .put("id", row.id)
+            .put("category", row.category.name)
+            .put("name", row.name)
+            .put("amount", row.amount)
+            .put("dayOfMonth", row.dayOfMonth)
+            .put("lastPaidMonth", row.lastPaidMonth?.toString() ?: "")
+    }
+
+    private fun writeIncomes(rows: List<RecurringIncome>) = writeArray("incomes", rows) { row ->
+        JSONObject()
+            .put("id", row.id)
+            .put("name", row.name)
+            .put("amount", row.amount)
+            .put("dayOfMonth", row.dayOfMonth)
+            .put("glyph", row.glyph)
+            .put("lastReceivedMonth", row.lastReceivedMonth?.toString() ?: "")
+    }
+
+    private fun writeInvestments(rows: List<InvestmentHolding>) = writeArray("investments", rows) { row ->
+        JSONObject()
+            .put("id", row.id)
+            .put("name", row.name)
+            .put("symbol", row.symbol)
+            .put("kind", row.kind.name)
+            .put("amount", row.amount)
+            .put("isin", row.isin)
+            .put("figi", row.figi)
+            .put("exchange", row.exchange)
+    }
+
+    private fun writeInvestmentTransactions(rows: List<InvestmentTransaction>) = writeArray("investment_transactions", rows) { row ->
+        JSONObject()
+            .put("id", row.id)
+            .put("holdingId", row.holdingId)
+            .put("amount", row.amount)
+            .put("date", row.date.toString())
+            .put("source", row.source.name)
+            .put("referenceId", row.referenceId)
+    }
+
+    private fun writeRecurringInvestments(rows: List<RecurringInvestment>) = writeArray("recurring_investments", rows) { row ->
+        JSONObject()
+            .put("id", row.id)
+            .put("holdingId", row.holdingId)
+            .put("amount", row.amount)
+            .put("dayOfMonth", row.dayOfMonth)
+            .put("lastAppliedMonth", row.lastAppliedMonth?.toString() ?: "")
+    }
+
+    private fun writeLedger(rows: List<LedgerEntry>) = writeArray("ledger", rows) { row ->
+        JSONObject()
+            .put("id", row.id)
+            .put("type", row.type.name)
+            .put("referenceId", row.referenceId)
+            .put("name", row.name)
+            .put("amount", row.amount)
+            .put("date", row.date.toString())
     }
 
     private fun recordSnapshots() {
@@ -270,7 +509,7 @@ class FolioStore(context: Context) {
         } else {
             rows += ValueSnapshot(now, value)
         }
-        val trimmed = rows.takeLast(500)
+        val trimmed = rows.takeLast(1000)
         val array = JSONArray()
         trimmed.forEach { row ->
             array.put(JSONObject().put("atMillis", row.atMillis).put("value", row.value))
@@ -301,13 +540,33 @@ class FolioStore(context: Context) {
         prefs.edit().putString(key, array.toString()).apply()
     }
 
+    private fun migrateRecurringLedgerOnce() {
+        if (prefs.getBoolean("recurring_ledger_migrated_v1", false)) return
+        val now = YearMonth.now()
+        val entries = ledger().toMutableList()
+        payments().filter { it.lastPaidMonth == now }.forEach { row ->
+            val marker = "payment:${row.id}:$now"
+            if (entries.none { it.referenceId == marker }) {
+                entries += LedgerEntry(UUID.randomUUID().toString(), LedgerEntryType.PAYMENT, marker, row.name, row.amount, row.dueDate)
+            }
+        }
+        incomes().filter { it.lastReceivedMonth == now }.forEach { row ->
+            val marker = "income:${row.id}:$now"
+            if (entries.none { it.referenceId == marker }) {
+                entries += LedgerEntry(UUID.randomUUID().toString(), LedgerEntryType.INCOME, marker, row.name, row.amount, row.dueDate)
+            }
+        }
+        writeLedger(entries)
+        prefs.edit().putBoolean("recurring_ledger_migrated_v1", true).apply()
+    }
+
     private fun removeLegacyDemoDataOnce() {
         if (prefs.getBoolean("legacy_demo_removed_v3", false)) return
 
-        val expenseRaw = prefs.getString("expenses", null)
-        if (expenseRaw != null) {
+        listOf("expenses", "payments", "investments").forEach { key ->
+            val raw = prefs.getString(key, null) ?: return@forEach
             val cleaned = runCatching {
-                val source = JSONArray(expenseRaw)
+                val source = JSONArray(raw)
                 val target = JSONArray()
                 for (i in 0 until source.length()) {
                     val row = source.optJSONObject(i) ?: continue
@@ -315,25 +574,10 @@ class FolioStore(context: Context) {
                 }
                 target.toString()
             }.getOrNull()
-            if (cleaned != null) prefs.edit().putString("expenses", cleaned).apply()
-        }
-
-        val paymentRaw = prefs.getString("payments", null)
-        if (paymentRaw != null) {
-            val cleaned = runCatching {
-                val source = JSONArray(paymentRaw)
-                val target = JSONArray()
-                for (i in 0 until source.length()) {
-                    val row = source.optJSONObject(i) ?: continue
-                    if (!row.optString("id").startsWith("seed-")) target.put(row)
-                }
-                target.toString()
-            }.getOrNull()
-            if (cleaned != null) prefs.edit().putString("payments", cleaned).apply()
+            if (cleaned != null) prefs.edit().putString(key, cleaned).apply()
         }
 
         prefs.edit()
-            .remove("cash_balance")
             .remove("monthly_income")
             .remove("monthly_investment")
             .putBoolean("legacy_demo_removed_v3", true)

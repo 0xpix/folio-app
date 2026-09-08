@@ -21,8 +21,16 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
     var summary by mutableStateOf(store.summary())
         private set
 
+    var appLockEnabled by mutableStateOf(store.isAppLockEnabled())
+        private set
+
     fun addExpense(category: ExpenseCategory, amount: Double, note: String) {
         store.addExpense(category, amount, note)
+        refresh()
+    }
+
+    fun setBudget(category: ExpenseCategory, amount: Double) {
+        store.setBudget(category, amount)
         refresh()
     }
 
@@ -46,8 +54,31 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
-    fun addInvestment(kind: InvestmentKind, name: String, symbol: String, amount: Double) {
-        store.addInvestment(kind, name, symbol, amount)
+    fun addInvestment(
+        kind: InvestmentKind,
+        name: String,
+        symbol: String,
+        amount: Double,
+        isin: String = "",
+        figi: String = "",
+        exchange: String = "",
+    ) {
+        store.addInvestment(kind, name, symbol, amount, isin, figi, exchange)
+        refresh()
+    }
+
+    fun addInvestmentContribution(holdingId: String, amount: Double) {
+        store.addInvestmentContribution(holdingId, amount)
+        refresh()
+    }
+
+    fun addRecurringInvestment(holdingId: String, amount: Double, dayOfMonth: Int) {
+        store.addRecurringInvestment(holdingId, amount, dayOfMonth)
+        refresh()
+    }
+
+    fun toggleRecurringInvestment(id: String) {
+        store.toggleRecurringInvestment(id)
         refresh()
     }
 
@@ -61,6 +92,11 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
+    fun setAppLockEnabled(enabled: Boolean) {
+        store.setAppLockEnabled(enabled)
+        appLockEnabled = enabled
+    }
+
     fun clearAll() {
         store.clearAll()
         refresh()
@@ -68,6 +104,7 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun refresh() {
         summary = store.summary()
+        appLockEnabled = store.isAppLockEnabled()
         viewModelScope.launch {
             FolioBalanceWidget().updateAll(getApplication())
         }

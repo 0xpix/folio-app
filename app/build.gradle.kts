@@ -14,8 +14,8 @@ android {
         val ciVersionName = System.getenv("FOLIO_VERSION_NAME")
         val ciVersionCode = System.getenv("FOLIO_VERSION_CODE")?.toIntOrNull()
             ?: System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()?.let { 100_000 + it }
-        versionCode = ciVersionCode ?: 101
-        versionName = ciVersionName ?: "0.1.0"
+        versionCode = ciVersionCode ?: 300
+        versionName = ciVersionName ?: "0.3.0"
 
         val commit = (System.getenv("GITHUB_SHA") ?: "local").take(7)
         buildConfigField("String", "GIT_COMMIT", "\"$commit\"")
@@ -84,12 +84,15 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.18.0")
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.fragment:fragment-ktx:1.9.0")
+    implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")

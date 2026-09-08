@@ -22,6 +22,11 @@ data class Expense(
     val note: String = "",
 )
 
+data class Budget(
+    val category: ExpenseCategory,
+    val monthlyLimit: Double,
+)
+
 enum class PaymentCategory(val label: String, val glyph: String) {
     HOME("Home", "🏠"),
     PHONE("Phone", "📱"),
@@ -79,9 +84,50 @@ data class InvestmentHolding(
     val symbol: String,
     val kind: InvestmentKind,
     val amount: Double,
+    val isin: String = "",
+    val figi: String = "",
+    val exchange: String = "",
 ) {
     val group: String get() = kind.group
 }
+
+enum class InvestmentEntrySource { MANUAL, RECURRING }
+
+data class InvestmentTransaction(
+    val id: String,
+    val holdingId: String,
+    val amount: Double,
+    val date: LocalDate,
+    val source: InvestmentEntrySource = InvestmentEntrySource.MANUAL,
+    val referenceId: String = "",
+)
+
+data class RecurringInvestment(
+    val id: String,
+    val holdingId: String,
+    val amount: Double,
+    val dayOfMonth: Int,
+    val lastAppliedMonth: YearMonth? = null,
+) {
+    val dueDate: LocalDate
+        get() {
+            val month = YearMonth.now()
+            return month.atDay(dayOfMonth.coerceIn(1, month.lengthOfMonth()))
+        }
+
+    val applied: Boolean get() = lastAppliedMonth == YearMonth.now()
+}
+
+enum class LedgerEntryType { INCOME, PAYMENT }
+
+data class LedgerEntry(
+    val id: String,
+    val type: LedgerEntryType,
+    val referenceId: String,
+    val name: String,
+    val amount: Double,
+    val date: LocalDate,
+)
 
 data class InvestmentGroup(
     val name: String,
@@ -93,12 +139,26 @@ data class ValueSnapshot(
     val value: Double,
 )
 
+data class MonthOverview(
+    val month: YearMonth,
+    val income: Double,
+    val expenses: Double,
+    val payments: Double,
+    val invested: Double,
+) {
+    val left: Double get() = income - expenses - payments - invested
+}
+
 data class FolioSummary(
     val cashBalance: Double,
     val investments: List<InvestmentHolding>,
+    val investmentTransactions: List<InvestmentTransaction>,
+    val recurringInvestments: List<RecurringInvestment>,
     val expenses: List<Expense>,
+    val budgets: List<Budget>,
     val payments: List<MonthlyPayment>,
     val incomes: List<RecurringIncome>,
+    val ledger: List<LedgerEntry>,
     val balanceHistory: List<ValueSnapshot>,
     val investmentHistory: List<ValueSnapshot>,
 ) {
@@ -108,10 +168,11 @@ data class FolioSummary(
     val investmentTotal: Double get() = investments.sumOf { it.amount }
     val totalBalance: Double get() = cashBalance + investmentTotal
     val monthlyExpenses: Double get() = currentMonthExpenses.sumOf { it.amount }
-    val monthlyIncome: Double get() = incomes.sumOf { it.amount }
-    val receivedIncome: Double get() = incomes.filter { it.received }.sumOf { it.amount }
-    val paidPayments: Double get() = payments.filter { it.paid }.sumOf { it.amount }
+    val monthlyIncome: Double get() = monthOverview(YearMonth.now()).income
+    val receivedIncome: Double get() = monthlyIncome
+    val paidPayments: Double get() = monthOverview(YearMonth.now()).payments
     val scheduledPayments: Double get() = payments.sumOf { it.amount }
+    val monthlyInvested: Double get() = monthOverview(YearMonth.now()).invested
     val monthlyChange: Double get() = monthlyIncome - monthlyExpenses - paidPayments
 
     val allocation: List<InvestmentGroup>
@@ -119,4 +180,17 @@ data class FolioSummary(
             .groupBy { it.group }
             .map { (name, rows) -> InvestmentGroup(name, rows.sumOf { it.amount }) }
             .sortedByDescending { it.amount }
+
+    fun budgetFor(category: ExpenseCategory): Budget? = budgets.firstOrNull { it.category == category }
+
+    fun spentFor(category: ExpenseCategory, month: YearMonth = YearMonth.now()): Double =
+        expenses.filter { it.category == category && YearMonth.from(it.date) == month }.sumOf { it.amount }
+
+    fun monthOverview(month: YearMonth): MonthOverview {
+        val monthExpenses = expenses.filter { YearMonth.from(it.date) == month }.sumOf { it.amount }
+        val monthIncome = ledger.filter { it.type == LedgerEntryType.INCOME && YearMonth.from(it.date) == month }.sumOf { it.amount }
+        val monthPayments = ledger.filter { it.type == LedgerEntryType.PAYMENT && YearMonth.from(it.date) == month }.sumOf { it.amount }
+        val monthInvested = investmentTransactions.filter { YearMonth.from(it.date) == month }.sumOf { it.amount }
+        return MonthOverview(month, monthIncome, monthExpenses, monthPayments, monthInvested)
+    }
 }
