@@ -18,15 +18,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify and apply prepared v0.5 tree
+      - name: Verify prepared payload pieces
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' '812d520af95b75f2fa2900ba7bf3193d3cffff91ff605875e06a35d70f67a4d7' 'scripts/v05-chunk1.part00' | sha256sum -c -
+          printf '%s  %s\n' 'dce281ec8717eae222f85f460038a2da814c66f913e9435e9dd415586c7d3a96' 'scripts/v05-chunk1.part01' | sha256sum -c -
+          printf '%s  %s\n' 'f82133ac0e77c9872130ac625be6e18963086aa59fecf9fc8ab03dac0ed1b9c1' 'scripts/v05-chunk1.part02' | sha256sum -c -
+          printf '%s  %s\n' '887d4ff366a5c333cac8e404d5030cc0ece3a517aaf93a89c3e38d88e5680bb5' 'scripts/v05-chunk2.b64' | sha256sum -c -
+          printf '%s  %s\n' '05c9663058fa36ffdd1174153fcb3f72714dd6020fa8bdda5518a682e4f12c33' 'scripts/v05-chunk3.b64' | sha256sum -c -
+          printf '%s  %s\n' '09de624fa52ad2050a6c2d92b6750088210c010bd50af36c3719b4c761c83f2f' 'scripts/v05-chunk4.b64' | sha256sum -c -
+
+      - name: Reconstruct, apply, and validate v0.5
         shell: bash
         run: |
           set -euo pipefail
           cat scripts/v05-chunk1.part00 scripts/v05-chunk1.part01 scripts/v05-chunk1.part02 > "$RUNNER_TEMP/chunk1.b64"
           printf '%s  %s\n' '7e85fd0d4f2d1f764c7c58f26bb260f522facbd7b0a2fbd730ae587a75834e6f' "$RUNNER_TEMP/chunk1.b64" | sha256sum -c -
-          printf '%s  %s\n' '887d4ff366a5c333cac8e404d5030cc0ece3a517aaf93a89c3e38d88e5680bb5' 'scripts/v05-chunk2.b64' | sha256sum -c -
-          printf '%s  %s\n' '05c9663058fa36ffdd1174153fcb3f72714dd6020fa8bdda5518a682e4f12c33' 'scripts/v05-chunk3.b64' | sha256sum -c -
-          printf '%s  %s\n' '09de624fa52ad2050a6c2d92b6750088210c010bd50af36c3719b4c761c83f2f' 'scripts/v05-chunk4.b64' | sha256sum -c -
           base64 --decode "$RUNNER_TEMP/chunk1.b64" | tar -xzf -
           base64 --decode scripts/v05-chunk2.b64 | tar -xzf -
           base64 --decode scripts/v05-chunk3.b64 | tar -xzf -
