@@ -24,7 +24,7 @@ import java.security.MessageDigest
 import java.time.Instant
 
 object BetaUpdater {
-    private const val RELEASES_API = "https://api.github.com/repos/0xpix/folio-android/releases?per_page=30"
+    private const val RELEASES_API = "https://api.github.com/repos/0xpix/folio-app/releases?per_page=30"
     private const val USER_AGENT_PREFIX = "Folio-Beta-Updater/"
 
     sealed interface InstallResult {
@@ -207,7 +207,7 @@ object BetaUpdater {
             connection.disconnect()
             error(
                 when (code) {
-                    404 -> "Folio releases are not publicly reachable. The GitHub beta updater needs a public repository."
+                    404 -> "Couldn't find Folio releases on GitHub."
                     403 -> "GitHub rate limit reached. Try again later."
                     else -> "GitHub returned HTTP $code"
                 }

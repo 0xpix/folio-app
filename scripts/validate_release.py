@@ -29,8 +29,8 @@ if failed:
     sys.exit(1)
 
 updater = (root / "app/src/beta/java/com/pix/folio/updates/BetaUpdater.kt").read_text()
-if "0xpix/folio-android/releases" not in updater:
-    print("Updater is not pointed at 0xpix/folio-android releases")
+if "0xpix/folio-app/releases" not in updater:
+    print("Updater is not pointed at 0xpix/folio-app releases")
     sys.exit(1)
 
 print("Folio static validation passed.")
