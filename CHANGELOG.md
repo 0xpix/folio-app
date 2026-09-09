@@ -7,6 +7,33 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.7.4.beta] - 2026-09-09
+
+### Added
+- A true salary-funded monthly envelope that calculates **Available this month** from income assigned to the budget month minus recurring bills, investments, savings, and reserved spending budgets.
+- Recurring monthly savings rules with editable destination, amount, and day; for example €500 into savings on the 1st.
+- Editable monthly spending budgets that reserve money without pretending it has already been spent; for example a €300 Food budget.
+- Edit and delete actions for expenses, recurring salary, recurring bills, recurring investments, spending budgets, and monthly savings rules.
+- A dedicated widget-refresh helper that re-renders the Glance widget after local finance mutations and background recurring processing.
+
+### Changed
+- Available Cash is no longer the raw account cash balance; the large Money value is the unallocated amount inside the selected salary-funded monthly envelope.
+- A salary received near the end of one month can fund the following month while keeping its real receive date; for example a September 28–30 salary can fund October.
+- Automatic bills, recurring investments, and recurring savings only run against income actually assigned to that budget month, so old carry-over cash cannot silently fund the next month.
+- Money automatically opens the next funded budget month when the setup month has no assigned income but the following month does.
+- Folio month navigation, Home history, recent activity, and the widget sparkline now start at September 2026.
+- The salary editor defaults to day 30, which is clamped to the last valid day of shorter months and can still be changed manually.
+- Beta version advanced to `v0.7.4.beta`.
+
+### Fixed
+- Fixed Available Cash showing €0 even when a future budget month had a €2,404 salary and planned allocations.
+- Fixed monthly food or other category budgets not reducing the truly available amount until after the money had already been spent.
+- Fixed previous-month account cash being mistaken for money available in the next budget month.
+- Fixed recurring outflows being able to post before the new month had actually been funded by its assigned salary.
+- Fixed the widget not reliably refreshing after items were added, edited, deleted, or processed by background automation.
+- Fixed expenses and recurring money rules being add-only by giving existing rows clear edit and delete paths.
+- Removed pre-September 2026 months from active Money navigation and visible Home/widget history.
+
 ## [0.7.3.beta] - 2026-09-09
 
 ### Added
