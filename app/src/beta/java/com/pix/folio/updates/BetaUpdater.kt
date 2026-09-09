@@ -164,15 +164,14 @@ object BetaUpdater {
         check(downloadedCode > BuildConfig.VERSION_CODE.toLong()) { "Downloaded APK is not newer than this Folio beta" }
     }
 
+    /** Keep the release markdown structure intact so the in-app Added / Changed / Fixed renderer can parse it. */
     private fun cleanNotes(value: String): String = if (value.isBlank()) {
-        "Folio beta improvements."
+        "### Changed\n- Folio beta improvements."
     } else {
-        value.lineSequence()
-            .map { it.trim().removePrefix("### ").removePrefix("## ").removePrefix("# ").removePrefix("- ").removePrefix("* ") }
-            .filter(String::isNotBlank)
-            .take(10)
-            .joinToString("\n")
-            .take(1_500)
+        value
+            .replace("\r\n", "\n")
+            .trim()
+            .take(8_000)
     }
 
     private fun friendlyError(error: Throwable): String = when (error) {
