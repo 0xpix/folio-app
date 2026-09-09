@@ -28,19 +28,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pix.folio.data.RecurringSavingsRule
+import com.pix.folio.model.Expense
 import com.pix.folio.model.ExpenseCategory
+import com.pix.folio.model.MonthlyPayment
 import com.pix.folio.model.PaymentCategory
+import com.pix.folio.model.RecurringIncome
+import com.pix.folio.model.RecurringInvestment
 import com.pix.folio.model.SavingsBucketType
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun V07AddExpenseSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
-    var category by remember { mutableStateOf(ExpenseCategory.OTHER) }
-    var amount by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
+internal fun V07AddExpenseSheet(
+    vm: V07ViewModel,
+    existing: Expense? = null,
+    onDismiss: () -> Unit,
+) {
+    var category by remember(existing?.id) { mutableStateOf(existing?.category ?: ExpenseCategory.OTHER) }
+    var amount by remember(existing?.id) { mutableStateOf(existing?.amount?.toString() ?: "") }
+    var note by remember(existing?.id) { mutableStateOf(existing?.note ?: "") }
+    var date by remember(existing?.id) { mutableStateOf((existing?.date ?: LocalDate.now()).toString()) }
+    val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull()
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        V07SheetBody("Add expense") {
+        V07SheetBody(if (existing == null) "Add expense" else "Edit expense") {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(ExpenseCategory.entries) { item ->
                     OutlinedButton(onClick = { category = item }, shape = RoundedCornerShape(20.dp)) {
@@ -52,29 +64,49 @@ internal fun V07AddExpenseSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             V07NumberField(amount, "Amount (€)") { amount = it }
             Spacer(Modifier.height(10.dp))
             V07TextField(note, "Note") { note = it }
+            if (existing != null) {
+                Spacer(Modifier.height(10.dp))
+                V07TextField(date, "Date · YYYY-MM-DD") { date = it.take(10) }
+            }
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { vm.addExpense(category, amount.v07Double(), note); onDismiss() },
-                enabled = amount.v07Double() > 0.0,
+                onClick = {
+                    if (existing == null) vm.addExpense(category, amount.v07Double(), note)
+                    else vm.updateExpense(existing.id, category, amount.v07Double(), parsedDate ?: existing.date, note)
+                    onDismiss()
+                },
+                enabled = amount.v07Double() > 0.0 && (existing == null || parsedDate != null),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
-            ) { Text("Save expense") }
+            ) { Text(if (existing == null) "Save expense" else "Save changes") }
+
+            if (existing != null) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = { vm.removeExpense(existing.id); onDismiss() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Delete expense", color = MaterialTheme.colorScheme.error) }
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun V07AddIncomeSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
-    var name by remember { mutableStateOf("Salary") }
-    var amount by remember { mutableStateOf("2404") }
-    var day by remember { mutableStateOf("29") }
-    var nextMonth by remember { mutableStateOf(true) }
+internal fun V07AddIncomeSheet(
+    vm: V07ViewModel,
+    existing: RecurringIncome? = null,
+    onDismiss: () -> Unit,
+) {
+    var name by remember(existing?.id) { mutableStateOf(existing?.name ?: "Salary") }
+    var amount by remember(existing?.id) { mutableStateOf(existing?.amount?.toString() ?: "2404") }
+    var day by remember(existing?.id) { mutableStateOf(existing?.dayOfMonth?.toString() ?: "30") }
+    var nextMonth by remember(existing?.id) { mutableStateOf(existing?.budgetMonthOffset == 1 || existing == null) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        V07SheetBody("Monthly salary") {
+        V07SheetBody(if (existing == null) "Monthly salary" else "Edit monthly salary") {
             Text(
-                "Add salary once; Folio keeps it as a monthly recurring income.",
+                "Salary is a recurring funding rule. A late-month salary can belong to the following budget month.",
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -99,32 +131,55 @@ internal fun V07AddIncomeSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                if (nextMonth) "Example: salary received September 29 funds October." else "Salary funds the month it is received.",
+                if (nextMonth) "Example: salary received September 28–30 funds October." else "Salary funds the month it is received.",
                 fontSize = 11.sp,
                 lineHeight = 17.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(18.dp))
             Button(
-                onClick = { vm.addIncome(name, amount.v07Double(), day.toIntOrNull() ?: 1, nextMonth); onDismiss() },
+                onClick = {
+                    val value = amount.v07Double()
+                    val due = day.toIntOrNull() ?: 30
+                    if (existing == null) vm.addIncome(name, value, due, nextMonth)
+                    else vm.updateIncome(existing.id, name, value, due, nextMonth)
+                    onDismiss()
+                },
                 enabled = name.isNotBlank() && amount.v07Double() > 0.0,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
-            ) { Text("Save monthly salary") }
+            ) { Text(if (existing == null) "Save monthly salary" else "Save changes") }
+
+            if (existing != null) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = { vm.removeIncome(existing.id); onDismiss() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Delete salary rule", color = MaterialTheme.colorScheme.error) }
+                Text(
+                    "Past salary entries remain in history.",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun V07AddPaymentSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
-    var category by remember { mutableStateOf(PaymentCategory.HOME) }
-    var name by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var day by remember { mutableStateOf("1") }
+internal fun V07AddPaymentSheet(
+    vm: V07ViewModel,
+    existing: MonthlyPayment? = null,
+    onDismiss: () -> Unit,
+) {
+    var category by remember(existing?.id) { mutableStateOf(existing?.category ?: PaymentCategory.HOME) }
+    var name by remember(existing?.id) { mutableStateOf(existing?.name ?: "") }
+    var amount by remember(existing?.id) { mutableStateOf(existing?.amount?.toString() ?: "") }
+    var day by remember(existing?.id) { mutableStateOf(existing?.dayOfMonth?.toString() ?: "1") }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        V07SheetBody("Recurring payment") {
+        V07SheetBody(if (existing == null) "Recurring payment" else "Edit recurring payment") {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(PaymentCategory.entries) { item ->
                     OutlinedButton(onClick = { category = item }, shape = RoundedCornerShape(20.dp)) {
@@ -141,11 +196,177 @@ internal fun V07AddPaymentSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             }
             Spacer(Modifier.height(16.dp))
             Button(
-                onClick = { vm.addPayment(category, name, amount.v07Double(), day.toIntOrNull() ?: 1); onDismiss() },
+                onClick = {
+                    val value = amount.v07Double()
+                    val due = day.toIntOrNull() ?: 1
+                    if (existing == null) vm.addPayment(category, name, value, due)
+                    else vm.updatePayment(existing.id, category, name, value, due)
+                    onDismiss()
+                },
                 enabled = name.isNotBlank() && amount.v07Double() > 0.0,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
-            ) { Text("Save payment") }
+            ) { Text(if (existing == null) "Save payment" else "Save changes") }
+
+            if (existing != null) {
+                Spacer(Modifier.height(8.dp))
+                TextButton(
+                    onClick = { vm.removePayment(existing.id); onDismiss() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Delete recurring bill", color = MaterialTheme.colorScheme.error) }
+                Text(
+                    "Past paid entries stay in history; only the recurring rule is removed.",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun V07BudgetSheet(
+    vm: V07ViewModel,
+    initialCategory: ExpenseCategory? = null,
+    onDismiss: () -> Unit,
+) {
+    var category by remember(initialCategory) { mutableStateOf(initialCategory ?: ExpenseCategory.FOOD) }
+    var amount by remember(category) {
+        mutableStateOf(vm.summary.budgetFor(category)?.monthlyLimit?.toString() ?: "")
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        V07SheetBody("Monthly spending budget") {
+            Text(
+                "Budgets reserve money inside the month without pretending it has already been spent.",
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(14.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(ExpenseCategory.entries) { item ->
+                    OutlinedButton(
+                        onClick = {
+                            category = item
+                            amount = vm.summary.budgetFor(item)?.monthlyLimit?.toString() ?: ""
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                    ) { Text(if (category == item) "• ${item.label}" else item.label) }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            V07NumberField(amount, "Monthly budget (€)") { amount = it }
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = { vm.setBudget(category, amount.v07Double()); onDismiss() },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(22.dp),
+            ) { Text("Save budget") }
+            if (vm.summary.budgetFor(category) != null) {
+                TextButton(
+                    onClick = { vm.setBudget(category, 0.0); onDismiss() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Remove budget", color = MaterialTheme.colorScheme.error) }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun V07RecurringSavingSheet(
+    vm: V07ViewModel,
+    existing: RecurringSavingsRule? = null,
+    onDismiss: () -> Unit,
+) {
+    var bucket by remember(existing?.id) { mutableStateOf(existing?.bucket ?: SavingsBucketType.GENERAL) }
+    var amount by remember(existing?.id) { mutableStateOf(existing?.amount?.toString() ?: "500") }
+    var day by remember(existing?.id) { mutableStateOf(existing?.dayOfMonth?.toString() ?: "1") }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        V07SheetBody(if (existing == null) "Monthly savings" else "Edit monthly savings") {
+            Text(
+                "This is moved from the salary-funded monthly envelope into savings on its due day.",
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(14.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(SavingsBucketType.entries) { item ->
+                    OutlinedButton(onClick = { bucket = item }, shape = RoundedCornerShape(20.dp)) {
+                        Text(if (bucket == item) "• ${item.label}" else item.label)
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                V07NumberField(amount, "Amount (€)", Modifier.weight(1f)) { amount = it }
+                V07NumberField(day, "Day", Modifier.weight(1f)) { day = it.filter(Char::isDigit).take(2) }
+            }
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    val value = amount.v07Double()
+                    val due = day.toIntOrNull() ?: 1
+                    if (existing == null) vm.addRecurringSaving(bucket, value, due)
+                    else vm.updateRecurringSaving(existing.id, bucket, value, due)
+                    onDismiss()
+                },
+                enabled = amount.v07Double() > 0.0,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(22.dp),
+            ) { Text(if (existing == null) "Save monthly savings" else "Save changes") }
+            if (existing != null) {
+                TextButton(
+                    onClick = { vm.removeRecurringSaving(existing.id); onDismiss() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Delete monthly savings rule", color = MaterialTheme.colorScheme.error) }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun V07RecurringInvestmentSheet(
+    vm: V07ViewModel,
+    existing: RecurringInvestment,
+    onDismiss: () -> Unit,
+) {
+    var amount by remember(existing.id) { mutableStateOf(existing.amount.toString()) }
+    var day by remember(existing.id) { mutableStateOf(existing.dayOfMonth.toString()) }
+    val holding = vm.summary.investments.firstOrNull { it.id == existing.holdingId }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        V07SheetBody("Recurring investment") {
+            Text(holding?.name ?: "Investment", fontSize = 19.sp, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                V07NumberField(amount, "Amount (€)", Modifier.weight(1f)) { amount = it }
+                V07NumberField(day, "Day", Modifier.weight(1f)) { day = it.filter(Char::isDigit).take(2) }
+            }
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    vm.updateRecurringInvestment(existing.id, amount.v07Double(), day.toIntOrNull() ?: 1)
+                    onDismiss()
+                },
+                enabled = amount.v07Double() > 0.0,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(22.dp),
+            ) { Text("Save changes") }
+            TextButton(
+                onClick = { vm.removeRecurringInvestment(existing.id); onDismiss() },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Delete recurring investment", color = MaterialTheme.colorScheme.error) }
+            Text(
+                "Past investment transactions stay in history.",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -177,7 +398,7 @@ internal fun V07SavingsTransferSheet(
                 Text("Saved", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(v07Euro(current), fontSize = 42.sp, lineHeight = 46.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(10.dp))
-                V07Metric("Available cash", v07Euro(vm.summary.cashBalance))
+                V07Metric("Account cash", v07Euro(vm.summary.cashBalance))
             }
 
             if (bucket == SavingsBucketType.EMERGENCY) {
@@ -206,7 +427,7 @@ internal fun V07SavingsTransferSheet(
             Spacer(Modifier.height(24.dp))
             Text("Move money now", fontSize = 19.sp, fontWeight = FontWeight.Medium)
             Text(
-                "These actions move money between spendable cash and this savings bucket.",
+                "These actions move real money between account cash and this savings bucket.",
                 fontSize = 12.sp,
                 lineHeight = 18.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -246,8 +467,9 @@ internal fun V07AllocateSheet(vm: V07ViewModel, defaultAmount: Double, onDismiss
     ModalBottomSheet(onDismissRequest = onDismiss) {
         V07SheetBody("Where should the money go?") {
             Text(
-                "Nothing moves until you choose a destination.",
+                "Nothing moves until you choose a destination. This allocation never becomes next month's available budget.",
                 fontSize = 12.sp,
+                lineHeight = 18.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(14.dp))
@@ -280,7 +502,7 @@ internal fun V07AllocateSheet(vm: V07ViewModel, defaultAmount: Double, onDismiss
             }
 
             Spacer(Modifier.height(8.dp))
-            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Keep as cash") }
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Keep unassigned for now") }
         }
     }
 }
