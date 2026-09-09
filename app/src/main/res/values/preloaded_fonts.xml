@@ -2,5 +2,6 @@
 <resources>
     <array name="preloaded_fonts">
         <item>@font/noto_emoji</item>
+        <item>@font/pixelify_sans</item>
     </array>
 </resources>
