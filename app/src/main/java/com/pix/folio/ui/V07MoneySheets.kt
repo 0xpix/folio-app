@@ -56,7 +56,7 @@ internal fun V07AddExpenseSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             Button(
                 onClick = { vm.addExpense(category, amount.v07Double(), note); onDismiss() },
                 enabled = amount.v07Double() > 0.0,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
             ) { Text("Save expense") }
         }
@@ -72,16 +72,23 @@ internal fun V07AddIncomeSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
     var nextMonth by remember { mutableStateOf(true) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        V07SheetBody("Recurring income") {
+        V07SheetBody("Monthly salary") {
+            Text(
+                "Add salary once; Folio keeps it as a monthly recurring income.",
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
             V07TextField(name, "Name") { name = it }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                V07NumberField(amount, "Amount (€)", Modifier.weight(1f)) { amount = it }
+                V07NumberField(amount, "Monthly amount (€)", Modifier.weight(1f)) { amount = it }
                 V07NumberField(day, "Pay day", Modifier.weight(1f)) { day = it.filter(Char::isDigit).take(2) }
             }
-            Spacer(Modifier.height(14.dp))
-            Text("Budget month", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(7.dp))
+            Spacer(Modifier.height(16.dp))
+            Text("Which budget month should it fund?", fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { nextMonth = false }, shape = RoundedCornerShape(20.dp)) {
                     Text(if (!nextMonth) "• Same month" else "Same month")
@@ -92,17 +99,18 @@ internal fun V07AddIncomeSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                if (nextMonth) "Example: salary received September 29 funds October." else "Income funds the month it is received.",
-                fontSize = 10.sp,
+                if (nextMonth) "Example: salary received September 29 funds October." else "Salary funds the month it is received.",
+                fontSize = 11.sp,
+                lineHeight = 17.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(18.dp))
             Button(
                 onClick = { vm.addIncome(name, amount.v07Double(), day.toIntOrNull() ?: 1, nextMonth); onDismiss() },
                 enabled = name.isNotBlank() && amount.v07Double() > 0.0,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
-            ) { Text("Save income") }
+            ) { Text("Save monthly salary") }
         }
     }
 }
@@ -135,7 +143,7 @@ internal fun V07AddPaymentSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             Button(
                 onClick = { vm.addPayment(category, name, amount.v07Double(), day.toIntOrNull() ?: 1); onDismiss() },
                 enabled = name.isNotBlank() && amount.v07Double() > 0.0,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
             ) { Text("Save payment") }
         }
@@ -150,6 +158,7 @@ internal fun V07SavingsTransferSheet(
     onDismiss: () -> Unit,
 ) {
     var amount by remember(bucket) { mutableStateOf("") }
+    var existingBalance by remember(bucket) { mutableStateOf("") }
     val value = amount.v07Double()
     val current = when (bucket) {
         SavingsBucketType.EMERGENCY -> vm.summary.emergencyFundBalance
@@ -164,27 +173,54 @@ internal fun V07SavingsTransferSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         V07SheetBody(title) {
-            Text(
-                "Manual only. Choose exactly how much to move between spendable cash and this savings bucket.",
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(16.dp))
             V07Panel {
-                V07Metric("Saved", v07Euro(current))
-                V07Divider()
+                Text("Saved", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(v07Euro(current), fontSize = 42.sp, lineHeight = 46.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(10.dp))
                 V07Metric("Available cash", v07Euro(vm.summary.cashBalance))
             }
-            Spacer(Modifier.height(16.dp))
+
+            if (bucket == SavingsBucketType.EMERGENCY) {
+                Spacer(Modifier.height(22.dp))
+                Text("Already saved before Folio?", fontSize = 19.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    "Enter the balance you already had. This updates the milestone without subtracting from this month's cash or counting it as new savings.",
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                V07NumberField(existingBalance, "Existing saved balance (€)") { existingBalance = it }
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = {
+                        vm.setExistingEmergencyFundBalance(existingBalance.v07Double())
+                        onDismiss()
+                    },
+                    enabled = existingBalance.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(22.dp),
+                ) { Text("Set existing balance") }
+            }
+
+            Spacer(Modifier.height(24.dp))
+            Text("Move money now", fontSize = 19.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "These actions move money between spendable cash and this savings bucket.",
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
             V07NumberField(amount, "Amount (€)") { amount = it }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             Button(
                 onClick = {
                     vm.transferSavings(bucket, value, "Manual ${bucket.label.lowercase()} deposit")
                     onDismiss()
                 },
                 enabled = value > 0.0 && vm.summary.cashBalance > 0.0,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
             ) { Text("Add from cash") }
             Spacer(Modifier.height(8.dp))
@@ -194,7 +230,7 @@ internal fun V07SavingsTransferSheet(
                     onDismiss()
                 },
                 enabled = value > 0.0 && current > 0.0,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
             ) { Text("Withdraw to cash") }
         }
@@ -210,8 +246,8 @@ internal fun V07AllocateSheet(vm: V07ViewModel, defaultAmount: Double, onDismiss
     ModalBottomSheet(onDismissRequest = onDismiss) {
         V07SheetBody("Where should the money go?") {
             Text(
-                "Move what is left without changing your monthly history. Nothing is moved until you choose a destination.",
-                fontSize = 10.sp,
+                "Nothing moves until you choose a destination.",
+                fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(14.dp))
@@ -244,9 +280,7 @@ internal fun V07AllocateSheet(vm: V07ViewModel, defaultAmount: Double, onDismiss
             }
 
             Spacer(Modifier.height(8.dp))
-            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                Text("Keep as cash")
-            }
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Keep as cash") }
         }
     }
 }
@@ -269,7 +303,7 @@ internal fun V07SavingsTargetsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                     vm.setSavingsTarget(SavingsBucketType.CRASH_RESERVE, crash.v07Double())
                     onDismiss()
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
             ) { Text("Save targets") }
         }
@@ -285,8 +319,8 @@ private fun V07SheetBody(title: String, content: @Composable () -> Unit) {
             .padding(horizontal = 22.dp)
             .padding(bottom = 34.dp)
     ) {
-        Text(title, fontSize = 24.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(16.dp))
+        Text(title, fontSize = 30.sp, lineHeight = 34.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(18.dp))
         content()
     }
 }
@@ -300,8 +334,8 @@ private fun AllocationButton(title: String, detail: String, enabled: Boolean, on
         shape = RoundedCornerShape(20.dp),
     ) {
         Column(Modifier.fillMaxWidth()) {
-            Text(title, fontSize = 13.sp)
-            Text(detail, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title, fontSize = 15.sp)
+            Text(detail, fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
