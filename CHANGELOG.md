@@ -7,6 +7,27 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.7.1.beta] - 2026-09-09
+
+### Added
+- Horizontal swipe navigation between Money, Home, and Portfolio.
+- A dedicated manual savings transfer sheet for Emergency Fund, Crash Reserve, and General Savings, with explicit Add from cash and Withdraw to cash actions.
+- A clean in-app release-note renderer that formats Added, Changed, and Fixed sections instead of showing raw changelog text.
+
+### Changed
+- Home is now the center item in bottom navigation: Money · Home · Portfolio.
+- Settings is exposed from Home only and stays out of Money and Portfolio.
+- Home was simplified to a clearer hierarchy: net worth, compact cash/savings/portfolio totals, monthly plan, savings goals, and recent activity.
+- Money was reorganized into clear sections for available cash, quick actions, manual savings, month plan, recurring flows, and expenses.
+- Savings copy now explicitly states that Emergency Fund and other savings transfers are manual; recurring automation only applies to income, bills, and recurring investments.
+- Beta version advanced to `v0.7.1.beta`.
+
+### Fixed
+- Fixed the top safe-area overlap that could place the Folio logo and controls underneath the phone status bar.
+- Fixed the settings affordance effectively disappearing under the top system bar on edge-to-edge devices.
+- Fixed the confusing Emergency Fund flow by making the savings bucket directly tappable and manually editable.
+- Fixed the beta updater changelog layout so long release notes wrap cleanly and can be expanded or hidden.
+
 ## [0.7.0.beta] - 2026-09-09
 
 ### Added
