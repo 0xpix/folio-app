@@ -7,6 +7,32 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.6.0.beta] - 2026-09-09
+
+### Added
+- New Insights workspace linked directly from Home.
+- Month-over-month comparison for income, spending, invested amount, and money left.
+- Editable emergency-fund balance with coverage measured in months of recent outflow.
+- Investment contribution streak indicator.
+- Automatic net-worth milestones with progress toward the next target.
+- Full transaction timeline combining income, expenses, recurring payments, and investment contributions by month.
+- Annual Review with yearly income, spending, investment contributions, money left, net-worth change, active months, and contribution count.
+- Projected Growth scenario calculator with editable monthly contribution, annual return, time horizon, chart, and checkpoint values.
+- Investment Lab for market value, cost basis, unrealized gain/loss, units, latest recorded price, price-history chart, purchase history, tags, and notes.
+- Manual dated market-price entries for tracked holdings.
+- Optional units/shares and purchase price when adding investment contributions from Investment Lab.
+- One-step Undo access from Insights for the latest local financial change.
+
+### Changed
+- Home now surfaces a compact Insights summary with month-over-month money-left change, emergency-fund coverage, and investment streak.
+- Portfolio rows use calculated market value when units and a recorded market price are available, falling back to contributed value otherwise.
+- Folio now exposes the v0.5 finance-model capabilities in the Android interface instead of keeping them as storage/model-only features.
+- Version advanced to `v0.6.0.beta` using the same beta naming convention as the other PIX projects.
+
+### Fixed
+- Closed the gap between the v0.5.1 data model and the visible Android product by making the stored emergency-fund, price-history, tags, notes, milestones, review, projection, and timeline features usable in-app.
+- Kept the new v0.6 actions compatible with older holdings that do not yet have units, prices, tags, or notes.
+
 ## [0.5.1.beta] - 2026-09-08
 
 ### Added
