@@ -34,14 +34,16 @@ internal fun V07HomeScreen(
     onSettings: () -> Unit,
 ) {
     val summary = vm.summary
+    val netWorth = vm.trackedNetWorth
+    val portfolio = vm.trackedPortfolioTotal
     val month = YearMonth.now()
     val plan = summary.moneyPlan(month)
     val history = buildList {
         addAll(summary.balanceHistory.takeLast(120).map { it.value })
-        if (lastOrNull() != summary.totalBalance) add(summary.totalBalance)
+        if (lastOrNull() != netWorth) add(netWorth)
     }
-    val historyStart = history.firstOrNull() ?: summary.totalBalance
-    val historyChange = summary.totalBalance - historyStart
+    val historyStart = history.firstOrNull() ?: netWorth
+    val historyChange = netWorth - historyStart
     val historyPct = if (historyStart > 0.0) historyChange / historyStart * 100.0 else 0.0
     val recent = summary.transactionTimeline().take(5)
 
@@ -52,60 +54,60 @@ internal fun V07HomeScreen(
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("FOLIO", fontSize = 14.sp, letterSpacing = 2.4.sp, modifier = Modifier.weight(1f))
+            Text("FOLIO", fontSize = 15.sp, letterSpacing = 2.6.sp, modifier = Modifier.weight(1f))
             IconButton(onClick = onSettings) {
                 Icon(Icons.Outlined.Settings, contentDescription = "Settings")
             }
         }
 
-        Spacer(Modifier.height(28.dp))
-        Text("Net Worth", fontSize = 28.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(5.dp))
-        Text(v07Euro(summary.totalBalance), fontSize = 54.sp, lineHeight = 58.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(34.dp))
+        Text("Net Worth", fontSize = 34.sp, lineHeight = 38.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(6.dp))
+        Text(v07Euro(netWorth), fontSize = 64.sp, lineHeight = 66.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Spacer(Modifier.height(10.dp))
         Text(
             "${v07SignedEuro(historyChange)}  ·  ${if (historyPct >= 0) "+" else ""}${String.format(Locale.US, "%.1f", historyPct)}%",
-            fontSize = 13.sp,
+            fontSize = 15.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(24.dp))
         if (history.size >= 2) {
-            V07LineChart(history, Modifier.fillMaxWidth().height(108.dp))
+            V07LineChart(history, Modifier.fillMaxWidth().height(124.dp))
         } else {
-            Spacer(Modifier.height(108.dp))
+            Spacer(Modifier.height(124.dp))
         }
 
-        Spacer(Modifier.height(26.dp))
+        Spacer(Modifier.height(28.dp))
         V07TinyStats(
             listOf(
                 "Cash" to v07Euro(summary.cashBalance),
                 "Savings" to v07Euro(summary.totalSavings),
-                "Portfolio" to v07Euro(summary.investmentTotal),
+                "Portfolio" to v07Euro(portfolio),
             )
         )
 
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(34.dp))
         V07Panel(onClick = onOpenMoney) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(month.atDay(1).format(V07MonthFormat), fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
+                    Text(month.atDay(1).format(V07MonthFormat), fontSize = 19.sp, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(5.dp))
                     Text(
                         "${v07Euro(plan.committed)} committed of ${v07Euro(plan.expectedIncome)} expected",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(v07SignedEuro(plan.projectedLeft), fontSize = 23.sp, fontWeight = FontWeight.Medium)
-                    Text("projected left", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(v07SignedEuro(plan.projectedLeft), fontSize = 27.sp, fontWeight = FontWeight.Medium)
+                    Text("projected left", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(36.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Savings", fontSize = 23.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            Text("Savings", fontSize = 27.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
             TextButton(onClick = onOpenMoney) { Text("Manage") }
         }
         V07Panel(onClick = onOpenMoney) {
@@ -116,7 +118,7 @@ internal fun V07HomeScreen(
                 detail = if (summary.averageMonthlyOutflow > 0.0) {
                     "${String.format(Locale.US, "%.1f", summary.emergencyFundMonths)} months covered"
                 } else {
-                    "Tap to add money manually"
+                    "Tap to add your existing savings"
                 },
             )
             V07Divider()
@@ -128,16 +130,16 @@ internal fun V07HomeScreen(
             )
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(36.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Recent", fontSize = 23.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            Text("Recent", fontSize = 27.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
             if (recent.isNotEmpty()) TextButton(onClick = onOpenMoney) { Text("View all") }
         }
         if (recent.isEmpty()) {
             Text(
                 "Your latest income, expenses, bills and investments will appear here.",
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 12.dp),
             )
@@ -156,9 +158,9 @@ internal fun V07HomeScreen(
             }
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(22.dp))
         TextButton(onClick = onOpenPortfolio, modifier = Modifier.fillMaxWidth()) {
-            Text("Open portfolio →", fontSize = 14.sp)
+            Text("Open portfolio →", fontSize = 16.sp)
         }
 
         Spacer(Modifier.height(90.dp))
