@@ -1,6 +1,5 @@
 package com.pix.folio.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -38,74 +36,94 @@ import com.pix.folio.model.Cs2AssetType
 import com.pix.folio.model.InvestmentHolding
 import com.pix.folio.model.InvestmentKind
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun V07PortfolioScreen(vm: V07ViewModel) {
     val summary = vm.summary
     var addHolding by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<InvestmentHolding?>(null) }
+    val total = vm.trackedPortfolioTotal
+    val gain = vm.trackedPortfolioGain
+    val gainPct = vm.trackedPortfolioGainPct
 
     Column(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp, vertical = 22.dp)
+            .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
-                V07SectionLabel("Portfolio")
-                Text(v07Euro(summary.investmentTotal), fontSize = 38.sp, fontWeight = FontWeight.Medium)
+                Text("Portfolio", fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(10.dp))
+                Text(v07Euro(total), fontSize = 58.sp, lineHeight = 62.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                 Text(
-                    "${v07SignedEuro(summary.portfolioGain)} · ${String.format(Locale.US, "%.1f", summary.portfolioGainPct)}%",
-                    fontSize = 12.sp,
+                    "${v07SignedEuro(gain)}  ·  ${if (gainPct >= 0) "+" else ""}${String.format(Locale.US, "%.1f", gainPct)}% since purchase",
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(onClick = { addHolding = true }) { Text("Add") }
+            TextButton(onClick = { addHolding = true }) { Text("+ Add") }
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(26.dp))
         V07TinyStats(
             listOf(
                 "Cost" to v07Euro(summary.portfolioCostBasis),
-                "Streak" to "${summary.investmentContributionStreak} mo",
                 "Assets" to summary.investments.size.toString(),
+                "Tracked" to summary.investments.count { vm.purchaseDateFor(it.id) != null }.toString(),
             )
         )
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(36.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            V07SectionLabel("Holdings", Modifier.weight(1f))
-            TextButton(onClick = { vm.refreshMarketPrices() }, enabled = !vm.marketRefreshing) {
-                Text(if (vm.marketRefreshing) "Updating…" else "Refresh")
-            }
+            Text("Investments", fontSize = 27.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            TextButton(
+                onClick = {
+                    vm.refreshMarketPrices()
+                    vm.refreshTrackedInvestments()
+                },
+                enabled = !vm.marketRefreshing && !vm.trackingRefreshing,
+            ) { Text(if (vm.marketRefreshing || vm.trackingRefreshing) "Updating…" else "Refresh") }
         }
+        Text(
+            "For stocks and ETFs, Folio rebuilds value from your purchase date using key-free market history.",
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         vm.marketRefreshLabel?.let {
-            Text(it, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(6.dp))
+            Text(it, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
+        Spacer(Modifier.height(12.dp))
         if (summary.investments.isEmpty()) {
-            Text(
-                "Add an ETF, stock, fund, or CS2 asset. ISIN lookup and automatic price tracking live here.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(vertical = 20.dp),
-            )
+            V07Panel(onClick = { addHolding = true }) {
+                Text("Add your first investment", fontSize = 19.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    "Enter what you paid and when you bought it. Folio handles the price history and current value.",
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         } else {
-            summary.investments.sortedByDescending(summary::marketValueFor).forEachIndexed { index, holding ->
-                val market = summary.marketValueFor(holding)
-                val gain = summary.gainFor(holding)
+            summary.investments.sortedByDescending(vm::trackedMarketValue).forEachIndexed { index, holding ->
+                val market = vm.trackedMarketValue(holding)
+                val rowGain = vm.trackedGain(holding)
+                val date = vm.purchaseDateFor(holding.id)
                 V07Metric(
                     label = holding.name,
                     value = v07Euro(market),
                     detail = buildString {
                         append(holding.kind.label)
-                        if (holding.isin.isNotBlank()) append(" · ${holding.isin}")
-                        if (holding.kind == InvestmentKind.CS2) append(" · ${holding.cs2AssetType.label}")
-                        if (gain != 0.0) append(" · ${v07SignedEuro(gain)}")
+                        if (date != null) append(" · bought ${date.format(V07ShortDateFormat)}")
+                        else if (holding.kind != InvestmentKind.CS2) append(" · add purchase date")
+                        if (rowGain != 0.0) append(" · ${v07SignedEuro(rowGain)}")
                     },
                     onClick = { selected = holding },
                 )
@@ -113,22 +131,26 @@ internal fun V07PortfolioScreen(vm: V07ViewModel) {
             }
         }
 
-        Spacer(Modifier.height(28.dp))
-        V07SectionLabel("Allocation")
-        Spacer(Modifier.height(8.dp))
-        summary.allocation.forEachIndexed { index, group ->
-            val pct = if (summary.investmentTotal > 0.0) group.amount / summary.investmentTotal * 100.0 else 0.0
-            V07Metric(group.name, v07Euro(group.amount), "${String.format(Locale.US, "%.0f", pct)}% of portfolio")
-            if (index != summary.allocation.lastIndex) V07Divider()
-        }
         Spacer(Modifier.height(100.dp))
     }
 
     if (addHolding) {
         AddV07InvestmentSheet(
             onDismiss = { addHolding = false },
-            onSave = { kind, name, symbol, amount, isin, figi, exchange, units, unitPrice, marketName, cs2Type ->
-                vm.addInvestment(kind, name, symbol, amount, isin, figi, exchange, units, unitPrice, marketName, cs2Type)
+            onSave = { kind, name, symbol, amount, purchaseDate, isin, figi, exchange, marketName, cs2Type ->
+                vm.addInvestment(
+                    kind = kind,
+                    name = name,
+                    symbol = symbol,
+                    amount = amount,
+                    isin = isin,
+                    figi = figi,
+                    exchange = exchange,
+                    marketHashName = marketName,
+                    cs2AssetType = cs2Type,
+                    purchaseDate = purchaseDate,
+                )
+                vm.refreshMarketPrices()
                 addHolding = false
             },
         )
@@ -136,11 +158,8 @@ internal fun V07PortfolioScreen(vm: V07ViewModel) {
 
     selected?.let { holding ->
         val fresh = summary.investments.firstOrNull { it.id == holding.id }
-        if (fresh != null) {
-            V07HoldingSheet(vm, fresh, onDismiss = { selected = null })
-        } else {
-            selected = null
-        }
+        if (fresh != null) V07HoldingSheet(vm, fresh, onDismiss = { selected = null })
+        else selected = null
     }
 }
 
@@ -148,22 +167,22 @@ internal fun V07PortfolioScreen(vm: V07ViewModel) {
 @Composable
 private fun AddV07InvestmentSheet(
     onDismiss: () -> Unit,
-    onSave: (InvestmentKind, String, String, Double, String, String, String, Double, Double, String, Cs2AssetType) -> Unit,
+    onSave: (InvestmentKind, String, String, Double, LocalDate, String, String, String, String, Cs2AssetType) -> Unit,
 ) {
     var kind by remember { mutableStateOf(InvestmentKind.ETF) }
     var name by remember { mutableStateOf("") }
     var symbol by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
+    var purchaseDate by remember { mutableStateOf(LocalDate.now().toString()) }
     var isin by remember { mutableStateOf("") }
     var figi by remember { mutableStateOf("") }
     var exchange by remember { mutableStateOf("") }
-    var units by remember { mutableStateOf("") }
-    var unitPrice by remember { mutableStateOf("") }
     var marketName by remember { mutableStateOf("") }
     var cs2Type by remember { mutableStateOf(Cs2AssetType.OTHER) }
     var lookupText by remember { mutableStateOf<String?>(null) }
     var lookingUp by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val parsedDate = runCatching { LocalDate.parse(purchaseDate) }.getOrNull()
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -173,8 +192,13 @@ private fun AddV07InvestmentSheet(
                 .padding(horizontal = 22.dp)
                 .padding(bottom = 34.dp)
         ) {
-            Text("Add investment", fontSize = 24.sp, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(16.dp))
+            Text("Add investment", fontSize = 30.sp, lineHeight = 34.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "Tell Folio what you bought, what you paid, and the purchase date.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(18.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(InvestmentKind.entries) { item ->
                     OutlinedButton(onClick = { kind = item }, shape = RoundedCornerShape(20.dp)) {
@@ -232,22 +256,27 @@ private fun AddV07InvestmentSheet(
             Spacer(Modifier.height(10.dp))
             V07NumberField(amount, "Amount paid (€)") { amount = it }
             Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                V07NumberField(units, "Units", Modifier.weight(1f)) { units = it }
-                V07NumberField(unitPrice, "Unit price", Modifier.weight(1f)) { unitPrice = it }
-            }
-            Spacer(Modifier.height(16.dp))
+            V07TextField(purchaseDate, "Purchase date · YYYY-MM-DD") { purchaseDate = it.take(10) }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "You do not need to enter the old share price. Folio uses the market close around this date as the starting point.",
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(18.dp))
             Button(
                 onClick = {
+                    val date = parsedDate ?: return@Button
                     onSave(
-                        kind, name.trim(), symbol.trim(), amount.v07Double(), isin.trim(), figi.trim(), exchange.trim(),
-                        units.v07Double(), unitPrice.v07Double(), marketName.trim(), cs2Type,
+                        kind, name.trim(), symbol.trim(), amount.v07Double(), date,
+                        isin.trim(), figi.trim(), exchange.trim(), marketName.trim(), cs2Type,
                     )
                 },
-                enabled = name.isNotBlank() && amount.v07Double() > 0.0,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                enabled = name.isNotBlank() && amount.v07Double() > 0.0 && parsedDate != null && !parsedDate.isAfter(LocalDate.now()),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
-            ) { Text("Add to portfolio") }
+            ) { Text("Track investment") }
         }
     }
 }
@@ -255,17 +284,18 @@ private fun AddV07InvestmentSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun V07HoldingSheet(vm: V07ViewModel, holding: InvestmentHolding, onDismiss: () -> Unit) {
-    val summary = vm.summary
-    val history = summary.priceHistoryFor(holding.id)
-    var contribution by remember { mutableStateOf("") }
-    var units by remember { mutableStateOf("") }
-    var purchasePrice by remember { mutableStateOf("") }
-    var recurringAmount by remember { mutableStateOf("") }
-    var recurringDay by remember { mutableStateOf("1") }
-    var manualPrice by remember { mutableStateOf("") }
+    val value = vm.trackedMarketValue(holding)
+    val gain = vm.trackedGain(holding)
+    val gainPct = vm.trackedGainPct(holding)
+    val valueHistory = vm.trackedValueHistory(holding)
+    val history = vm.trackedHistories[holding.id]
+    val storedDate = vm.purchaseDateFor(holding.id)
+    var purchaseDate by remember(holding.id, storedDate) { mutableStateOf((storedDate ?: LocalDate.now()).toString()) }
     var priceSymbol by remember(holding.id) { mutableStateOf(holding.priceSymbol.ifBlank { holding.symbol }) }
     var marketName by remember(holding.id) { mutableStateOf(holding.marketHashName) }
-    var note by remember(holding.id) { mutableStateOf(holding.note) }
+    var recurringAmount by remember { mutableStateOf("") }
+    var recurringDay by remember { mutableStateOf("1") }
+    val parsedDate = runCatching { LocalDate.parse(purchaseDate) }.getOrNull()
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -276,61 +306,78 @@ private fun V07HoldingSheet(vm: V07ViewModel, holding: InvestmentHolding, onDism
                 .padding(bottom = 34.dp)
         ) {
             V07SectionLabel(holding.kind.label)
-            Text(holding.name, fontSize = 25.sp, fontWeight = FontWeight.Medium)
+            Text(holding.name, fontSize = 30.sp, lineHeight = 34.sp, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(8.dp))
+            Text(v07Euro(value), fontSize = 48.sp, lineHeight = 52.sp, fontWeight = FontWeight.Medium, maxLines = 1)
             Text(
-                "${v07Euro(summary.marketValueFor(holding))} · cost ${v07Euro(holding.amount)}",
+                "${v07SignedEuro(gain)}  ·  ${if (gainPct >= 0) "+" else ""}${String.format(Locale.US, "%.1f", gainPct)}% since purchase",
+                fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-            )
-            Spacer(Modifier.height(22.dp))
-
-            if (history.size >= 2) {
-                V07LineChart(history.map { it.close }, Modifier.fillMaxWidth().height(110.dp))
-                Spacer(Modifier.height(8.dp))
-            }
-            V07TinyStats(
-                listOf(
-                    "Units" to String.format(Locale.US, "%.4f", summary.unitsFor(holding.id)),
-                    "Price" to (summary.latestPriceFor(holding.id)?.let(::v07Euro) ?: "—"),
-                    "Gain" to v07SignedEuro(summary.gainFor(holding)),
-                )
             )
 
             Spacer(Modifier.height(24.dp))
-            V07SectionLabel("Automatic price")
+            if (valueHistory.size >= 2) {
+                V07LineChart(valueHistory.map { it.second }, Modifier.fillMaxWidth().height(150.dp))
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth()) {
+                    Text(valueHistory.first().first.format(V07ShortDateFormat), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.weight(1f))
+                    Text(valueHistory.last().first.format(V07ShortDateFormat), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    history?.source ?: "Market history",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (holding.kind != InvestmentKind.CS2) {
+                V07Panel {
+                    Text("Add the purchase date to build the graph", fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                    vm.trackingErrors[holding.id]?.let {
+                        Spacer(Modifier.height(5.dp))
+                        Text(it, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(26.dp))
+            Text("Purchase", fontSize = 23.sp, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(10.dp))
+            V07Metric("Cost", v07Euro(holding.amount))
+            V07TextField(purchaseDate, "Purchase date · YYYY-MM-DD") { purchaseDate = it.take(10) }
             Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { parsedDate?.let { vm.setInvestmentPurchaseDate(holding.id, it) } },
+                enabled = parsedDate != null && !parsedDate.isAfter(LocalDate.now()),
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Save date & rebuild graph") }
+
+            Spacer(Modifier.height(26.dp))
+            Text("Market tracking", fontSize = 23.sp, fontWeight = FontWeight.Medium)
+            Text(
+                if (holding.kind == InvestmentKind.CS2) "Steam Community Market indicative price" else "Key-free Yahoo Finance chart data; exchange delay is shown when reported.",
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
             if (holding.kind == InvestmentKind.CS2) {
                 V07TextField(marketName, "Steam Market hash name") { marketName = it }
             } else {
-                V07TextField(priceSymbol, "Ticker / Yahoo symbol") { priceSymbol = it }
+                V07TextField(priceSymbol, "Ticker / Yahoo symbol") { priceSymbol = it.uppercase() }
             }
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = {
-                vm.updateInvestmentTracking(holding.id, priceSymbol, marketName, if (holding.kind == InvestmentKind.CS2) holding.cs2AssetType else null)
-                vm.refreshMarketPrices()
-            }) { Text("Save tracking & refresh") }
-
-            Spacer(Modifier.height(22.dp))
-            V07SectionLabel("Add contribution")
-            Spacer(Modifier.height(8.dp))
-            V07NumberField(contribution, "Amount (€)") { contribution = it }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                V07NumberField(units, "Units", Modifier.weight(1f)) { units = it }
-                V07NumberField(purchasePrice, "Price", Modifier.weight(1f)) { purchasePrice = it }
-            }
-            Spacer(Modifier.height(8.dp))
-            Button(
+            OutlinedButton(
                 onClick = {
-                    vm.addInvestmentContribution(holding.id, contribution.v07Double(), units.v07Double(), purchasePrice.v07Double())
-                    contribution = ""; units = ""; purchasePrice = ""
+                    vm.updateInvestmentTracking(holding.id, priceSymbol, marketName, if (holding.kind == InvestmentKind.CS2) holding.cs2AssetType else null)
+                    vm.refreshMarketPrices()
                 },
-                enabled = contribution.v07Double() > 0.0,
-            ) { Text("Record purchase") }
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Save tracking & refresh") }
 
-            Spacer(Modifier.height(22.dp))
-            V07SectionLabel("Recurring purchase")
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(26.dp))
+            Text("Monthly investment", fontSize = 23.sp, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 V07NumberField(recurringAmount, "Amount (€)", Modifier.weight(1f)) { recurringAmount = it }
                 V07NumberField(recurringDay, "Day", Modifier.weight(1f)) { recurringDay = it.filter(Char::isDigit).take(2) }
@@ -342,27 +389,14 @@ private fun V07HoldingSheet(vm: V07ViewModel, holding: InvestmentHolding, onDism
                     recurringAmount = ""
                 },
                 enabled = recurringAmount.v07Double() > 0.0,
-            ) { Text("Add monthly investment") }
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Add recurring investment") }
 
-            Spacer(Modifier.height(22.dp))
-            V07SectionLabel("Manual price")
-            Spacer(Modifier.height(8.dp))
-            V07NumberField(manualPrice, "Market price (€)") { manualPrice = it }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { vm.addInvestmentPrice(holding.id, manualPrice.v07Double(), symbol = priceSymbol); manualPrice = "" },
-                enabled = manualPrice.v07Double() > 0.0,
-            ) { Text("Save today's price") }
-
-            Spacer(Modifier.height(22.dp))
-            V07TextField(note, "Note") { note = it }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = { vm.updateInvestmentDetails(holding.id, holding.tags, note) }) { Text("Save note") }
-
-            Spacer(Modifier.height(24.dp))
-            TextButton(onClick = { vm.removeInvestment(holding.id); onDismiss() }) {
-                Text("Remove investment", color = MaterialTheme.colorScheme.error)
-            }
+            Spacer(Modifier.height(28.dp))
+            TextButton(
+                onClick = { vm.removeInvestment(holding.id); onDismiss() },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Remove investment", color = MaterialTheme.colorScheme.error) }
         }
     }
 }
