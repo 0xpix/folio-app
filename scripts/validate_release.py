@@ -37,7 +37,7 @@ if missing:
 build = (root / "app/build.gradle.kts").read_text()
 build_checks = {
     "application id": 'applicationId = "com.pix.folio"',
-    "v0.7.2 version": 'versionName = ciVersionName ?: "0.7.2"',
+    "v0.7.3 version": 'versionName = ciVersionName ?: "0.7.3"',
     "beta flavor": 'create("beta")',
     "play flavor": 'create("play")',
     "GitHub beta updates": 'GITHUB_BETA_UPDATES',
@@ -61,16 +61,21 @@ updater = (root / "app/src/beta/java/com/pix/folio/updates/BetaUpdater.kt").read
 if "0xpix/folio-app/releases" not in updater:
     print("Updater is not pointed at 0xpix/folio-app releases")
     sys.exit(1)
+if ".removePrefix(\"### \"" in updater or ".removePrefix(\"- \"" in updater:
+    print("Updater must preserve Markdown headings and bullets for What's new")
+    sys.exit(1)
 
 app = (root / "app/src/main/java/com/pix/folio/ui/FolioApp.kt").read_text()
-for forbidden in ["RootTab { HOME, EXPENSES", "INSIGHTS", "UPCOMING"]:
+for forbidden in ["RootTab { HOME, EXPENSES", "INSIGHTS", "UPCOMING", "Icons.Outlined.Payments", "Icons.Outlined.TrendingUp"]:
     if forbidden in app:
-        print(f"Old multi-page shell token still present in FolioApp.kt: {forbidden}")
+        print(f"Old navigation token still present in FolioApp.kt: {forbidden}")
         sys.exit(1)
 
 checks = {
     "three-tab shell": ("HOME", "MONEY", "PORTFOLIO"),
     "swipe navigation": ("HorizontalPager", "rememberPagerState"),
+    "dot-only navigation": ("CircleShape", "size(if (active) 9.dp else 6.dp)"),
+    "strong unlock action": ("UNLOCK FOLIO", "ButtonDefaults.buttonColors"),
     "safe top inset": ("statusBarsPadding",),
     "next-month budget attribution": ("budgetMonthOffset", "budgetMonth"),
     "visible monthly salary": ("Monthly salary", "Save monthly salary"),
@@ -80,7 +85,9 @@ checks = {
     "formatted update notes": ("V071UpdateNotes", "What's new"),
     "purchase-date tracking": ("InvestmentTrackingStore", "setInvestmentPurchaseDate", "Purchase date"),
     "historical market data": ("fetchHistory", "HistoryPoint", "exchangeDataDelayedBy"),
+    "Scalable ETF resolver": ("LU2903252349", "SCWX.DE", "searchYahooSymbols"),
     "tracked value graph": ("trackedValueHistory", "since purchase"),
+    "combined portfolio graph": ("trackedPortfolioHistory", "Combined portfolio"),
     "large typography": ("64.sp", "58.sp", "48.sp"),
     "CS2 assets": ("Cs2AssetType", "marketHashName"),
     "ISIN lookup": ("OpenFigiService.lookupIsin",),
@@ -91,7 +98,7 @@ checks = {
 search_text = "\n".join(path.read_text() for path in root.glob("app/src/main/java/**/*.kt"))
 missing_features = [name for name, tokens in checks.items() if any(token not in search_text for token in tokens)]
 if missing_features:
-    print("Missing v0.7.2 features:", ", ".join(missing_features))
+    print("Missing v0.7.3 features:", ", ".join(missing_features))
     sys.exit(1)
 
-print("Folio v0.7.2 static validation passed.")
+print("Folio v0.7.3 static validation passed.")
