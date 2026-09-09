@@ -4,13 +4,16 @@ import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.pix.folio.data.BudgetEnvelope
+import com.pix.folio.data.FinanceEditor
 import com.pix.folio.data.FolioStore
 import com.pix.folio.data.InvestmentTrackingStore
 import com.pix.folio.data.MarketPriceService
+import com.pix.folio.data.MonthlyPlanStore
 import com.pix.folio.data.RecurringMoneyProcessor
+import com.pix.folio.data.RecurringSavingsRule
 import com.pix.folio.model.AppFontChoice
 import com.pix.folio.model.Cs2AssetType
 import com.pix.folio.model.ExpenseCategory
@@ -20,17 +23,23 @@ import com.pix.folio.model.InvestmentKind
 import com.pix.folio.model.InvestmentTag
 import com.pix.folio.model.PaymentCategory
 import com.pix.folio.model.SavingsBucketType
-import com.pix.folio.widget.FolioBalanceWidget
+import com.pix.folio.widget.FolioWidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.YearMonth
 
 class V07ViewModel(application: Application) : AndroidViewModel(application) {
     private val store = FolioStore(application)
     private val trackingStore = InvestmentTrackingStore(application)
+    private val planStore = MonthlyPlanStore(application)
+    private val editor = FinanceEditor(application)
 
     var summary by mutableStateOf(store.summary())
+        private set
+
+    var recurringSavingsRules by mutableStateOf(planStore.recurringSavings())
         private set
 
     var fontChoice by mutableStateOf(store.fontChoice())
@@ -64,8 +73,22 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         refreshTrackedInvestments()
     }
 
+    fun budgetEnvelope(month: YearMonth): BudgetEnvelope = planStore.envelope(summary, month)
+
+    fun suggestedBudgetMonth(): YearMonth = planStore.suggestedBudgetMonth(summary)
+
     fun addExpense(category: ExpenseCategory, amount: Double, note: String) {
         store.addExpense(category, amount, note)
+        refresh()
+    }
+
+    fun updateExpense(id: String, category: ExpenseCategory, amount: Double, date: LocalDate, note: String) {
+        editor.updateExpense(id, category, amount, date, note)
+        refresh()
+    }
+
+    fun removeExpense(id: String) {
+        editor.removeExpense(id)
         refresh()
     }
 
@@ -79,13 +102,39 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
+    fun updatePayment(id: String, category: PaymentCategory, name: String, amount: Double, dayOfMonth: Int) {
+        editor.updatePayment(id, category, name, amount, dayOfMonth)
+        refresh()
+    }
+
+    fun removePayment(id: String) {
+        editor.removePayment(id)
+        refresh()
+    }
+
     fun togglePayment(id: String) {
+        val row = summary.payments.firstOrNull { it.id == id } ?: return
+        val month = YearMonth.now()
+        if (row.lastPaidMonth != month && planStore.budgetCashRemaining(summary, month) + 0.005 < row.amount) {
+            marketRefreshLabel = "Waiting for this month's assigned salary"
+            return
+        }
         store.togglePayment(id)
         refresh()
     }
 
     fun addIncome(name: String, amount: Double, dayOfMonth: Int, useForNextMonth: Boolean) {
         store.addIncome(name, amount, dayOfMonth, if (useForNextMonth) 1 else 0)
+        refresh()
+    }
+
+    fun updateIncome(id: String, name: String, amount: Double, dayOfMonth: Int, useForNextMonth: Boolean) {
+        editor.updateIncome(id, name, amount, dayOfMonth, if (useForNextMonth) 1 else 0)
+        refresh()
+    }
+
+    fun removeIncome(id: String) {
+        editor.removeIncome(id)
         refresh()
     }
 
@@ -142,8 +191,39 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
+    fun updateRecurringInvestment(id: String, amount: Double, dayOfMonth: Int) {
+        editor.updateRecurringInvestment(id, amount, dayOfMonth)
+        refresh()
+    }
+
+    fun removeRecurringInvestment(id: String) {
+        editor.removeRecurringInvestment(id)
+        refresh()
+    }
+
     fun toggleRecurringInvestment(id: String) {
+        val row = summary.recurringInvestments.firstOrNull { it.id == id } ?: return
+        val month = YearMonth.now()
+        if (row.lastAppliedMonth != month && planStore.budgetCashRemaining(summary, month) + 0.005 < row.amount) {
+            marketRefreshLabel = "Waiting for this month's assigned salary"
+            return
+        }
         store.toggleRecurringInvestment(id)
+        refresh()
+    }
+
+    fun addRecurringSaving(bucket: SavingsBucketType, amount: Double, dayOfMonth: Int) {
+        planStore.addRecurringSaving(bucket, amount, dayOfMonth)
+        refresh()
+    }
+
+    fun updateRecurringSaving(id: String, bucket: SavingsBucketType, amount: Double, dayOfMonth: Int) {
+        planStore.updateRecurringSaving(id, bucket, amount, dayOfMonth)
+        refresh()
+    }
+
+    fun removeRecurringSaving(id: String) {
+        planStore.removeRecurringSaving(id)
         refresh()
     }
 
@@ -348,7 +428,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
                 RecurringMoneyProcessor.process(getApplication())
             }
             marketRefreshLabel = if (result.totalApplied == 0) {
-                "Recurring plan is current"
+                "Recurring plan is current or waiting for assigned salary"
             } else {
                 "Applied ${result.totalApplied} recurring item${if (result.totalApplied == 1) "" else "s"}"
             }
@@ -384,18 +464,18 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         summary.investments.forEach { trackingStore.clearPurchaseDate(it.id) }
         trackedHistories = emptyMap()
         trackingErrors = emptyMap()
+        planStore.clearAll()
         store.clearAll()
         refresh()
     }
 
     fun refresh() {
         summary = store.summary()
+        recurringSavingsRules = planStore.recurringSavings()
         fontChoice = store.fontChoice()
         appLockEnabled = store.isAppLockEnabled()
         autoRecurringEnabled = store.autoRecurringEnabled()
         canUndo = store.canUndo()
-        viewModelScope.launch {
-            FolioBalanceWidget().updateAll(getApplication())
-        }
+        FolioWidgetUpdater.request(getApplication())
     }
 }
