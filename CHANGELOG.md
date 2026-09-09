@@ -7,6 +7,41 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.7.0.beta] - 2026-09-09
+
+### Added
+- Budget-month attribution for recurring income, so salary received near the end of one month can fund the following month while keeping the real transaction date.
+- Forward-looking monthly Money Plan with expected income, fixed payments, recurring investments, expenses, savings allocations, committed amount, and projected money left.
+- Savings buckets for Emergency Fund, Crash Reserve, and General Savings, including transfers between spendable cash and savings.
+- Editable emergency-fund and crash-reserve targets with progress tracking; the emergency target defaults to €3,500.
+- Emergency-fund runway based on recent monthly outflow.
+- End-of-month leftover allocation into Emergency Fund, Crash Reserve, General Savings, investments, or retained cash.
+- Automatic recurring processing for due income, fixed payments, and recurring investment contributions.
+- Background WorkManager automation plus a startup pass so recurring items can be applied even when they were not manually opened on their due date.
+- Automatic market-price refresh for supported exchange-traded holdings and Steam Community Market pricing for CS2 assets.
+- Dedicated CS2 investment metadata for cases, stickers, skins, and other assets, including Steam market hash names.
+- Compact Portfolio screen with ISIN lookup, investment creation, market value, gain/loss, contribution history inputs, recurring purchases, manual prices, automatic tracking fields, and allocation summary.
+- Selectable app typography with Pixify/Pixelify Sans as the default, plus System, Mono, and Serif options.
+- A redesigned Home that combines full net worth, history, monthly plan, emergency/crash goals, savings, cash, and portfolio status.
+- A consolidated Money screen containing the monthly plan, expenses, recurring flows, savings goals, and leftover allocation in one place.
+
+### Changed
+- Folio now has only three permanent destinations: Home, Money, and Portfolio. Settings opens as a sheet instead of another root page.
+- Net worth now includes spendable cash, Emergency Fund, Crash Reserve, General Savings, ETFs/stocks/funds, and CS2 assets.
+- Net-worth snapshots use the complete net-worth calculation rather than cash plus investments only.
+- Recurring income can be marked as funding the following budget month; for example, salary received on September 29 can be attributed to October.
+- Recurring investments can be processed automatically and can record units from the latest known market price when available.
+- The visual system is more restrained: fewer persistent navigation choices, larger financial hierarchy, lighter controls, compact metrics, and sheet-based editing.
+- Beta version advanced to `v0.7.0.beta` with no extra beta build suffix.
+
+### Fixed
+- Emergency savings are no longer excluded from the net-worth total.
+- Removed the requirement to manually confirm every recurring salary, bill, or recurring investment when automatic recurring processing is enabled.
+- Removed the old five-root-page navigation from the active app shell.
+- Closed the missing crash-reserve and generic-savings gaps in the previous finance model.
+- Closed the missing CS2 case/sticker/skin classification and price-tracking gap.
+- Replaced manual-only investment price tracking with optional automatic refresh while preserving manual price entry as a fallback.
+
 ## [0.6.0.beta] - 2026-09-09
 
 ### Added
