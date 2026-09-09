@@ -58,8 +58,8 @@ internal fun V07SectionLabel(text: String, modifier: Modifier = Modifier) {
         text.uppercase(Locale.ENGLISH),
         modifier = modifier,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 11.sp,
-        letterSpacing = 1.5.sp,
+        fontSize = 12.sp,
+        letterSpacing = 1.6.sp,
     )
 }
 
@@ -72,9 +72,9 @@ internal fun V07Panel(
     Column(
         modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(22.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(17.dp)
+            .padding(18.dp)
     ) { content() }
 }
 
@@ -88,15 +88,15 @@ internal fun V07DashboardCard(
 ) {
     Column(
         modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 14.dp, vertical = 13.dp)
+            .padding(horizontal = 15.dp, vertical = 14.dp)
     ) {
-        Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(6.dp))
-        Text(value, fontSize = 19.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(4.dp))
-        Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(7.dp))
+        Text(value, fontSize = 22.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(5.dp))
+        Text(detail, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
 }
 
@@ -111,17 +111,17 @@ internal fun V07Metric(
     val rowModifier = modifier
         .fillMaxWidth()
         .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-        .padding(vertical = 13.dp)
+        .padding(vertical = 14.dp)
     Row(rowModifier, verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(label, fontSize = 15.sp)
+            Text(label, fontSize = 17.sp)
             if (!detail.isNullOrBlank()) {
                 Spacer(Modifier.height(4.dp))
-                Text(detail, fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(detail, fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Spacer(Modifier.width(14.dp))
-        Text(value, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        Text(value, fontSize = 17.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -131,13 +131,13 @@ internal fun V07Progress(progress: Double, modifier: Modifier = Modifier) {
     Box(
         modifier
             .fillMaxWidth()
-            .height(4.dp)
+            .height(5.dp)
             .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(50))
     ) {
         Box(
             Modifier
                 .fillMaxWidth(safe)
-                .height(4.dp)
+                .height(5.dp)
                 .background(MaterialTheme.colorScheme.onSurface, RoundedCornerShape(50))
         )
     }
@@ -157,18 +157,18 @@ internal fun V07Goal(
         modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 12.dp)
+            .padding(vertical = 13.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(label, fontSize = 15.sp, modifier = Modifier.weight(1f))
-            Text("${v07Euro(current)} / ${v07Euro(target)}", fontSize = 13.sp)
+            Text(label, fontSize = 17.sp, modifier = Modifier.weight(1f))
+            Text("${v07Euro(current)} / ${v07Euro(target)}", fontSize = 15.sp)
         }
-        Spacer(Modifier.height(9.dp))
+        Spacer(Modifier.height(10.dp))
         V07Progress(progress)
-        Spacer(Modifier.height(7.dp))
+        Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth()) {
-            Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            Text("${(progress * 100).roundToInt()}%", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(detail, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text("${(progress * 100).roundToInt()}%", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -210,7 +210,7 @@ internal fun V07LineChart(values: List<Double>, modifier: Modifier = Modifier) {
             val y = size.height - (((value - min) / span).toFloat() * size.height)
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
-        drawPath(path, lineColor, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+        drawPath(path, lineColor, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round))
     }
 }
 
@@ -235,7 +235,7 @@ internal fun V07NumberField(
             focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
             unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
         ),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
     )
 }
 
@@ -259,7 +259,7 @@ internal fun V07TextField(
             focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
             unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
         ),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(20.dp),
     )
 }
 
@@ -275,9 +275,9 @@ internal fun V07MonthPicker(
     onNext: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("‹", modifier = Modifier.clickable(onClick = onPrevious).padding(12.dp), fontSize = 22.sp)
-        Text(month.atDay(1).format(V07MonthFormat), modifier = Modifier.weight(1f), fontSize = 17.sp, fontWeight = FontWeight.Medium)
-        Text("›", modifier = Modifier.clickable(onClick = onNext).padding(12.dp), fontSize = 22.sp)
+        Text("‹", modifier = Modifier.clickable(onClick = onPrevious).padding(12.dp), fontSize = 25.sp)
+        Text(month.atDay(1).format(V07MonthFormat), modifier = Modifier.weight(1f), fontSize = 19.sp, fontWeight = FontWeight.Medium)
+        Text("›", modifier = Modifier.clickable(onClick = onNext).padding(12.dp), fontSize = 25.sp)
     }
 }
 
@@ -288,12 +288,12 @@ internal fun V07TinyStats(items: List<Pair<String, String>>) {
             Column(
                 Modifier
                     .weight(1f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp))
-                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 13.dp, vertical = 13.dp)
             ) {
                 V07SectionLabel(label)
-                Spacer(Modifier.height(6.dp))
-                Text(value, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(7.dp))
+                Text(value, fontSize = 18.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
