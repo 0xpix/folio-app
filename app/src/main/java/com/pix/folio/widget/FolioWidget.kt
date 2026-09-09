@@ -4,10 +4,10 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import androidx.compose.ui.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
@@ -28,7 +28,6 @@ import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
-import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
@@ -37,9 +36,11 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.pix.folio.MainActivity
+import com.pix.folio.data.FolioStartMonth
 import com.pix.folio.data.FolioStore
 import com.pix.folio.model.ValueSnapshot
 import java.text.NumberFormat
+import java.time.ZoneId
 import java.util.Locale
 
 private val WidgetMoney = NumberFormat.getNumberInstance(Locale.US).apply {
@@ -54,7 +55,11 @@ class FolioBalanceWidget : GlanceAppWidget() {
         val background = if (dark) 0xFF171717.toInt() else 0xFFF5F3EE.toInt()
         val foreground = if (dark) 0xFFF5F3EE.toInt() else 0xFF111111.toInt()
         val muted = if (dark) 0xFFAAA69F.toInt() else 0xFF77746E.toInt()
-        val chart = SparklineBitmap.render(context, dark, summary.balanceHistory)
+        val startMillis = FolioStartMonth.atDay(1)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val chart = SparklineBitmap.render(context, dark, summary.balanceHistory.filter { it.atMillis >= startMillis })
 
         provideContent {
             BalanceWidgetContent(
