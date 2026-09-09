@@ -67,7 +67,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppFontChoice.entries.forEach { choice ->
                     OutlinedButton(
-                        onClick = { vm.setFontChoice(choice) },
+                        onClick = { vm.updateFontChoice(choice) },
                         shape = RoundedCornerShape(20.dp),
                     ) { Text(if (vm.fontChoice == choice) "• ${choice.label}" else choice.label) }
                 }
@@ -84,7 +84,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                 title = "Automatic monthly plan",
                 detail = "Apply due salary, fixed payments and recurring investments without tapping each item.",
                 checked = vm.autoRecurringEnabled,
-                onCheckedChange = vm::setAutoRecurringEnabled,
+                onCheckedChange = vm::updateAutoRecurringEnabled,
             )
             V07Divider()
             V07Metric(
@@ -110,7 +110,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                 title = "App lock",
                 detail = "Use device security when opening Folio.",
                 checked = vm.appLockEnabled,
-                onCheckedChange = vm::setAppLockEnabled,
+                onCheckedChange = vm::updateAppLockEnabled,
             )
 
             Spacer(Modifier.height(26.dp))
