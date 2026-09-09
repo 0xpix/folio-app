@@ -223,6 +223,46 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         return history.points.map { it.date to (holding.amount * it.close / first) }
     }
 
+    /**
+     * Combined portfolio curve. Every purchase starts contributing on its own purchase date.
+     * Tracked securities follow their market history; holdings without history stay at cost basis
+     * rather than disappearing from the total. The last point therefore matches the portfolio total.
+     */
+    val trackedPortfolioHistory: List<Pair<LocalDate, Double>>
+        get() {
+            val holdings = summary.investments
+            if (holdings.isEmpty()) return emptyList()
+
+            val dates = sortedSetOf<LocalDate>()
+            holdings.forEach { holding ->
+                purchaseDateFor(holding.id)?.let(dates::add)
+                trackedHistories[holding.id]?.points?.forEach { dates += it.date }
+            }
+            dates += LocalDate.now()
+            if (dates.size < 2) return emptyList()
+
+            return dates.mapNotNull { date ->
+                var hasStartedHolding = false
+                val total = holdings.sumOf { holding ->
+                    val purchaseDate = purchaseDateFor(holding.id)
+                    if (purchaseDate != null && date.isBefore(purchaseDate)) {
+                        0.0
+                    } else {
+                        hasStartedHolding = true
+                        val history = trackedHistories[holding.id]
+                        val first = history?.firstPrice?.takeIf { it > 0.0 }
+                        val point = history?.points?.lastOrNull { !it.date.isAfter(date) }
+                        if (first != null && point != null && point.close > 0.0) {
+                            holding.amount * point.close / first
+                        } else {
+                            holding.amount
+                        }
+                    }
+                }
+                if (hasStartedHolding) date to total else null
+            }
+        }
+
     val trackedPortfolioTotal: Double
         get() = summary.investments.sumOf(::trackedMarketValue)
 
