@@ -98,7 +98,12 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
-    fun addInvestmentContribution(holdingId: String, amount: Double, units: Double = 0.0, unitPrice: Double = 0.0) {
+    fun addInvestmentContribution(
+        holdingId: String,
+        amount: Double,
+        units: Double = 0.0,
+        unitPrice: Double = 0.0,
+    ) {
         store.addInvestmentContribution(holdingId, amount, units, unitPrice)
         refresh()
     }
@@ -133,7 +138,12 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
-    fun updateInvestmentTracking(id: String, priceSymbol: String, marketHashName: String, cs2AssetType: Cs2AssetType?) {
+    fun updateInvestmentTracking(
+        id: String,
+        priceSymbol: String,
+        marketHashName: String,
+        cs2AssetType: Cs2AssetType?,
+    ) {
         store.updateInvestmentTracking(id, priceSymbol, marketHashName, cs2AssetType)
         refresh()
     }
@@ -154,17 +164,17 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
-    fun setFontChoice(choice: AppFontChoice) {
+    fun updateFontChoice(choice: AppFontChoice) {
         store.setFontChoice(choice)
         fontChoice = choice
     }
 
-    fun setAppLockEnabled(enabled: Boolean) {
+    fun updateAppLockEnabled(enabled: Boolean) {
         store.setAppLockEnabled(enabled)
         appLockEnabled = enabled
     }
 
-    fun setAutoRecurringEnabled(enabled: Boolean) {
+    fun updateAutoRecurringEnabled(enabled: Boolean) {
         store.setAutoRecurringEnabled(enabled)
         autoRecurringEnabled = enabled
         if (enabled) runRecurringNow()
