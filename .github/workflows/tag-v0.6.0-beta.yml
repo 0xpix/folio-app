@@ -1,0 +1,42 @@
+name: Tag Folio v0.6.0.beta
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tag_release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: v0.6.0.beta
+      RELEASE_SHA: 0b024ab6851ac292805c4938a8d5563be497124b
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create release tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$RELEASE_SHA" HEAD
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            echo "$RELEASE_TAG already exists"
+          else
+            git tag "$RELEASE_TAG" "$RELEASE_SHA"
+            git push origin "refs/tags/$RELEASE_TAG"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch release workflow at tag
+        if: steps.tag.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build-apk.yml --ref "$RELEASE_TAG"
