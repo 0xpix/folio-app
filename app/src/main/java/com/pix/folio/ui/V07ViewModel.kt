@@ -8,12 +8,14 @@ import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pix.folio.data.FolioStore
+import com.pix.folio.data.InvestmentTrackingStore
 import com.pix.folio.data.MarketPriceService
 import com.pix.folio.data.RecurringMoneyProcessor
 import com.pix.folio.model.AppFontChoice
 import com.pix.folio.model.Cs2AssetType
 import com.pix.folio.model.ExpenseCategory
 import com.pix.folio.model.FolioSummary
+import com.pix.folio.model.InvestmentHolding
 import com.pix.folio.model.InvestmentKind
 import com.pix.folio.model.InvestmentTag
 import com.pix.folio.model.PaymentCategory
@@ -26,6 +28,7 @@ import java.time.LocalDate
 
 class V07ViewModel(application: Application) : AndroidViewModel(application) {
     private val store = FolioStore(application)
+    private val trackingStore = InvestmentTrackingStore(application)
 
     var summary by mutableStateOf(store.summary())
         private set
@@ -47,6 +50,19 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
 
     var marketRefreshing by mutableStateOf(false)
         private set
+
+    var trackedHistories by mutableStateOf<Map<String, MarketPriceService.MarketHistory>>(emptyMap())
+        private set
+
+    var trackingErrors by mutableStateOf<Map<String, String>>(emptyMap())
+        private set
+
+    var trackingRefreshing by mutableStateOf(false)
+        private set
+
+    init {
+        refreshTrackedInvestments()
+    }
 
     fun addExpense(category: ExpenseCategory, amount: Double, note: String) {
         store.addExpense(category, amount, note)
@@ -90,12 +106,24 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         unitPrice: Double = 0.0,
         marketHashName: String = "",
         cs2AssetType: Cs2AssetType = Cs2AssetType.OTHER,
+        purchaseDate: LocalDate = LocalDate.now(),
     ) {
         store.addInvestment(
             kind, name, symbol, amount, isin, figi, exchange,
             units, unitPrice, marketHashName, cs2AssetType
         )
         refresh()
+        val normalizedIsin = isin.trim().uppercase()
+        val normalizedSymbol = symbol.trim().uppercase()
+        val holding = summary.investments.firstOrNull {
+            (normalizedIsin.isNotBlank() && it.isin.equals(normalizedIsin, true)) ||
+                (normalizedSymbol.isNotBlank() && it.symbol.equals(normalizedSymbol, true)) ||
+                it.name.equals(name.trim(), true)
+        }
+        if (holding != null) {
+            trackingStore.setPurchaseDate(holding.id, purchaseDate.coerceAtMost(LocalDate.now()))
+            refreshTrackedInvestment(holding.id)
+        }
     }
 
     fun addInvestmentContribution(
@@ -106,6 +134,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         store.addInvestmentContribution(holdingId, amount, units, unitPrice)
         refresh()
+        refreshTrackedInvestment(holdingId)
     }
 
     fun addRecurringInvestment(holdingId: String, amount: Double, dayOfMonth: Int) {
@@ -120,6 +149,11 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
 
     fun transferSavings(bucket: SavingsBucketType, amount: Double, note: String = "") {
         store.transferSavings(bucket, amount, note)
+        refresh()
+    }
+
+    fun setExistingEmergencyFundBalance(amount: Double) {
+        store.setEmergencyFundBalance(amount.coerceAtLeast(0.0))
         refresh()
     }
 
@@ -146,7 +180,15 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         store.updateInvestmentTracking(id, priceSymbol, marketHashName, cs2AssetType)
         refresh()
+        refreshTrackedInvestment(id)
     }
+
+    fun setInvestmentPurchaseDate(id: String, date: LocalDate) {
+        trackingStore.setPurchaseDate(id, date.coerceAtMost(LocalDate.now()))
+        refreshTrackedInvestment(id)
+    }
+
+    fun purchaseDateFor(id: String): LocalDate? = trackingStore.purchaseDate(id)
 
     fun addInvestmentPrice(
         holdingId: String,
@@ -159,8 +201,88 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         refresh()
     }
 
+    fun trackedMarketValue(holding: InvestmentHolding): Double {
+        val history = trackedHistories[holding.id]
+        val first = history?.firstPrice
+        val latest = history?.latestPrice
+        return if (first != null && first > 0.0 && latest != null && latest > 0.0) {
+            holding.amount * (latest / first)
+        } else {
+            summary.marketValueFor(holding)
+        }
+    }
+
+    fun trackedGain(holding: InvestmentHolding): Double = trackedMarketValue(holding) - holding.amount
+
+    fun trackedGainPct(holding: InvestmentHolding): Double =
+        if (holding.amount > 0.0) trackedGain(holding) / holding.amount * 100.0 else 0.0
+
+    fun trackedValueHistory(holding: InvestmentHolding): List<Pair<LocalDate, Double>> {
+        val history = trackedHistories[holding.id] ?: return emptyList()
+        val first = history.firstPrice?.takeIf { it > 0.0 } ?: return emptyList()
+        return history.points.map { it.date to (holding.amount * it.close / first) }
+    }
+
+    val trackedPortfolioTotal: Double
+        get() = summary.investments.sumOf(::trackedMarketValue)
+
+    val trackedPortfolioGain: Double
+        get() = trackedPortfolioTotal - summary.portfolioCostBasis
+
+    val trackedPortfolioGainPct: Double
+        get() = if (summary.portfolioCostBasis > 0.0) trackedPortfolioGain / summary.portfolioCostBasis * 100.0 else 0.0
+
+    val trackedNetWorth: Double
+        get() = summary.cashBalance + summary.totalSavings + trackedPortfolioTotal
+
+    fun trackingSourceFor(id: String): String? = trackedHistories[id]?.source
+
+    fun refreshTrackedInvestments() {
+        if (trackingRefreshing) return
+        viewModelScope.launch {
+            trackingRefreshing = true
+            val holdings = summary.investments
+            val next = trackedHistories.toMutableMap()
+            val errors = trackingErrors.toMutableMap()
+            holdings.forEach { holding ->
+                val date = trackingStore.purchaseDate(holding.id) ?: return@forEach
+                if (holding.kind == InvestmentKind.CS2) return@forEach
+                runCatching { MarketPriceService.fetchHistory(holding, date) }
+                    .onSuccess {
+                        next[holding.id] = it
+                        errors.remove(holding.id)
+                    }
+                    .onFailure {
+                        errors[holding.id] = it.message ?: "history unavailable"
+                    }
+            }
+            trackedHistories = next.filterKeys { id -> holdings.any { it.id == id } }
+            trackingErrors = errors.filterKeys { id -> holdings.any { it.id == id } }
+            trackingRefreshing = false
+        }
+    }
+
+    fun refreshTrackedInvestment(id: String) {
+        val holding = summary.investments.firstOrNull { it.id == id } ?: return
+        val date = trackingStore.purchaseDate(id) ?: return
+        if (holding.kind == InvestmentKind.CS2) return
+        viewModelScope.launch {
+            runCatching { MarketPriceService.fetchHistory(holding, date) }
+                .onSuccess {
+                    trackedHistories = trackedHistories + (id to it)
+                    trackingErrors = trackingErrors - id
+                }
+                .onFailure {
+                    trackingErrors = trackingErrors + (id to (it.message ?: "history unavailable"))
+                }
+        }
+    }
+
     fun removeInvestment(id: String) {
         store.removeInvestment(id)
+        trackingStore.clearPurchaseDate(id)
+        trackedHistories = trackedHistories - id
+        trackingErrors = trackingErrors - id
         refresh()
     }
 
@@ -203,18 +325,25 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
                 report.updated > 0 && report.failed == 0 -> "Updated ${report.updated} market price${if (report.updated == 1) "" else "s"}"
                 report.updated > 0 -> "Updated ${report.updated} · ${report.failed} unavailable"
                 report.failed > 0 -> "No prices updated · ${report.failed} unavailable"
-                else -> "Add a ticker or Steam market name to enable live prices"
+                else -> "Add a ticker or Steam market name to enable price tracking"
             }
             marketRefreshing = false
             refresh()
+            refreshTrackedInvestments()
         }
     }
 
     fun undoLastChange() {
-        if (store.undoLastChange()) refresh()
+        if (store.undoLastChange()) {
+            refresh()
+            refreshTrackedInvestments()
+        }
     }
 
     fun clearAll() {
+        summary.investments.forEach { trackingStore.clearPurchaseDate(it.id) }
+        trackedHistories = emptyMap()
+        trackingErrors = emptyMap()
         store.clearAll()
         refresh()
     }
