@@ -19,6 +19,7 @@ required = [
     "app/src/main/java/com/pix/folio/ui/theme/FolioTheme.kt",
     "app/src/main/java/com/pix/folio/model/FolioModels.kt",
     "app/src/main/java/com/pix/folio/data/FolioStore.kt",
+    "app/src/main/java/com/pix/folio/data/InvestmentTrackingStore.kt",
     "app/src/main/java/com/pix/folio/data/OpenFigiService.kt",
     "app/src/main/java/com/pix/folio/data/MarketPriceService.kt",
     "app/src/main/java/com/pix/folio/data/RecurringMoneyProcessor.kt",
@@ -36,7 +37,7 @@ if missing:
 build = (root / "app/build.gradle.kts").read_text()
 build_checks = {
     "application id": 'applicationId = "com.pix.folio"',
-    "v0.7.1 version": 'versionName = ciVersionName ?: "0.7.1"',
+    "v0.7.2 version": 'versionName = ciVersionName ?: "0.7.2"',
     "beta flavor": 'create("beta")',
     "play flavor": 'create("play")',
     "GitHub beta updates": 'GITHUB_BETA_UPDATES',
@@ -72,9 +73,15 @@ checks = {
     "swipe navigation": ("HorizontalPager", "rememberPagerState"),
     "safe top inset": ("statusBarsPadding",),
     "next-month budget attribution": ("budgetMonthOffset", "budgetMonth"),
+    "visible monthly salary": ("Monthly salary", "Save monthly salary"),
     "savings buckets": ("CRASH_RESERVE", "GENERAL", "emergencyFundTarget"),
+    "existing emergency savings": ("Already saved before Folio?", "setExistingEmergencyFundBalance"),
     "manual savings": ("V07SavingsTransferSheet", "Add from cash", "Withdraw to cash"),
     "formatted update notes": ("V071UpdateNotes", "What's new"),
+    "purchase-date tracking": ("InvestmentTrackingStore", "setInvestmentPurchaseDate", "Purchase date"),
+    "historical market data": ("fetchHistory", "HistoryPoint", "exchangeDataDelayedBy"),
+    "tracked value graph": ("trackedValueHistory", "since purchase"),
+    "large typography": ("64.sp", "58.sp", "48.sp"),
     "CS2 assets": ("Cs2AssetType", "marketHashName"),
     "ISIN lookup": ("OpenFigiService.lookupIsin",),
     "automatic prices": ("MarketPriceService", "refreshMarketPrices"),
@@ -84,7 +91,7 @@ checks = {
 search_text = "\n".join(path.read_text() for path in root.glob("app/src/main/java/**/*.kt"))
 missing_features = [name for name, tokens in checks.items() if any(token not in search_text for token in tokens)]
 if missing_features:
-    print("Missing v0.7.1 features:", ", ".join(missing_features))
+    print("Missing v0.7.2 features:", ", ".join(missing_features))
     sys.exit(1)
 
-print("Folio v0.7.1 static validation passed.")
+print("Folio v0.7.2 static validation passed.")
