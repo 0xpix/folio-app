@@ -1,6 +1,5 @@
 package com.pix.folio.ui
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pix.folio.model.TimelineEntryType
-import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Locale
 
@@ -38,7 +36,6 @@ internal fun V07HomeScreen(
     val summary = vm.summary
     val month = YearMonth.now()
     val plan = summary.moneyPlan(month)
-    val overview = summary.monthOverview(month)
     val history = buildList {
         addAll(summary.balanceHistory.takeLast(120).map { it.value })
         if (lastOrNull() != summary.totalBalance) add(summary.totalBalance)
@@ -46,7 +43,6 @@ internal fun V07HomeScreen(
     val historyStart = history.firstOrNull() ?: summary.totalBalance
     val historyChange = summary.totalBalance - historyStart
     val historyPct = if (historyStart > 0.0) historyChange / historyStart * 100.0 else 0.0
-    val todayExpenses = summary.expenses.filter { it.date == LocalDate.now() }.sumOf { it.amount }
     val recent = summary.transactionTimeline().take(5)
 
     Column(
@@ -62,21 +58,13 @@ internal fun V07HomeScreen(
             }
         }
 
-        Spacer(Modifier.height(26.dp))
+        Spacer(Modifier.height(22.dp))
         Text("Net Worth", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(v07Euro(summary.totalBalance), fontSize = 42.sp, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.weight(1f))
-            Text(
-                "${if (historyPct >= 0) "+" else ""}${String.format(Locale.US, "%.1f", historyPct)}%",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-        }
+        Text(v07Euro(summary.totalBalance), fontSize = 43.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(4.dp))
         Text(
-            "${v07SignedEuro(historyChange)} across recent net-worth history",
+            "${v07SignedEuro(historyChange)}  ·  ${if (historyPct >= 0) "+" else ""}${String.format(Locale.US, "%.1f", historyPct)}%",
             fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -87,35 +75,14 @@ internal fun V07HomeScreen(
             Spacer(Modifier.height(92.dp))
         }
 
-        Spacer(Modifier.height(28.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Today", fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-            TextButton(onClick = onOpenMoney) { Text("Open money") }
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            V07DashboardCard(
-                label = "Balance",
-                value = v07Euro(summary.cashBalance),
-                detail = "Spendable cash",
-                modifier = Modifier.weight(1f),
-                onClick = onOpenMoney,
+        Spacer(Modifier.height(24.dp))
+        V07TinyStats(
+            listOf(
+                "Cash" to v07Euro(summary.cashBalance),
+                "Savings" to v07Euro(summary.totalSavings),
+                "Portfolio" to v07Euro(summary.investmentTotal),
             )
-            V07DashboardCard(
-                label = "Spending",
-                value = v07Euro(todayExpenses),
-                detail = "Today",
-                modifier = Modifier.weight(1f),
-                onClick = onOpenMoney,
-            )
-            V07DashboardCard(
-                label = "Invested",
-                value = v07Euro(overview.invested),
-                detail = "This month",
-                modifier = Modifier.weight(1f),
-                onClick = onOpenPortfolio,
-            )
-        }
+        )
 
         Spacer(Modifier.height(28.dp))
         V07Panel(onClick = onOpenMoney) {
@@ -130,10 +97,35 @@ internal fun V07HomeScreen(
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(v07SignedEuro(plan.projectedLeft), fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                    Text(v07SignedEuro(plan.projectedLeft), fontSize = 19.sp, fontWeight = FontWeight.Medium)
                     Text("projected left", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+        }
+
+        Spacer(Modifier.height(28.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Savings", fontSize = 18.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            TextButton(onClick = onOpenMoney) { Text("Manage") }
+        }
+        V07Panel(onClick = onOpenMoney) {
+            V07Goal(
+                label = "Emergency fund",
+                current = summary.emergencyFundBalance,
+                target = summary.emergencyFundTarget,
+                detail = if (summary.averageMonthlyOutflow > 0.0) {
+                    "${String.format(Locale.US, "%.1f", summary.emergencyFundMonths)} months covered"
+                } else {
+                    "Tap to add money manually"
+                },
+            )
+            V07Divider()
+            V07Goal(
+                label = "Crash reserve",
+                current = summary.crashReserveBalance,
+                target = summary.crashReserveTarget,
+                detail = "Tap Money to manage savings",
+            )
         }
 
         Spacer(Modifier.height(28.dp))
@@ -163,42 +155,10 @@ internal fun V07HomeScreen(
             }
         }
 
-        Spacer(Modifier.height(28.dp))
-        Text("Goals", fontSize = 18.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(6.dp))
-        V07Goal(
-            label = "Emergency fund",
-            current = summary.emergencyFundBalance,
-            target = summary.emergencyFundTarget,
-            detail = if (summary.averageMonthlyOutflow > 0.0) {
-                "${String.format(Locale.US, "%.1f", summary.emergencyFundMonths)} months covered"
-            } else {
-                "Needs spending history"
-            },
-            onClick = onOpenMoney,
-        )
-        V07Divider()
-        V07Goal(
-            label = "Crash reserve",
-            current = summary.crashReserveBalance,
-            target = summary.crashReserveTarget,
-            detail = "Ready for a market drawdown",
-            onClick = onOpenMoney,
-        )
-
-        Spacer(Modifier.height(28.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Portfolio", fontSize = 18.sp, fontWeight = FontWeight.Medium)
-                Text(
-                    "${v07SignedEuro(summary.portfolioGain)} vs cost basis",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(v07Euro(summary.investmentTotal), fontSize = 18.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(18.dp))
+        TextButton(onClick = onOpenPortfolio, modifier = Modifier.fillMaxWidth()) {
+            Text("Open portfolio →")
         }
-        TextButton(onClick = onOpenPortfolio) { Text("Open portfolio →") }
 
         Spacer(Modifier.height(90.dp))
     }
