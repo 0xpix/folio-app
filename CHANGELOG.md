@@ -7,6 +7,29 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.7.3.beta] - 2026-09-09
+
+### Added
+- A combined Portfolio graph that adds every investment together from its own purchase date, so the curve shows total invested wealth rather than only one holding at a time.
+- Robust Yahoo symbol resolution for exchange-traded holdings using known ISIN listings, exchange-aware ticker suffixes, and Yahoo search fallback.
+- A direct mapping for the Scalable MSCI AC World Xtrackers UCITS ETF (ISIN `LU2903252349`) to its Xetra/Yahoo symbol `SCWX.DE`.
+- The resolved market symbol is shown beside the data source inside each investment detail sheet for easier debugging.
+
+### Changed
+- Bottom navigation is now a minimal three-dot pager indicator with no text or page icons; Home remains the center dot.
+- The locked screen uses a larger title and a high-contrast, full-width Unlock Folio button.
+- Update notes are always displayed automatically when a beta update is available instead of being hidden behind a secondary toggle.
+- The updater preserves GitHub release-note Markdown so Added / Changed / Fixed can be rendered correctly in-app.
+- Beta version advanced to `v0.7.3.beta`.
+
+### Fixed
+- Fixed the Scalable MSCI AC World investment failing to build a graph when an ambiguous or incomplete ticker was stored.
+- Fixed European ETF tracking being able to resolve the wrong security when a short ticker was also used by a US-listed company.
+- Fixed the Portfolio screen having no combined value-history graph across NVIDIA, the Scalable MSCI AC World ETF, and other holdings.
+- Fixed the navigation bar being visually heavier than the requested minimalist pager-dot design.
+- Fixed the app-lock Unlock action being too subtle to see clearly.
+- Fixed What's new appearing empty because the beta updater removed Markdown headings before the release-note renderer could parse them.
+
 ## [0.7.2.beta] - 2026-09-09
 
 ### Added
