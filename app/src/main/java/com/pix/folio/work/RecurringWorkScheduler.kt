@@ -1,10 +1,8 @@
 package com.pix.folio.work
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -16,12 +14,10 @@ object RecurringWorkScheduler {
 
     fun ensureScheduled(context: Context) {
         val appContext = context.applicationContext
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
 
+        // Recurring salary, bills and contributions must not require connectivity.
+        // The worker's market refresh is best-effort and recurring finance still runs offline.
         val periodic = PeriodicWorkRequestBuilder<FolioRecurringWorker>(24, TimeUnit.HOURS)
-            .setConstraints(constraints)
             .build()
 
         WorkManager.getInstance(appContext).enqueueUniquePeriodicWork(
@@ -31,7 +27,6 @@ object RecurringWorkScheduler {
         )
 
         val startup = OneTimeWorkRequestBuilder<FolioRecurringWorker>()
-            .setConstraints(constraints)
             .build()
 
         WorkManager.getInstance(appContext).enqueueUniqueWork(
