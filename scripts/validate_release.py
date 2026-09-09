@@ -11,8 +11,10 @@ required = [
     "app/src/main/java/com/pix/folio/ui/V07ViewModel.kt",
     "app/src/main/java/com/pix/folio/ui/V07HomeScreen.kt",
     "app/src/main/java/com/pix/folio/ui/V07MoneyScreen.kt",
+    "app/src/main/java/com/pix/folio/ui/V07MoneySheets.kt",
     "app/src/main/java/com/pix/folio/ui/V07PortfolioScreen.kt",
     "app/src/main/java/com/pix/folio/ui/V07SettingsSheet.kt",
+    "app/src/main/java/com/pix/folio/ui/V071UpdateNotes.kt",
     "app/src/main/java/com/pix/folio/ui/V07Components.kt",
     "app/src/main/java/com/pix/folio/ui/theme/FolioTheme.kt",
     "app/src/main/java/com/pix/folio/model/FolioModels.kt",
@@ -34,7 +36,7 @@ if missing:
 build = (root / "app/build.gradle.kts").read_text()
 build_checks = {
     "application id": 'applicationId = "com.pix.folio"',
-    "v0.7 version": 'versionName = ciVersionName ?: "0.7.0"',
+    "v0.7.1 version": 'versionName = ciVersionName ?: "0.7.1"',
     "beta flavor": 'create("beta")',
     "play flavor": 'create("play")',
     "GitHub beta updates": 'GITHUB_BETA_UPDATES',
@@ -67,8 +69,12 @@ for forbidden in ["RootTab { HOME, EXPENSES", "INSIGHTS", "UPCOMING"]:
 
 checks = {
     "three-tab shell": ("HOME", "MONEY", "PORTFOLIO"),
+    "swipe navigation": ("HorizontalPager", "rememberPagerState"),
+    "safe top inset": ("statusBarsPadding",),
     "next-month budget attribution": ("budgetMonthOffset", "budgetMonth"),
     "savings buckets": ("CRASH_RESERVE", "GENERAL", "emergencyFundTarget"),
+    "manual savings": ("V07SavingsTransferSheet", "Add from cash", "Withdraw to cash"),
+    "formatted update notes": ("V071UpdateNotes", "What's new"),
     "CS2 assets": ("Cs2AssetType", "marketHashName"),
     "ISIN lookup": ("OpenFigiService.lookupIsin",),
     "automatic prices": ("MarketPriceService", "refreshMarketPrices"),
@@ -78,7 +84,7 @@ checks = {
 search_text = "\n".join(path.read_text() for path in root.glob("app/src/main/java/**/*.kt"))
 missing_features = [name for name, tokens in checks.items() if any(token not in search_text for token in tokens)]
 if missing_features:
-    print("Missing v0.7 features:", ", ".join(missing_features))
+    print("Missing v0.7.1 features:", ", ".join(missing_features))
     sys.exit(1)
 
-print("Folio v0.7 static validation passed.")
+print("Folio v0.7.1 static validation passed.")
