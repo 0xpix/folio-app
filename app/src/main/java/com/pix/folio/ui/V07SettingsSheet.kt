@@ -45,7 +45,6 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var updateState by remember { mutableStateOf(UpdateUiState()) }
     var downloadedApk by remember { mutableStateOf<File?>(null) }
-    var showReleaseNotes by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -98,7 +97,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             V07Metric(
                 "Refresh market prices",
                 if (vm.marketRefreshing) "Updating…" else "Refresh",
-                "ETFs/stocks use their ticker; CS2 assets use the Steam market hash name.",
+                "ETFs/stocks use their resolved exchange ticker; CS2 assets use the Steam market hash name.",
                 onClick = if (vm.marketRefreshing) null else vm::refreshMarketPrices,
             )
             vm.marketRefreshLabel?.let {
@@ -129,7 +128,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                 }
                 val updateDetail = when {
                     updateState.error != null -> updateState.error
-                    updateState.status == UpdateStatus.AVAILABLE -> "A new beta is ready. Review the changes below before downloading."
+                    updateState.status == UpdateStatus.AVAILABLE -> "A new beta is ready. What's new is shown below before downloading."
                     updateState.status == UpdateStatus.READY -> "Download complete. Install when you're ready."
                     else -> null
                 }
@@ -143,26 +142,22 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                         scope.launch {
                             updateState = UpdateUiState(UpdateStatus.CHECKING)
                             downloadedApk = null
-                            showReleaseNotes = false
-                            val checked = BetaUpdater.check(BuildConfig.VERSION_NAME)
-                            updateState = checked
-                            showReleaseNotes = checked.status == UpdateStatus.AVAILABLE
+                            updateState = BetaUpdater.check(BuildConfig.VERSION_NAME)
                         }
                     },
                 )
 
                 val release = updateState.release
                 if (release != null && updateState.status in setOf(UpdateStatus.AVAILABLE, UpdateStatus.DOWNLOADING, UpdateStatus.READY)) {
+                    Spacer(Modifier.height(14.dp))
+                    V071UpdateNotes(release.notes)
                     TextButton(
-                        onClick = { showReleaseNotes = !showReleaseNotes },
+                        onClick = { BetaUpdater.openRelease(context, release) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(if (showReleaseNotes) "Hide what's new" else "View what's new")
+                        Text("Open full GitHub release")
                     }
-                    if (showReleaseNotes) {
-                        V071UpdateNotes(release.notes)
-                        Spacer(Modifier.height(12.dp))
-                    }
+                    Spacer(Modifier.height(8.dp))
                 }
 
                 if (updateState.status == UpdateStatus.AVAILABLE && release != null) {
