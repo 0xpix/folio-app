@@ -10,14 +10,20 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 /**
- * Best-effort public market data used by Folio for portfolio tracking.
+ * Best-effort, key-free market data for Folio.
  *
- * Securities use Yahoo Finance's public chart endpoint with the resolved ticker.
+ * Securities use Yahoo Finance's public chart surface — the same public data family used by
+ * open-source clients such as yfinance. It does not require an API key, but it is an unofficial
+ * endpoint, so Folio always presents quotes as indicative and exposes any exchange delay reported
+ * by the response instead of claiming execution-grade real-time data.
+ *
  * CS2 items use the Steam Community Market price-overview endpoint.
- * Both are intentionally optional: failed refreshes never block local finance tracking.
  */
 object MarketPriceService {
     data class Quote(
@@ -25,7 +31,21 @@ object MarketPriceService {
         val currency: String,
         val symbol: String,
         val source: String,
+        val delayMinutes: Int = 0,
     )
+
+    data class HistoryPoint(val date: LocalDate, val close: Double)
+
+    data class MarketHistory(
+        val points: List<HistoryPoint>,
+        val currency: String,
+        val symbol: String,
+        val source: String,
+        val delayMinutes: Int,
+    ) {
+        val firstPrice: Double? get() = points.firstOrNull()?.close
+        val latestPrice: Double? get() = points.lastOrNull()?.close
+    }
 
     data class RefreshReport(
         val updated: Int,
@@ -63,6 +83,14 @@ object MarketPriceService {
         RefreshReport(updated, failed, messages.take(8))
     }
 
+    suspend fun fetchHistory(holding: InvestmentHolding, fromDate: LocalDate): MarketHistory =
+        withContext(Dispatchers.IO) {
+            require(holding.kind != InvestmentKind.CS2) {
+                "Historical Steam Market data is not available from the public price endpoint"
+            }
+            fetchYahooHistory(holding, fromDate)
+        }
+
     private fun fetchQuote(holding: InvestmentHolding): Quote =
         if (holding.kind == InvestmentKind.CS2) fetchSteamQuote(holding) else fetchYahooQuote(holding)
 
@@ -70,7 +98,9 @@ object MarketPriceService {
         val ticker = yahooTicker(holding)
         require(ticker.isNotBlank()) { "missing price symbol" }
         val encoded = URLEncoder.encode(ticker, StandardCharsets.UTF_8.toString())
-        val json = JSONObject(getText("https://query1.finance.yahoo.com/v8/finance/chart/$encoded?range=5d&interval=1d"))
+        val json = JSONObject(
+            getText("https://query1.finance.yahoo.com/v8/finance/chart/$encoded?range=1d&interval=5m&includePrePost=false")
+        )
         val result = json.optJSONObject("chart")?.optJSONArray("result")?.optJSONObject(0)
             ?: error("market quote unavailable")
         val meta = result.optJSONObject("meta") ?: JSONObject()
@@ -79,26 +109,60 @@ object MarketPriceService {
             ?.optJSONArray("quote")
             ?.optJSONObject(0)
             ?.optJSONArray("close")
-        val latestClose = if (quoteArray == null) Double.NaN else {
-            var value = Double.NaN
-            for (index in 0 until quoteArray.length()) {
-                if (!quoteArray.isNull(index)) {
-                    val candidate = quoteArray.optDouble(index, Double.NaN)
-                    if (candidate.isFinite() && candidate > 0.0) value = candidate
-                }
-            }
-            value
-        }
+        val latestClose = latestPositive(quoteArray)
         val price = when {
             regular.isFinite() && regular > 0.0 -> regular
             latestClose.isFinite() && latestClose > 0.0 -> latestClose
             else -> error("market quote unavailable")
         }
+        val delay = meta.optInt("exchangeDataDelayedBy", 0).coerceAtLeast(0)
         return Quote(
             price = price,
             currency = meta.optString("currency").ifBlank { holding.priceCurrency.ifBlank { "EUR" } },
             symbol = ticker,
-            source = "Yahoo Finance",
+            source = yahooSource(delay),
+            delayMinutes = delay,
+        )
+    }
+
+    private fun fetchYahooHistory(holding: InvestmentHolding, fromDate: LocalDate): MarketHistory {
+        val ticker = yahooTicker(holding)
+        require(ticker.isNotBlank()) { "missing ticker / price symbol" }
+        val encoded = URLEncoder.encode(ticker, StandardCharsets.UTF_8.toString())
+        val start = fromDate.coerceAtMost(LocalDate.now()).atStartOfDay(ZoneOffset.UTC).toEpochSecond()
+        val end = LocalDate.now().plusDays(1).atStartOfDay(ZoneOffset.UTC).toEpochSecond()
+        val url = "https://query1.finance.yahoo.com/v8/finance/chart/$encoded?period1=$start&period2=$end&interval=1d&events=history&includeAdjustedClose=true"
+        val json = JSONObject(getText(url))
+        val result = json.optJSONObject("chart")?.optJSONArray("result")?.optJSONObject(0)
+            ?: error("price history unavailable")
+        val meta = result.optJSONObject("meta") ?: JSONObject()
+        val timestamps = result.optJSONArray("timestamp") ?: error("price history unavailable")
+        val quote = result.optJSONObject("indicators")?.optJSONArray("quote")?.optJSONObject(0)
+        val closes = quote?.optJSONArray("close") ?: error("price history unavailable")
+        val zone = runCatching {
+            ZoneId.of(meta.optString("exchangeTimezoneName").ifBlank { "UTC" })
+        }.getOrDefault(ZoneOffset.UTC)
+
+        val points = buildList {
+            val count = minOf(timestamps.length(), closes.length())
+            for (index in 0 until count) {
+                if (timestamps.isNull(index) || closes.isNull(index)) continue
+                val epoch = timestamps.optLong(index, 0L)
+                val close = closes.optDouble(index, Double.NaN)
+                if (epoch <= 0L || !close.isFinite() || close <= 0.0) continue
+                val date = Instant.ofEpochSecond(epoch).atZone(zone).toLocalDate()
+                if (!date.isBefore(fromDate)) add(HistoryPoint(date, close))
+            }
+        }.distinctBy { it.date }.sortedBy { it.date }
+
+        if (points.isEmpty()) error("no market history found from $fromDate")
+        val delay = meta.optInt("exchangeDataDelayedBy", 0).coerceAtLeast(0)
+        return MarketHistory(
+            points = points,
+            currency = meta.optString("currency").ifBlank { holding.priceCurrency.ifBlank { "EUR" } },
+            symbol = ticker,
+            source = yahooSource(delay),
+            delayMinutes = delay,
         )
     }
 
@@ -112,7 +176,7 @@ object MarketPriceService {
         if (!json.optBoolean("success", false)) error("Steam market quote unavailable")
         val raw = json.optString("median_price").ifBlank { json.optString("lowest_price") }
         val price = parseLocalizedMoney(raw) ?: error("Steam market quote unavailable")
-        return Quote(price, "EUR", marketName, "Steam Community Market")
+        return Quote(price, "EUR", marketName, "Steam Community Market · indicative")
     }
 
     private fun yahooTicker(holding: InvestmentHolding): String {
@@ -134,10 +198,26 @@ object MarketPriceService {
         }
     }
 
+    private fun yahooSource(delayMinutes: Int): String =
+        if (delayMinutes > 0) "Yahoo Finance · ${delayMinutes}m delayed"
+        else "Yahoo Finance · indicative live"
+
+    private fun latestPositive(array: org.json.JSONArray?): Double {
+        if (array == null) return Double.NaN
+        var value = Double.NaN
+        for (index in 0 until array.length()) {
+            if (!array.isNull(index)) {
+                val candidate = array.optDouble(index, Double.NaN)
+                if (candidate.isFinite() && candidate > 0.0) value = candidate
+            }
+        }
+        return value
+    }
+
     private fun getText(url: String): String {
         val connection = (URI(url).toURL().openConnection() as HttpURLConnection).apply {
             connectTimeout = 10_000
-            readTimeout = 12_000
+            readTimeout = 15_000
             instanceFollowRedirects = true
             setRequestProperty("User-Agent", "Folio/0.7 Android")
             setRequestProperty("Accept", "application/json,text/plain,*/*")
