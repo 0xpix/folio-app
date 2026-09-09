@@ -119,6 +119,10 @@ class MonthlyPlanStore(context: Context) {
         write(recurringSavings().filterNot { it.id == id })
     }
 
+    fun clearAll() {
+        prefs.edit().clear().apply()
+    }
+
     fun envelope(summary: FolioSummary, month: YearMonth): BudgetEnvelope {
         val base = summary.moneyPlan(month)
         val overview = summary.monthOverview(month)
