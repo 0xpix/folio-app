@@ -11,9 +11,11 @@ import com.pix.folio.data.FolioStore
 import com.pix.folio.model.ExpenseCategory
 import com.pix.folio.model.FolioSummary
 import com.pix.folio.model.InvestmentKind
+import com.pix.folio.model.InvestmentTag
 import com.pix.folio.model.PaymentCategory
 import com.pix.folio.widget.FolioBalanceWidget
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class FolioViewModel(application: Application) : AndroidViewModel(application) {
     private val store = FolioStore(application)
@@ -22,6 +24,9 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     var appLockEnabled by mutableStateOf(store.isAppLockEnabled())
+        private set
+
+    var canUndo by mutableStateOf(store.canUndo())
         private set
 
     fun addExpense(category: ExpenseCategory, amount: Double, note: String) {
@@ -62,13 +67,20 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         isin: String = "",
         figi: String = "",
         exchange: String = "",
+        units: Double = 0.0,
+        unitPrice: Double = 0.0,
     ) {
-        store.addInvestment(kind, name, symbol, amount, isin, figi, exchange)
+        store.addInvestment(kind, name, symbol, amount, isin, figi, exchange, units, unitPrice)
         refresh()
     }
 
-    fun addInvestmentContribution(holdingId: String, amount: Double) {
-        store.addInvestmentContribution(holdingId, amount)
+    fun addInvestmentContribution(
+        holdingId: String,
+        amount: Double,
+        units: Double = 0.0,
+        unitPrice: Double = 0.0,
+    ) {
+        store.addInvestmentContribution(holdingId, amount, units, unitPrice)
         refresh()
     }
 
@@ -79,6 +91,28 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleRecurringInvestment(id: String) {
         store.toggleRecurringInvestment(id)
+        refresh()
+    }
+
+    fun setEmergencyFundBalance(value: Double) {
+        store.setEmergencyFundBalance(value)
+        refresh()
+    }
+
+    fun updateInvestmentDetails(id: String, tags: Set<InvestmentTag>, note: String) {
+        store.updateInvestmentDetails(id, tags, note)
+        refresh()
+    }
+
+    fun addInvestmentPrice(
+        holdingId: String,
+        close: Double,
+        currency: String = "EUR",
+        symbol: String = "",
+        source: String = "Manual",
+        date: LocalDate = LocalDate.now(),
+    ) {
+        store.addInvestmentPrice(holdingId, close, currency, symbol, source, date)
         refresh()
     }
 
@@ -97,6 +131,12 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         appLockEnabled = enabled
     }
 
+    fun undoLastChange(): Boolean {
+        val restored = store.undoLastChange()
+        if (restored) refresh()
+        return restored
+    }
+
     fun clearAll() {
         store.clearAll()
         refresh()
@@ -105,6 +145,7 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
     private fun refresh() {
         summary = store.summary()
         appLockEnabled = store.isAppLockEnabled()
+        canUndo = store.canUndo()
         viewModelScope.launch {
             FolioBalanceWidget().updateAll(getApplication())
         }
