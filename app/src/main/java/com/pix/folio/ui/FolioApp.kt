@@ -5,6 +5,7 @@ import android.content.ContextWrapper
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,16 +21,13 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.TrendingUp
-import androidx.compose.material3.Icon
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,8 +39,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -52,10 +52,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
-private enum class V07RootTab(val label: String, val icon: ImageVector) {
-    MONEY("Money", Icons.Outlined.Payments),
-    HOME("Home", Icons.Outlined.Home),
-    PORTFOLIO("Portfolio", Icons.Outlined.TrendingUp),
+private enum class V07RootTab(val label: String) {
+    MONEY("Money"),
+    HOME("Home"),
+    PORTFOLIO("Portfolio"),
 }
 
 @Composable
@@ -121,28 +121,27 @@ private fun V07BottomBar(selected: V07RootTab, onSelect: (V07RootTab) -> Unit) {
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 7.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+            .padding(horizontal = 24.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         V07RootTab.entries.forEach { tab ->
             val active = selected == tab
-            TextButton(
-                onClick = { onSelect(tab) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(22.dp),
+            Box(
+                Modifier
+                    .size(42.dp)
+                    .semantics { contentDescription = tab.label }
+                    .clickable { onSelect(tab) },
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    tab.icon,
-                    contentDescription = tab.label,
-                    modifier = Modifier.size(17.dp),
-                    tint = if (active) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(7.dp))
-                Text(
-                    tab.label,
-                    fontSize = 11.sp,
-                    color = if (active) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+                Box(
+                    Modifier
+                        .size(if (active) 9.dp else 6.dp)
+                        .background(
+                            if (active) MaterialTheme.colorScheme.onBackground
+                            else MaterialTheme.colorScheme.outline,
+                            CircleShape,
+                        )
                 )
             }
         }
@@ -198,13 +197,34 @@ private fun V07AppLockGate(vm: V07ViewModel, content: @Composable () -> Unit) {
         content()
     } else {
         Column(
-            Modifier.fillMaxSize().statusBarsPadding().padding(28.dp),
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 28.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("FOLIO", letterSpacing = 2.sp, fontSize = 13.sp)
-            Text("Locked", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-            TextButton(onClick = ::authenticate) { Text("Unlock") }
+            Text("FOLIO", letterSpacing = 2.8.sp, fontSize = 14.sp)
+            Spacer(Modifier.height(18.dp))
+            Text("Locked", fontSize = 34.sp, lineHeight = 38.sp)
+            Spacer(Modifier.height(7.dp))
+            Text(
+                "Your financial data is hidden.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+            )
+            Spacer(Modifier.height(28.dp))
+            Button(
+                onClick = ::authenticate,
+                modifier = Modifier.width(240.dp).height(56.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.onBackground,
+                    contentColor = MaterialTheme.colorScheme.background,
+                ),
+            ) {
+                Text("UNLOCK FOLIO", fontSize = 15.sp, letterSpacing = 0.8.sp)
+            }
         }
     }
 }
