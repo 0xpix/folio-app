@@ -144,6 +144,65 @@ internal fun V07AddPaymentSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+internal fun V07SavingsTransferSheet(
+    vm: V07ViewModel,
+    bucket: SavingsBucketType,
+    onDismiss: () -> Unit,
+) {
+    var amount by remember(bucket) { mutableStateOf("") }
+    val value = amount.v07Double()
+    val current = when (bucket) {
+        SavingsBucketType.EMERGENCY -> vm.summary.emergencyFundBalance
+        SavingsBucketType.CRASH_RESERVE -> vm.summary.crashReserveBalance
+        SavingsBucketType.GENERAL -> vm.summary.generalSavingsBalance
+    }
+    val title = when (bucket) {
+        SavingsBucketType.EMERGENCY -> "Emergency fund"
+        SavingsBucketType.CRASH_RESERVE -> "Crash reserve"
+        SavingsBucketType.GENERAL -> "General savings"
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        V07SheetBody(title) {
+            Text(
+                "Manual only. Choose exactly how much to move between spendable cash and this savings bucket.",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+            V07Panel {
+                V07Metric("Saved", v07Euro(current))
+                V07Divider()
+                V07Metric("Available cash", v07Euro(vm.summary.cashBalance))
+            }
+            Spacer(Modifier.height(16.dp))
+            V07NumberField(amount, "Amount (€)") { amount = it }
+            Spacer(Modifier.height(14.dp))
+            Button(
+                onClick = {
+                    vm.transferSavings(bucket, value, "Manual ${bucket.label.lowercase()} deposit")
+                    onDismiss()
+                },
+                enabled = value > 0.0 && vm.summary.cashBalance > 0.0,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(22.dp),
+            ) { Text("Add from cash") }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    vm.transferSavings(bucket, -value, "Manual ${bucket.label.lowercase()} withdrawal")
+                    onDismiss()
+                },
+                enabled = value > 0.0 && current > 0.0,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(22.dp),
+            ) { Text("Withdraw to cash") }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 internal fun V07AllocateSheet(vm: V07ViewModel, defaultAmount: Double, onDismiss: () -> Unit) {
     var amount by remember(defaultAmount) { mutableStateOf(if (defaultAmount > 0.0) String.format("%.2f", defaultAmount) else "") }
     val value = amount.v07Double().coerceAtMost(vm.summary.cashBalance)
@@ -151,7 +210,7 @@ internal fun V07AllocateSheet(vm: V07ViewModel, defaultAmount: Double, onDismiss
     ModalBottomSheet(onDismissRequest = onDismiss) {
         V07SheetBody("Where should the money go?") {
             Text(
-                "Move what is left without changing your monthly history.",
+                "Move what is left without changing your monthly history. Nothing is moved until you choose a destination.",
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
