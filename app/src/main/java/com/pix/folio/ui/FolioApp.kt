@@ -111,7 +111,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 private enum class RootTab { HOME, EXPENSES, INVESTMENTS, RECURRING, MORE }
-private enum class DetailPage { MONTH, NET_WORTH }
+private enum class DetailPage { MONTH, NET_WORTH, INSIGHTS }
 private enum class RecurringTab { PAYMENTS, INCOME, INVESTMENTS }
 
 private enum class ChartRange(val label: String, val days: Long?) {
@@ -223,6 +223,7 @@ private fun FolioShell(vm: FolioViewModel) {
         when (detail) {
             DetailPage.MONTH -> MonthlyOverviewScreen(vm.summary) { detail = null }
             DetailPage.NET_WORTH -> NetWorthHistoryScreen(vm.summary) { detail = null }
+            DetailPage.INSIGHTS -> V06InsightsScreen(vm) { detail = null }
             null -> Unit
         }
         return
@@ -239,6 +240,7 @@ private fun FolioShell(vm: FolioViewModel) {
                     onSettings = { tab = RootTab.MORE },
                     onMonth = { detail = DetailPage.MONTH },
                     onNetWorthHistory = { detail = DetailPage.NET_WORTH },
+                    onInsights = { detail = DetailPage.INSIGHTS },
                 )
                 RootTab.EXPENSES -> ExpensesScreen(vm)
                 RootTab.INVESTMENTS -> InvestmentsScreen(vm)
@@ -255,6 +257,7 @@ private fun HomeScreen(
     onSettings: () -> Unit,
     onMonth: () -> Unit,
     onNetWorthHistory: () -> Unit,
+    onInsights: () -> Unit,
 ) {
     var range by remember { mutableStateOf(ChartRange.MONTH) }
     val chart = historySeries(summary.balanceHistory, range)
@@ -308,6 +311,13 @@ private fun HomeScreen(
         SummaryRow("Spent", "−${euro(month.expenses + month.payments)}", "↘")
         SummaryRow("Invested", "−${euro(month.invested)}", "↑")
         SummaryRow("Left", signedEuro(month.left), "=")
+
+        Spacer(Modifier.height(26.dp))
+        ClickableSectionHeader("INSIGHTS", "Open", onInsights)
+        val previousMonth = summary.monthOverview(YearMonth.now().minusMonths(1))
+        SummaryRow("vs last month", signedEuro(month.left - previousMonth.left), "↔")
+        SummaryRow("Emergency fund", "${String.format(Locale.US, "%.1f", summary.emergencyFundMonths)} mo", "◇")
+        SummaryRow("Invest streak", "${summary.investmentContributionStreak} mo", "↑")
 
         Spacer(Modifier.height(26.dp))
         QuietLabel("UPCOMING")
@@ -464,7 +474,7 @@ private fun InvestmentsScreen(vm: FolioViewModel) {
                             fontSize = 10.sp,
                         )
                     }
-                    Text(euro(holding.amount), fontSize = 14.sp)
+                    Text(euro(summary.marketValueFor(holding)), fontSize = 14.sp)
                 }
                 if (index != summary.investments.lastIndex) Divider(color = MaterialTheme.colorScheme.outlineVariant)
             }
