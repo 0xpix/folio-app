@@ -45,6 +45,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var updateState by remember { mutableStateOf(UpdateUiState()) }
     var downloadedApk by remember { mutableStateOf<File?>(null) }
+    var showReleaseNotes by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -56,7 +57,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
         ) {
             Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Medium)
             Text(
-                "Keep Folio quiet, automatic, and easy to scan.",
+                "Simple controls for Folio.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -82,7 +83,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             V07SectionLabel("Automation")
             SettingSwitchRow(
                 title = "Automatic monthly plan",
-                detail = "Apply due salary, fixed payments and recurring investments without tapping each item.",
+                detail = "Apply due salary, fixed payments and recurring investments. Savings stay manual.",
                 checked = vm.autoRecurringEnabled,
                 onCheckedChange = vm::updateAutoRecurringEnabled,
             )
@@ -115,7 +116,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
 
             Spacer(Modifier.height(26.dp))
             V07SectionLabel("Updates")
-            V07Metric("Version", BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHANNEL)
+            V07Metric("Installed version", BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHANNEL)
             if (BuildConfig.GITHUB_BETA_UPDATES) {
                 val updateValue = when (updateState.status) {
                     UpdateStatus.CHECKING -> "Checking…"
@@ -126,22 +127,47 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                     UpdateStatus.ERROR -> "Retry"
                     else -> "Check"
                 }
+                val updateDetail = when {
+                    updateState.error != null -> updateState.error
+                    updateState.status == UpdateStatus.AVAILABLE -> "A new beta is ready. Review the changes below before downloading."
+                    updateState.status == UpdateStatus.READY -> "Download complete. Install when you're ready."
+                    else -> null
+                }
+
                 V07Divider()
                 V07Metric(
                     "Beta update",
                     updateValue,
-                    updateState.error ?: updateState.release?.notes?.lineSequence()?.firstOrNull(),
+                    updateDetail,
                     onClick = {
                         scope.launch {
                             updateState = UpdateUiState(UpdateStatus.CHECKING)
-                            updateState = BetaUpdater.check(BuildConfig.VERSION_NAME)
+                            downloadedApk = null
+                            showReleaseNotes = false
+                            val checked = BetaUpdater.check(BuildConfig.VERSION_NAME)
+                            updateState = checked
+                            showReleaseNotes = checked.status == UpdateStatus.AVAILABLE
                         }
                     },
                 )
-                if (updateState.status == UpdateStatus.AVAILABLE && updateState.release != null) {
+
+                val release = updateState.release
+                if (release != null && updateState.status in setOf(UpdateStatus.AVAILABLE, UpdateStatus.DOWNLOADING, UpdateStatus.READY)) {
+                    TextButton(
+                        onClick = { showReleaseNotes = !showReleaseNotes },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (showReleaseNotes) "Hide what's new" else "View what's new")
+                    }
+                    if (showReleaseNotes) {
+                        V071UpdateNotes(release.notes)
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
+
+                if (updateState.status == UpdateStatus.AVAILABLE && release != null) {
                     OutlinedButton(
                         onClick = {
-                            val release = updateState.release ?: return@OutlinedButton
                             scope.launch {
                                 updateState = updateState.copy(status = UpdateStatus.DOWNLOADING, error = null)
                                 BetaUpdater.download(context, release).fold(
@@ -156,7 +182,7 @@ internal fun V07SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Download ${updateState.release?.tagName}") }
+                    ) { Text("Download ${release.tagName}") }
                 }
                 if (updateState.status == UpdateStatus.READY && downloadedApk != null) {
                     OutlinedButton(
