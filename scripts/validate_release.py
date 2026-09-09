@@ -19,10 +19,13 @@ required = [
     "app/src/main/java/com/pix/folio/ui/theme/FolioTheme.kt",
     "app/src/main/java/com/pix/folio/model/FolioModels.kt",
     "app/src/main/java/com/pix/folio/data/FolioStore.kt",
+    "app/src/main/java/com/pix/folio/data/FinanceEditor.kt",
+    "app/src/main/java/com/pix/folio/data/MonthlyPlanStore.kt",
     "app/src/main/java/com/pix/folio/data/InvestmentTrackingStore.kt",
     "app/src/main/java/com/pix/folio/data/OpenFigiService.kt",
     "app/src/main/java/com/pix/folio/data/MarketPriceService.kt",
     "app/src/main/java/com/pix/folio/data/RecurringMoneyProcessor.kt",
+    "app/src/main/java/com/pix/folio/widget/FolioWidgetUpdater.kt",
     "app/src/main/java/com/pix/folio/work/FolioRecurringWorker.kt",
     "app/src/main/java/com/pix/folio/work/RecurringWorkScheduler.kt",
     "app/src/beta/java/com/pix/folio/updates/BetaUpdater.kt",
@@ -37,7 +40,7 @@ if missing:
 build = (root / "app/build.gradle.kts").read_text()
 build_checks = {
     "application id": 'applicationId = "com.pix.folio"',
-    "v0.7.3 version": 'versionName = ciVersionName ?: "0.7.3"',
+    "v0.7.4 version": 'versionName = ciVersionName ?: "0.7.4"',
     "beta flavor": 'create("beta")',
     "play flavor": 'create("play")',
     "GitHub beta updates": 'GITHUB_BETA_UPDATES',
@@ -79,9 +82,18 @@ checks = {
     "safe top inset": ("statusBarsPadding",),
     "next-month budget attribution": ("budgetMonthOffset", "budgetMonth"),
     "visible monthly salary": ("Monthly salary", "Save monthly salary"),
+    "salary-funded envelope": ("BudgetEnvelope", "availableCash", "prior-month cash excluded"),
+    "September 2026 start": ("FolioStartMonth", "YearMonth.of(2026, 9)"),
+    "reserved spending budgets": ("Spending budgets", "plannedVariableSpending"),
+    "recurring savings": ("RecurringSavingsRule", "Automatic monthly savings", "Monthly savings"),
+    "editable expenses": ("Delete expense", "updateExpense"),
+    "editable salary": ("Delete salary rule", "updateIncome"),
+    "editable recurring bills": ("Delete recurring bill", "updatePayment"),
+    "editable recurring investments": ("Delete recurring investment", "updateRecurringInvestment"),
     "savings buckets": ("CRASH_RESERVE", "GENERAL", "emergencyFundTarget"),
     "existing emergency savings": ("Already saved before Folio?", "setExistingEmergencyFundBalance"),
     "manual savings": ("V07SavingsTransferSheet", "Add from cash", "Withdraw to cash"),
+    "reliable widget refresh": ("FolioWidgetUpdater", "updateAll"),
     "formatted update notes": ("V071UpdateNotes", "What's new"),
     "purchase-date tracking": ("InvestmentTrackingStore", "setInvestmentPurchaseDate", "Purchase date"),
     "historical market data": ("fetchHistory", "HistoryPoint", "exchangeDataDelayedBy"),
@@ -98,7 +110,7 @@ checks = {
 search_text = "\n".join(path.read_text() for path in root.glob("app/src/main/java/**/*.kt"))
 missing_features = [name for name, tokens in checks.items() if any(token not in search_text for token in tokens)]
 if missing_features:
-    print("Missing v0.7.3 features:", ", ".join(missing_features))
+    print("Missing v0.7.4 features:", ", ".join(missing_features))
     sys.exit(1)
 
-print("Folio v0.7.3 static validation passed.")
+print("Folio v0.7.4 static validation passed.")
