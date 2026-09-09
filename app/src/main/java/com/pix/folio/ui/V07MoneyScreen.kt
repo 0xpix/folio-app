@@ -45,6 +45,9 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
     val overview = summary.monthOverview(month)
     val expenseRows = summary.expenses.filter { YearMonth.from(it.date) == month }.sortedByDescending { it.date }
     val monthIsCurrent = month == YearMonth.now()
+    val salary = summary.incomes.firstOrNull {
+        it.name.contains("salary", true) || it.name.contains("stipend", true) || it.name.contains("wage", true)
+    } ?: summary.incomes.firstOrNull()
 
     Column(
         Modifier
@@ -52,62 +55,89 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        Text("Money", fontSize = 32.sp, fontWeight = FontWeight.Medium)
+        Text("Money", fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium)
         Text(
-            "Income, spending, savings and bills in one place.",
-            fontSize = 12.sp,
-            lineHeight = 17.sp,
+            "Salary, cash, savings, bills and spending.",
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
         V07MonthPicker(month, onPrevious = { month = month.minusMonths(1) }, onNext = { month = month.plusMonths(1) })
 
-        Spacer(Modifier.height(18.dp))
-        V07Panel {
-            Text("Available cash", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(4.dp))
-            Text(v07Euro(summary.cashBalance), fontSize = 48.sp, lineHeight = 52.sp, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(16.dp))
-            V07Divider()
-            V07Metric(
-                "Projected left",
-                v07SignedEuro(plan.projectedLeft),
-                "After planned bills, investments, expenses, and savings",
-                onClick = if (monthIsCurrent && plan.projectedLeft > 0.0) ({ showAllocation = true }) else null,
-            )
+        Spacer(Modifier.height(20.dp))
+        Text("Available cash", fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(v07Euro(summary.cashBalance), fontSize = 58.sp, lineHeight = 62.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "${v07SignedEuro(plan.projectedLeft)} projected left this month",
+            fontSize = 15.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = if (monthIsCurrent && plan.projectedLeft > 0.0) Modifier.clickable { showAllocation = true } else Modifier,
+        )
+
+        Spacer(Modifier.height(36.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Monthly salary", fontSize = 27.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            TextButton(onClick = { showIncome = true }) { Text(if (salary == null) "+ Add" else "+ Another") }
+        }
+        if (salary == null) {
+            V07Panel(onClick = { showIncome = true }) {
+                Text("Add your monthly salary", fontSize = 19.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Set the amount, payday, and whether a late-month salary funds the next budget month.",
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            V07Panel(onClick = { if (monthIsCurrent) vm.toggleIncome(salary.id) }) {
+                Text(salary.name, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(2.dp))
+                Text(v07Euro(salary.amount), fontSize = 40.sp, lineHeight = 44.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Payday ${salary.dayOfMonth} · ${if (salary.budgetMonthOffset == 1) "funds next month" else "funds same month"} · ${if (salary.received) "received" else "scheduled"}",
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (summary.incomes.size > 1) {
+                summary.incomes.filterNot { it.id == salary.id }.forEach { income ->
+                    V07Metric(income.name, v07Euro(income.amount), "Day ${income.dayOfMonth}")
+                }
+            }
         }
 
         if (monthIsCurrent) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(18.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = { showExpense = true },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(18.dp),
-                ) { Text("+ Expense", fontSize = 12.sp) }
-                OutlinedButton(
-                    onClick = { showIncome = true },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(18.dp),
-                ) { Text("+ Income", fontSize = 12.sp) }
+                    shape = RoundedCornerShape(20.dp),
+                ) { Text("+ Expense", fontSize = 13.sp) }
                 OutlinedButton(
                     onClick = { showPayment = true },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(18.dp),
-                ) { Text("+ Bill", fontSize = 12.sp) }
+                    shape = RoundedCornerShape(20.dp),
+                ) { Text("+ Bill", fontSize = 13.sp) }
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(38.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Savings", fontSize = 23.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            Text("Savings", fontSize = 27.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
             TextButton(onClick = { showTargets = true }) { Text("Targets") }
         }
         Text(
-            "Manual only. Tap a bucket to add or withdraw money.",
-            fontSize = 11.sp,
-            lineHeight = 16.sp,
+            "Tap a bucket to add cash, withdraw it, or enter money you already saved before Folio.",
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(10.dp))
@@ -116,7 +146,7 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
                 "Emergency fund",
                 summary.emergencyFundBalance,
                 summary.emergencyFundTarget,
-                if (summary.averageMonthlyOutflow > 0.0) "${String.format("%.1f", summary.emergencyFundMonths)} months covered" else "Coverage needs spending history",
+                if (summary.averageMonthlyOutflow > 0.0) "${String.format("%.1f", summary.emergencyFundMonths)} months covered" else "Tap to add your existing balance",
                 onClick = { savingsBucket = SavingsBucketType.EMERGENCY },
             )
             V07Divider()
@@ -136,8 +166,8 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
             )
         }
 
-        Spacer(Modifier.height(32.dp))
-        Text("Month plan", fontSize = 23.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(38.dp))
+        Text("Month plan", fontSize = 27.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(10.dp))
         V07Panel {
             V07Metric("Expected income", v07Euro(plan.expectedIncome))
@@ -152,65 +182,18 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
         }
         if (monthIsCurrent && plan.projectedLeft > 0.0) {
             TextButton(onClick = { showAllocation = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Allocate leftover manually →", fontSize = 13.sp)
+                Text("Allocate leftover manually →", fontSize = 14.sp)
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(38.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Recurring", fontSize = 23.sp, fontWeight = FontWeight.Medium)
-                Text(
-                    if (vm.autoRecurringEnabled) "Salary, bills and recurring investments can post automatically." else "Recurring automation is off.",
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Text("Bills", fontSize = 27.sp, fontWeight = FontWeight.Medium)
+                Text("Recurring payments", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (monthIsCurrent) TextButton(onClick = vm::runRecurringNow) { Text("Run now") }
         }
-
-        Spacer(Modifier.height(14.dp))
-        V07SectionLabel("Income")
-        if (summary.incomes.isEmpty()) {
-            V07EmptyMoney("No recurring income yet.")
-        } else {
-            summary.incomes.forEachIndexed { index, income ->
-                val fundedMonth = income.budgetMonthFor(month)
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .then(if (monthIsCurrent) Modifier.clickable { vm.toggleIncome(income.id) } else Modifier)
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(income.name, fontSize = 15.sp)
-                        Text(
-                            "Day ${income.dayOfMonth} · ${if (income.budgetMonthOffset == 1) "funds next month" else "funds same month"}",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(v07Euro(income.amount), fontSize = 15.sp)
-                        Text(
-                            if (monthIsCurrent) {
-                                if (income.received) "received" else "scheduled"
-                            } else {
-                                "→ ${fundedMonth.month.name.take(3)}"
-                            },
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                if (index != summary.incomes.lastIndex) V07Divider()
-            }
-        }
-
-        Spacer(Modifier.height(22.dp))
-        V07SectionLabel("Bills")
         if (summary.payments.isEmpty()) {
             V07EmptyMoney("No recurring bills yet.")
         } else {
@@ -219,63 +202,42 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
                     Modifier
                         .fillMaxWidth()
                         .then(if (monthIsCurrent) Modifier.clickable { vm.togglePayment(payment.id) } else Modifier)
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 13.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(payment.category.glyph, fontSize = 16.sp)
-                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                        Text(payment.name, fontSize = 15.sp)
-                        Text("Day ${payment.dayOfMonth}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(payment.category.glyph, fontSize = 18.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text(payment.name, fontSize = 17.sp)
+                        Text("Day ${payment.dayOfMonth}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(v07Euro(payment.amount), fontSize = 15.sp)
-                        if (monthIsCurrent) Text(
-                            if (payment.paid) "paid" else "scheduled",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(v07Euro(payment.amount), fontSize = 17.sp, fontWeight = FontWeight.Medium)
                 }
                 if (index != summary.payments.lastIndex) V07Divider()
             }
         }
 
-        Spacer(Modifier.height(22.dp))
-        V07SectionLabel("Investments")
+        Spacer(Modifier.height(32.dp))
+        Text("Recurring investments", fontSize = 27.sp, fontWeight = FontWeight.Medium)
         if (summary.recurringInvestments.isEmpty()) {
-            V07EmptyMoney("Recurring portfolio contributions appear here after you create one from Portfolio.")
+            V07EmptyMoney("Create a monthly investment from Portfolio.")
         } else {
             summary.recurringInvestments.forEachIndexed { index, recurring ->
                 val holding: InvestmentHolding? = summary.investments.firstOrNull { it.id == recurring.holdingId }
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .then(if (monthIsCurrent) Modifier.clickable { vm.toggleRecurringInvestment(recurring.id) } else Modifier)
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(holding?.name ?: "Investment", fontSize = 15.sp)
-                        Text("Day ${recurring.dayOfMonth} · monthly", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(v07Euro(recurring.amount), fontSize = 15.sp)
-                        if (monthIsCurrent) Text(
-                            if (recurring.applied) "invested" else "scheduled",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                V07Metric(
+                    holding?.name ?: "Investment",
+                    v07Euro(recurring.amount),
+                    "Day ${recurring.dayOfMonth} · ${if (recurring.applied) "invested" else "scheduled"}",
+                    onClick = if (monthIsCurrent) ({ vm.toggleRecurringInvestment(recurring.id) }) else null,
+                )
                 if (index != summary.recurringInvestments.lastIndex) V07Divider()
             }
         }
 
-        Spacer(Modifier.height(32.dp))
-        Text("Expenses", fontSize = 23.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(38.dp))
+        Text("Expenses", fontSize = 27.sp, fontWeight = FontWeight.Medium)
         Text(
             "${v07Euro(overview.expenses)} this month",
-            fontSize = 11.sp,
+            fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
@@ -283,13 +245,13 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
             V07EmptyMoney("No expenses recorded for this month.")
         } else {
             expenseRows.forEachIndexed { index, expense ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(expense.category.glyph, fontSize = 16.sp)
-                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                        Text(expense.note.ifBlank { expense.category.label }, fontSize = 15.sp)
-                        Text(expense.date.format(V07ShortDateFormat), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth().padding(vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(expense.category.glyph, fontSize = 18.sp)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Text(expense.note.ifBlank { expense.category.label }, fontSize = 17.sp)
+                        Text(expense.date.format(V07ShortDateFormat), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("−${v07Euro(expense.amount)}", fontSize = 14.sp)
+                    Text("−${v07Euro(expense.amount)}", fontSize = 17.sp, fontWeight = FontWeight.Medium)
                 }
                 if (index != expenseRows.lastIndex) V07Divider()
             }
@@ -312,9 +274,9 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
 private fun V07EmptyMoney(text: String) {
     Text(
         text,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+        fontSize = 12.sp,
+        lineHeight = 18.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
