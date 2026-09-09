@@ -14,8 +14,8 @@ android {
         val ciVersionName = System.getenv("FOLIO_VERSION_NAME")
         val ciVersionCode = System.getenv("FOLIO_VERSION_CODE")?.toIntOrNull()
             ?: System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()?.let { 100_000 + it }
-        versionCode = ciVersionCode ?: 600
-        versionName = ciVersionName ?: "0.6.0"
+        versionCode = ciVersionCode ?: 700
+        versionName = ciVersionName ?: "0.7.0"
 
         val commit = (System.getenv("GITHUB_SHA") ?: "local").take(7)
         buildConfigField("String", "GIT_COMMIT", "\"$commit\"")
