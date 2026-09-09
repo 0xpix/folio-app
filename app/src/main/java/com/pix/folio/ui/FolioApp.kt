@@ -6,6 +6,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,7 +15,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
@@ -31,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,39 +50,60 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 
 private enum class V07RootTab(val label: String, val icon: ImageVector) {
-    HOME("Home", Icons.Outlined.Home),
     MONEY("Money", Icons.Outlined.Payments),
+    HOME("Home", Icons.Outlined.Home),
     PORTFOLIO("Portfolio", Icons.Outlined.TrendingUp),
 }
 
 @Composable
 fun FolioApp(vm: V07ViewModel = viewModel()) {
     V07AppLockGate(vm) {
-        var tab by rememberSaveable { mutableStateOf(V07RootTab.HOME) }
+        val tabs = V07RootTab.entries
+        val pagerState = rememberPagerState(
+            initialPage = tabs.indexOf(V07RootTab.HOME),
+            pageCount = { tabs.size },
+        )
+        val scope = rememberCoroutineScope()
         var showSettings by remember { mutableStateOf(false) }
 
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
-                V07BottomBar(selected = tab, onSelect = { tab = it })
+                V07BottomBar(
+                    selected = tabs[pagerState.currentPage],
+                    onSelect = { selected ->
+                        scope.launch { pagerState.animateScrollToPage(tabs.indexOf(selected)) }
+                    },
+                )
             },
         ) { innerPadding ->
-            Column(
+            Box(
                 Modifier
                     .fillMaxSize()
                     .padding(bottom = innerPadding.calculateBottomPadding())
+                    .statusBarsPadding()
             ) {
-                when (tab) {
-                    V07RootTab.HOME -> V07HomeScreen(
-                        vm = vm,
-                        onOpenMoney = { tab = V07RootTab.MONEY },
-                        onOpenPortfolio = { tab = V07RootTab.PORTFOLIO },
-                        onSettings = { showSettings = true },
-                    )
-                    V07RootTab.MONEY -> V07MoneyScreen(vm)
-                    V07RootTab.PORTFOLIO -> V07PortfolioScreen(vm)
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                ) { page ->
+                    when (tabs[page]) {
+                        V07RootTab.MONEY -> V07MoneyScreen(vm)
+                        V07RootTab.HOME -> V07HomeScreen(
+                            vm = vm,
+                            onOpenMoney = {
+                                scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V07RootTab.MONEY)) }
+                            },
+                            onOpenPortfolio = {
+                                scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V07RootTab.PORTFOLIO)) }
+                            },
+                            onSettings = { showSettings = true },
+                        )
+                        V07RootTab.PORTFOLIO -> V07PortfolioScreen(vm)
+                    }
                 }
             }
         }
@@ -172,7 +198,7 @@ private fun V07AppLockGate(vm: V07ViewModel, content: @Composable () -> Unit) {
         content()
     } else {
         Column(
-            Modifier.fillMaxSize().padding(28.dp),
+            Modifier.fillMaxSize().statusBarsPadding().padding(28.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
