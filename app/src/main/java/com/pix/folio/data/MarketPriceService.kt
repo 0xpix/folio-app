@@ -5,6 +5,7 @@ import com.pix.folio.model.InvestmentHolding
 import com.pix.folio.model.InvestmentKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URI
@@ -18,10 +19,10 @@ import java.time.ZoneOffset
 /**
  * Best-effort, key-free market data for Folio.
  *
- * Securities use Yahoo Finance's public chart surface — the same public data family used by
- * open-source clients such as yfinance. It does not require an API key, but it is an unofficial
- * endpoint, so Folio always presents quotes as indicative and exposes any exchange delay reported
- * by the response instead of claiming execution-grade real-time data.
+ * Securities use Yahoo Finance's public chart surface. Symbols are resolved defensively because
+ * European ETFs often share short tickers with unrelated US securities or arrive from OpenFIGI
+ * without the Yahoo exchange suffix. Folio therefore prefers known ISIN listings, then tries the
+ * stored/exchange-aware symbols, then Yahoo's public search surface using ISIN/name.
  *
  * CS2 items use the Steam Community Market price-overview endpoint.
  */
@@ -51,6 +52,11 @@ object MarketPriceService {
         val updated: Int,
         val failed: Int,
         val messages: List<String>,
+    )
+
+    private val knownYahooSymbols = mapOf(
+        // Scalable MSCI AC World Xtrackers UCITS ETF 1C · Xetra
+        "LU2903252349" to "SCWX.DE",
     )
 
     suspend fun refreshAll(context: Context): RefreshReport = withContext(Dispatchers.IO) {
@@ -95,9 +101,17 @@ object MarketPriceService {
         if (holding.kind == InvestmentKind.CS2) fetchSteamQuote(holding) else fetchYahooQuote(holding)
 
     private fun fetchYahooQuote(holding: InvestmentHolding): Quote {
-        val ticker = yahooTicker(holding)
-        require(ticker.isNotBlank()) { "missing price symbol" }
-        val encoded = URLEncoder.encode(ticker, StandardCharsets.UTF_8.toString())
+        val errors = mutableListOf<String>()
+        resolveYahooCandidates(holding).forEach { ticker ->
+            runCatching { fetchYahooQuoteForSymbol(holding, ticker) }
+                .onSuccess { return it }
+                .onFailure { errors += "$ticker: ${it.message ?: "unavailable"}" }
+        }
+        error(errors.lastOrNull() ?: "market quote unavailable")
+    }
+
+    private fun fetchYahooQuoteForSymbol(holding: InvestmentHolding, ticker: String): Quote {
+        val encoded = encode(ticker)
         val json = JSONObject(
             getText("https://query1.finance.yahoo.com/v8/finance/chart/$encoded?range=1d&interval=5m&includePrePost=false")
         )
@@ -119,16 +133,28 @@ object MarketPriceService {
         return Quote(
             price = price,
             currency = meta.optString("currency").ifBlank { holding.priceCurrency.ifBlank { "EUR" } },
-            symbol = ticker,
+            symbol = meta.optString("symbol").ifBlank { ticker },
             source = yahooSource(delay),
             delayMinutes = delay,
         )
     }
 
     private fun fetchYahooHistory(holding: InvestmentHolding, fromDate: LocalDate): MarketHistory {
-        val ticker = yahooTicker(holding)
-        require(ticker.isNotBlank()) { "missing ticker / price symbol" }
-        val encoded = URLEncoder.encode(ticker, StandardCharsets.UTF_8.toString())
+        val errors = mutableListOf<String>()
+        resolveYahooCandidates(holding).forEach { ticker ->
+            runCatching { fetchYahooHistoryForSymbol(holding, fromDate, ticker) }
+                .onSuccess { return it }
+                .onFailure { errors += "$ticker: ${it.message ?: "unavailable"}" }
+        }
+        error(errors.lastOrNull() ?: "price history unavailable")
+    }
+
+    private fun fetchYahooHistoryForSymbol(
+        holding: InvestmentHolding,
+        fromDate: LocalDate,
+        ticker: String,
+    ): MarketHistory {
+        val encoded = encode(ticker)
         val start = fromDate.coerceAtMost(LocalDate.now()).atStartOfDay(ZoneOffset.UTC).toEpochSecond()
         val end = LocalDate.now().plusDays(1).atStartOfDay(ZoneOffset.UTC).toEpochSecond()
         val url = "https://query1.finance.yahoo.com/v8/finance/chart/$encoded?period1=$start&period2=$end&interval=1d&events=history&includeAdjustedClose=true"
@@ -160,16 +186,89 @@ object MarketPriceService {
         return MarketHistory(
             points = points,
             currency = meta.optString("currency").ifBlank { holding.priceCurrency.ifBlank { "EUR" } },
-            symbol = ticker,
+            symbol = meta.optString("symbol").ifBlank { ticker },
             source = yahooSource(delay),
             delayMinutes = delay,
         )
     }
 
+    private fun resolveYahooCandidates(holding: InvestmentHolding): List<String> {
+        val candidates = linkedSetOf<String>()
+        val isin = holding.isin.trim().uppercase()
+        knownYahooSymbols[isin]?.let(candidates::add)
+
+        listOf(holding.priceSymbol, holding.symbol)
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .forEach { raw ->
+                val upper = raw.uppercase()
+                candidates += yahooTickerForExchange(upper, holding.exchange)
+                candidates += upper
+                if ('.' !in upper && holding.kind in setOf(InvestmentKind.ETF, InvestmentKind.FUND, InvestmentKind.INDEX, InvestmentKind.BOND)) {
+                    candidates += "$upper.DE"
+                }
+            }
+
+        if (isin.isNotBlank()) candidates += searchYahooSymbols(isin, holding)
+        if (holding.name.isNotBlank()) candidates += searchYahooSymbols(holding.name, holding)
+        return candidates.filter(String::isNotBlank)
+    }
+
+    private fun searchYahooSymbols(query: String, holding: InvestmentHolding): List<String> {
+        val url = "https://query1.finance.yahoo.com/v1/finance/search?q=${encode(query)}&quotesCount=12&newsCount=0&listsCount=0"
+        val json = runCatching { JSONObject(getText(url)) }.getOrNull() ?: return emptyList()
+        val quotes = json.optJSONArray("quotes") ?: JSONArray()
+        val rows = buildList {
+            for (index in 0 until quotes.length()) {
+                val row = quotes.optJSONObject(index) ?: continue
+                val symbol = row.optString("symbol").trim().uppercase()
+                if (symbol.isBlank()) continue
+                val quoteType = row.optString("quoteType").uppercase()
+                if (quoteType !in setOf("ETF", "EQUITY", "MUTUALFUND", "INDEX")) continue
+                val name = listOf(row.optString("shortname"), row.optString("longname")).joinToString(" ").uppercase()
+                val exchange = row.optString("exchange").uppercase()
+                val score = buildScore(symbol, name, exchange, holding)
+                add(score to symbol)
+            }
+        }
+        return rows.sortedByDescending { it.first }.map { it.second }.distinct()
+    }
+
+    private fun buildScore(symbol: String, name: String, exchange: String, holding: InvestmentHolding): Int {
+        var score = 0
+        if (symbol.endsWith(".DE")) score += 8
+        if (exchange in setOf("GER", "FRA", "XETRA")) score += 6
+        if (holding.kind == InvestmentKind.ETF && "ETF" in name) score += 5
+        val words = holding.name.uppercase().split(Regex("[^A-Z0-9]+"))
+            .filter { it.length >= 4 }
+            .distinct()
+        score += words.count { it in name } * 2
+        if (holding.isin.isNotBlank() && holding.isin.uppercase() in name) score += 20
+        return score
+    }
+
+    private fun yahooTickerForExchange(raw: String, exchange: String): String {
+        if (raw.isBlank() || '.' in raw) return raw
+        return when (exchange.trim().uppercase()) {
+            "GR", "GY", "GF", "GM", "GER", "XETR", "XETRA", "XFRA", "FRA" -> "$raw.DE"
+            "LN", "LSE" -> "$raw.L"
+            "FP", "PAR" -> "$raw.PA"
+            "NA", "AS" -> "$raw.AS"
+            "SW", "VX" -> "$raw.SW"
+            "IM", "MI" -> "$raw.MI"
+            "SM", "MC" -> "$raw.MC"
+            "SS" -> "$raw.SS"
+            "SZ" -> "$raw.SZ"
+            "HK" -> "$raw.HK"
+            "JT", "JP" -> "$raw.T"
+            else -> raw
+        }
+    }
+
     private fun fetchSteamQuote(holding: InvestmentHolding): Quote {
         val marketName = holding.marketHashName.ifBlank { holding.name }
         require(marketName.isNotBlank()) { "missing Steam market name" }
-        val encoded = URLEncoder.encode(marketName, StandardCharsets.UTF_8.toString())
+        val encoded = encode(marketName)
         val json = JSONObject(
             getText("https://steamcommunity.com/market/priceoverview/?appid=730&currency=3&market_hash_name=$encoded")
         )
@@ -179,30 +278,11 @@ object MarketPriceService {
         return Quote(price, "EUR", marketName, "Steam Community Market · indicative")
     }
 
-    private fun yahooTicker(holding: InvestmentHolding): String {
-        val base = holding.priceSymbol.ifBlank { holding.symbol }.trim().uppercase()
-        if (base.isBlank() || '.' in base) return base
-        return when (holding.exchange.trim().uppercase()) {
-            "GR", "GY", "GF", "GM", "XETR", "XFRA" -> "$base.DE"
-            "LN", "LSE" -> "$base.L"
-            "FP", "PAR" -> "$base.PA"
-            "NA", "AS" -> "$base.AS"
-            "SW", "VX" -> "$base.SW"
-            "IM", "MI" -> "$base.MI"
-            "SM", "MC" -> "$base.MC"
-            "SS" -> "$base.SS"
-            "SZ" -> "$base.SZ"
-            "HK" -> "$base.HK"
-            "JT", "JP" -> "$base.T"
-            else -> base
-        }
-    }
-
     private fun yahooSource(delayMinutes: Int): String =
         if (delayMinutes > 0) "Yahoo Finance · ${delayMinutes}m delayed"
         else "Yahoo Finance · indicative live"
 
-    private fun latestPositive(array: org.json.JSONArray?): Double {
+    private fun latestPositive(array: JSONArray?): Double {
         if (array == null) return Double.NaN
         var value = Double.NaN
         for (index in 0 until array.length()) {
@@ -214,12 +294,15 @@ object MarketPriceService {
         return value
     }
 
+    private fun encode(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8.toString())
+
     private fun getText(url: String): String {
         val connection = (URI(url).toURL().openConnection() as HttpURLConnection).apply {
             connectTimeout = 10_000
             readTimeout = 15_000
             instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "Folio/0.7 Android")
+            setRequestProperty("User-Agent", "Folio/0.7.3 Android")
             setRequestProperty("Accept", "application/json,text/plain,*/*")
         }
         return try {
