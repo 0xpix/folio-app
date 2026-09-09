@@ -22,8 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pix.folio.data.FolioStartMonth
 import com.pix.folio.model.TimelineEntryType
-import java.time.YearMonth
+import java.time.ZoneId
 import java.util.Locale
 
 @Composable
@@ -36,16 +37,18 @@ internal fun V07HomeScreen(
     val summary = vm.summary
     val netWorth = vm.trackedNetWorth
     val portfolio = vm.trackedPortfolioTotal
-    val month = YearMonth.now()
-    val plan = summary.moneyPlan(month)
+    val month = vm.suggestedBudgetMonth()
+    val envelope = vm.budgetEnvelope(month)
+    val startDate = FolioStartMonth.atDay(1)
+    val historyStartMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
     val history = buildList {
-        addAll(summary.balanceHistory.takeLast(120).map { it.value })
+        addAll(summary.balanceHistory.filter { it.atMillis >= historyStartMillis }.takeLast(120).map { it.value })
         if (lastOrNull() != netWorth) add(netWorth)
     }
     val historyStart = history.firstOrNull() ?: netWorth
     val historyChange = netWorth - historyStart
     val historyPct = if (historyStart > 0.0) historyChange / historyStart * 100.0 else 0.0
-    val recent = summary.transactionTimeline().take(5)
+    val recent = summary.transactionTimeline().filter { !it.date.isBefore(startDate) }.take(5)
 
     Column(
         Modifier
@@ -66,7 +69,7 @@ internal fun V07HomeScreen(
         Text(v07Euro(netWorth), fontSize = 64.sp, lineHeight = 66.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         Spacer(Modifier.height(10.dp))
         Text(
-            "${v07SignedEuro(historyChange)}  ·  ${if (historyPct >= 0) "+" else ""}${String.format(Locale.US, "%.1f", historyPct)}%",
+            "${v07SignedEuro(historyChange)}  ·  ${if (historyPct >= 0) "+" else ""}${String.format(Locale.US, "%.1f", historyPct)}% · since Sep 2026",
             fontSize = 15.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -93,14 +96,19 @@ internal fun V07HomeScreen(
                     Text(month.atDay(1).format(V07MonthFormat), fontSize = 19.sp, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(5.dp))
                     Text(
-                        "${v07Euro(plan.committed)} committed of ${v07Euro(plan.expectedIncome)} expected",
+                        "${v07Euro(envelope.committed)} planned from ${v07Euro(envelope.expectedIncome)} salary/income",
                         fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Previous-month cash is excluded",
+                        fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(v07SignedEuro(plan.projectedLeft), fontSize = 27.sp, fontWeight = FontWeight.Medium)
-                    Text("projected left", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(v07Euro(envelope.availableCash), fontSize = 27.sp, fontWeight = FontWeight.Medium)
+                    Text("available", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -137,7 +145,7 @@ internal fun V07HomeScreen(
         }
         if (recent.isEmpty()) {
             Text(
-                "Your latest income, expenses, bills and investments will appear here.",
+                "Your latest income, expenses, bills and investments from September 2026 onward will appear here.",
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
