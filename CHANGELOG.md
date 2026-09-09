@@ -7,6 +7,30 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.7.2.beta] - 2026-09-09
+
+### Added
+- A permanent Monthly Salary section in Money, with a large salary amount, payday, budget-month behavior, and a clear Add Monthly Salary action when none exists.
+- An Existing Saved Balance action for the Emergency Fund so savings from before Folio can seed the milestone without reducing current cash or counting as this month's new savings.
+- Purchase-date metadata for investments, stored independently from the legacy transaction model for backward compatibility.
+- Key-free historical market tracking for stocks, ETFs, funds, bonds, and indexes through Yahoo Finance's public chart surface.
+- Per-investment value history from the purchase date, with current value, gain/loss, percentage change, source/delay label, and a value graph.
+- Purchase-date editing for existing holdings so old portfolio entries can be upgraded without recreating them.
+
+### Changed
+- Home now uses purchase-date-tracked portfolio values in the displayed portfolio total and net worth whenever market history is available.
+- Portfolio entry is simplified to what was paid plus purchase date; the old share price is no longer required for the value graph.
+- Portfolio tracking clearly labels market data as indicative and reports exchange delay when Yahoo provides it instead of claiming execution-grade realtime data.
+- Financial typography is larger again: 64sp net worth on Home, 58sp available cash in Money, 58sp portfolio total, 48sp investment values, and larger section/list text throughout.
+- Money was reorganized so Monthly Salary appears immediately after Available Cash, before Savings and the month plan.
+- Beta version advanced to `v0.7.2.beta`.
+
+### Fixed
+- Fixed Monthly Salary being technically present only deep in recurring income and therefore appearing to have disappeared.
+- Fixed the inability to enter Emergency Fund money that was already saved before the current month.
+- Fixed portfolio totals remaining near cost basis when a holding had no manually entered units by deriving the tracked value from purchase-date price movement.
+- Fixed investment history requiring manual price entries by loading historical daily closes automatically from the purchase date.
+
 ## [0.7.1.beta] - 2026-09-09
 
 ### Added
