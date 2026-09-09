@@ -47,6 +47,7 @@ internal fun V07PortfolioScreen(vm: V07ViewModel) {
     val total = vm.trackedPortfolioTotal
     val gain = vm.trackedPortfolioGain
     val gainPct = vm.trackedPortfolioGainPct
+    val portfolioHistory = vm.trackedPortfolioHistory
 
     Column(
         Modifier
@@ -66,6 +67,43 @@ internal fun V07PortfolioScreen(vm: V07ViewModel) {
                 )
             }
             TextButton(onClick = { addHolding = true }) { Text("+ Add") }
+        }
+
+        Spacer(Modifier.height(28.dp))
+        if (portfolioHistory.size >= 2) {
+            Text("Combined portfolio", fontSize = 24.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "Every investment added together from its own purchase date.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(14.dp))
+            V07LineChart(portfolioHistory.map { it.second }, Modifier.fillMaxWidth().height(170.dp))
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    portfolioHistory.first().first.format(V07ShortDateFormat),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    portfolioHistory.last().first.format(V07ShortDateFormat),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else if (summary.investments.isNotEmpty()) {
+            V07Panel {
+                Text("Portfolio graph is getting ready", fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    "Add purchase dates and refresh market history. Folio will combine every holding into one curve.",
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         Spacer(Modifier.height(26.dp))
@@ -326,17 +364,20 @@ private fun V07HoldingSheet(vm: V07ViewModel, holding: InvestmentHolding, onDism
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    history?.source ?: "Market history",
+                    history?.let { "${it.symbol} · ${it.source}" } ?: "Market history",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else if (holding.kind != InvestmentKind.CS2) {
                 V07Panel {
-                    Text("Add the purchase date to build the graph", fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                    vm.trackingErrors[holding.id]?.let {
-                        Spacer(Modifier.height(5.dp))
-                        Text(it, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    Text("Graph unavailable", fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        vm.trackingErrors[holding.id] ?: "Add the purchase date, then refresh market history.",
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
