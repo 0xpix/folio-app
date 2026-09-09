@@ -58,7 +58,7 @@ internal fun V07SectionLabel(text: String, modifier: Modifier = Modifier) {
         text.uppercase(Locale.ENGLISH),
         modifier = modifier,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 10.sp,
+        fontSize = 11.sp,
         letterSpacing = 1.5.sp,
     )
 }
@@ -74,7 +74,7 @@ internal fun V07Panel(
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(15.dp)
+            .padding(17.dp)
     ) { content() }
 }
 
@@ -90,13 +90,13 @@ internal fun V07DashboardCard(
         modifier
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 13.dp, vertical = 12.dp)
+            .padding(horizontal = 14.dp, vertical = 13.dp)
     ) {
-        Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(6.dp))
-        Text(value, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Text(value, fontSize = 19.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(4.dp))
-        Text(detail, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
 }
 
@@ -111,17 +111,17 @@ internal fun V07Metric(
     val rowModifier = modifier
         .fillMaxWidth()
         .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-        .padding(vertical = 12.dp)
+        .padding(vertical = 13.dp)
     Row(rowModifier, verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(label, fontSize = 14.sp)
+            Text(label, fontSize = 15.sp)
             if (!detail.isNullOrBlank()) {
-                Spacer(Modifier.height(3.dp))
-                Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                Text(detail, fontSize = 11.sp, lineHeight = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Spacer(Modifier.width(14.dp))
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(value, fontSize = 15.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -157,18 +157,18 @@ internal fun V07Goal(
         modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 11.dp)
+            .padding(vertical = 12.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(label, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            Text("${v07Euro(current)} / ${v07Euro(target)}", fontSize = 11.sp)
+            Text(label, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            Text("${v07Euro(current)} / ${v07Euro(target)}", fontSize = 13.sp)
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(9.dp))
         V07Progress(progress)
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(7.dp))
         Row(Modifier.fillMaxWidth()) {
-            Text(detail, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            Text("${(progress * 100).roundToInt()}%", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(detail, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text("${(progress * 100).roundToInt()}%", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -275,9 +275,9 @@ internal fun V07MonthPicker(
     onNext: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("‹", modifier = Modifier.clickable(onClick = onPrevious).padding(12.dp), fontSize = 20.sp)
-        Text(month.atDay(1).format(V07MonthFormat), modifier = Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.Medium)
-        Text("›", modifier = Modifier.clickable(onClick = onNext).padding(12.dp), fontSize = 20.sp)
+        Text("‹", modifier = Modifier.clickable(onClick = onPrevious).padding(12.dp), fontSize = 22.sp)
+        Text(month.atDay(1).format(V07MonthFormat), modifier = Modifier.weight(1f), fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Text("›", modifier = Modifier.clickable(onClick = onNext).padding(12.dp), fontSize = 22.sp)
     }
 }
 
@@ -289,11 +289,11 @@ internal fun V07TinyStats(items: List<Pair<String, String>>) {
                 Modifier
                     .weight(1f)
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp))
-                    .padding(horizontal = 11.dp, vertical = 10.dp)
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
             ) {
                 V07SectionLabel(label)
-                Spacer(Modifier.height(5.dp))
-                Text(value, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(6.dp))
+                Text(value, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
