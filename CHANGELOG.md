@@ -19,6 +19,7 @@ The GitHub release workflow publishes the matching section of this file as the r
 - Settings is exposed from Home only and stays out of Money and Portfolio.
 - Home was simplified to a clearer hierarchy: net worth, compact cash/savings/portfolio totals, monthly plan, savings goals, and recent activity.
 - Money was reorganized into clear sections for available cash, quick actions, manual savings, month plan, recurring flows, and expenses.
+- Main financial typography is intentionally larger, with oversized net-worth and cash values plus larger page and section headings inspired by the new reference design.
 - Savings copy now explicitly states that Emergency Fund and other savings transfers are manual; recurring automation only applies to income, bills, and recurring investments.
 - Beta version advanced to `v0.7.1.beta`.
 
