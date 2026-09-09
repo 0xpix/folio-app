@@ -273,9 +273,15 @@ internal fun V07MonthPicker(
     month: YearMonth,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    canPrevious: Boolean = true,
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("‹", modifier = Modifier.clickable(onClick = onPrevious).padding(12.dp), fontSize = 25.sp)
+        Text(
+            "‹",
+            modifier = (if (canPrevious) Modifier.clickable(onClick = onPrevious) else Modifier).padding(12.dp),
+            fontSize = 25.sp,
+            color = if (canPrevious) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.outlineVariant,
+        )
         Text(month.atDay(1).format(V07MonthFormat), modifier = Modifier.weight(1f), fontSize = 19.sp, fontWeight = FontWeight.Medium)
         Text("›", modifier = Modifier.clickable(onClick = onNext).padding(12.dp), fontSize = 25.sp)
     }
