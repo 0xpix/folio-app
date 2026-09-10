@@ -14,6 +14,7 @@ import java.time.Instant
  */
 object FolioBackup {
     const val FORMAT_VERSION = 1
+    private const val META_PREFS = "folio_backup_meta_v1"
     private val financePreferenceFiles = listOf(
         "folio_store_v2",
         "folio_investment_tracking_v1",
@@ -21,14 +22,17 @@ object FolioBackup {
     )
 
     fun export(context: Context): String {
+        val now = System.currentTimeMillis()
         val files = JSONObject()
         financePreferenceFiles.forEach { name ->
             files.put(name, encodePreferences(context.getSharedPreferences(name, Context.MODE_PRIVATE)))
         }
+        context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
+            .edit().putLong("last_export_millis", now).apply()
         return JSONObject()
             .put("format", "folio-backup")
             .put("version", FORMAT_VERSION)
-            .put("createdAt", Instant.now().toString())
+            .put("createdAt", Instant.ofEpochMilli(now).toString())
             .put("files", files)
             .toString(2)
     }
@@ -43,6 +47,8 @@ object FolioBackup {
             val encoded = files.optJSONObject(name) ?: JSONObject()
             restorePreferences(context.getSharedPreferences(name, Context.MODE_PRIVATE), encoded)
         }
+        context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
+            .edit().putLong("last_restore_millis", System.currentTimeMillis()).apply()
     }
 
     fun validate(raw: String): Result<String> = runCatching {
@@ -53,6 +59,12 @@ object FolioBackup {
         require(root.optJSONObject("files") != null) { "Backup data is incomplete" }
         root.optString("createdAt").ifBlank { "unknown date" }
     }
+
+    fun lastExportMillis(context: Context): Long =
+        context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE).getLong("last_export_millis", 0L)
+
+    fun lastRestoreMillis(context: Context): Long =
+        context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE).getLong("last_restore_millis", 0L)
 
     private fun encodePreferences(prefs: SharedPreferences): JSONObject {
         val result = JSONObject()
