@@ -1,6 +1,7 @@
 package com.pix.folio.data
 
 import android.content.Context
+import com.pix.folio.BuildConfig
 import com.pix.folio.model.InvestmentHolding
 import com.pix.folio.model.InvestmentKind
 import kotlinx.coroutines.Dispatchers
@@ -19,10 +20,9 @@ import java.time.ZoneOffset
 /**
  * Best-effort, key-free market data for Folio.
  *
- * Securities use Yahoo Finance's public chart surface. Symbols are resolved defensively because
- * European ETFs often share short tickers with unrelated US securities or arrive from OpenFIGI
- * without the Yahoo exchange suffix. Folio therefore prefers known ISIN listings, then tries the
- * stored/exchange-aware symbols, then Yahoo's public search surface using ISIN/name.
+ * Securities use Yahoo Finance's public chart surface. Symbols are resolved generically from the
+ * stored/exchange-aware ticker first, then Yahoo search using ISIN and security name. No individual
+ * security or user holding is special-cased in code.
  *
  * CS2 items use the Steam Community Market price-overview endpoint.
  */
@@ -52,11 +52,6 @@ object MarketPriceService {
         val updated: Int,
         val failed: Int,
         val messages: List<String>,
-    )
-
-    private val knownYahooSymbols = mapOf(
-        // Scalable MSCI AC World Xtrackers UCITS ETF 1C · Xetra
-        "LU2903252349" to "SCWX.DE",
     )
 
     suspend fun refreshAll(context: Context): RefreshReport = withContext(Dispatchers.IO) {
@@ -195,7 +190,6 @@ object MarketPriceService {
     private fun resolveYahooCandidates(holding: InvestmentHolding): List<String> {
         val candidates = linkedSetOf<String>()
         val isin = holding.isin.trim().uppercase()
-        knownYahooSymbols[isin]?.let(candidates::add)
 
         listOf(holding.priceSymbol, holding.symbol)
             .map(String::trim)
@@ -204,17 +198,23 @@ object MarketPriceService {
                 val upper = raw.uppercase()
                 candidates += yahooTickerForExchange(upper, holding.exchange)
                 candidates += upper
-                if ('.' !in upper && holding.kind in setOf(InvestmentKind.ETF, InvestmentKind.FUND, InvestmentKind.INDEX, InvestmentKind.BOND)) {
-                    candidates += "$upper.DE"
+                if (
+                    '.' !in upper &&
+                    holding.exchange.isBlank() &&
+                    holding.kind in setOf(InvestmentKind.ETF, InvestmentKind.FUND, InvestmentKind.INDEX, InvestmentKind.BOND)
+                ) {
+                    searchYahooSymbols(if (isin.isNotBlank()) isin else holding.name, holding)
+                        .forEach(candidates::add)
                 }
             }
 
-        if (isin.isNotBlank()) candidates += searchYahooSymbols(isin, holding)
-        if (holding.name.isNotBlank()) candidates += searchYahooSymbols(holding.name, holding)
+        if (isin.isNotBlank()) searchYahooSymbols(isin, holding).forEach(candidates::add)
+        if (holding.name.isNotBlank()) searchYahooSymbols(holding.name, holding).forEach(candidates::add)
         return candidates.filter(String::isNotBlank)
     }
 
     private fun searchYahooSymbols(query: String, holding: InvestmentHolding): List<String> {
+        if (query.isBlank()) return emptyList()
         val url = "https://query1.finance.yahoo.com/v1/finance/search?q=${encode(query)}&quotesCount=12&newsCount=0&listsCount=0"
         val json = runCatching { JSONObject(getText(url)) }.getOrNull() ?: return emptyList()
         val quotes = json.optJSONArray("quotes") ?: JSONArray()
@@ -236,8 +236,9 @@ object MarketPriceService {
 
     private fun buildScore(symbol: String, name: String, exchange: String, holding: InvestmentHolding): Int {
         var score = 0
-        if (symbol.endsWith(".DE")) score += 8
-        if (exchange in setOf("GER", "FRA", "XETRA")) score += 6
+        val expectedSuffix = yahooSuffixForExchange(holding.exchange)
+        if (expectedSuffix != null && symbol.endsWith(expectedSuffix)) score += 12
+        if (holding.exchange.isNotBlank() && exchange.contains(holding.exchange.trim().uppercase())) score += 6
         if (holding.kind == InvestmentKind.ETF && "ETF" in name) score += 5
         val words = holding.name.uppercase().split(Regex("[^A-Z0-9]+"))
             .filter { it.length >= 4 }
@@ -249,20 +250,22 @@ object MarketPriceService {
 
     private fun yahooTickerForExchange(raw: String, exchange: String): String {
         if (raw.isBlank() || '.' in raw) return raw
-        return when (exchange.trim().uppercase()) {
-            "GR", "GY", "GF", "GM", "GER", "XETR", "XETRA", "XFRA", "FRA" -> "$raw.DE"
-            "LN", "LSE" -> "$raw.L"
-            "FP", "PAR" -> "$raw.PA"
-            "NA", "AS" -> "$raw.AS"
-            "SW", "VX" -> "$raw.SW"
-            "IM", "MI" -> "$raw.MI"
-            "SM", "MC" -> "$raw.MC"
-            "SS" -> "$raw.SS"
-            "SZ" -> "$raw.SZ"
-            "HK" -> "$raw.HK"
-            "JT", "JP" -> "$raw.T"
-            else -> raw
-        }
+        return yahooSuffixForExchange(exchange)?.let { suffix -> "$raw$suffix" } ?: raw
+    }
+
+    private fun yahooSuffixForExchange(exchange: String): String? = when (exchange.trim().uppercase()) {
+        "GR", "GY", "GF", "GM", "GER", "XETR", "XETRA", "XFRA", "FRA" -> ".DE"
+        "LN", "LSE" -> ".L"
+        "FP", "PAR" -> ".PA"
+        "NA", "AS" -> ".AS"
+        "SW", "VX" -> ".SW"
+        "IM", "MI" -> ".MI"
+        "SM", "MC" -> ".MC"
+        "SS" -> ".SS"
+        "SZ" -> ".SZ"
+        "HK" -> ".HK"
+        "JT", "JP" -> ".T"
+        else -> null
     }
 
     private fun fetchSteamQuote(holding: InvestmentHolding): Quote {
@@ -302,7 +305,7 @@ object MarketPriceService {
             connectTimeout = 10_000
             readTimeout = 15_000
             instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "Folio/0.7.3 Android")
+            setRequestProperty("User-Agent", "Folio/${BuildConfig.VERSION_NAME} Android")
             setRequestProperty("Accept", "application/json,text/plain,*/*")
         }
         return try {
