@@ -21,18 +21,26 @@ object FolioBackup {
         "folio_monthly_plan_v1",
     )
 
+    /** User-initiated portable export. This is the timestamp shown in Settings. */
     fun export(context: Context): String {
         val now = System.currentTimeMillis()
+        context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
+            .edit().putLong("last_export_millis", now).apply()
+        return buildPayload(context, now)
+    }
+
+    /** Internal safety snapshot used by the Room migration bridge; does not pretend to be an exported file. */
+    internal fun snapshot(context: Context): String = buildPayload(context, System.currentTimeMillis())
+
+    private fun buildPayload(context: Context, createdAtMillis: Long): String {
         val files = JSONObject()
         financePreferenceFiles.forEach { name ->
             files.put(name, encodePreferences(context.getSharedPreferences(name, Context.MODE_PRIVATE)))
         }
-        context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
-            .edit().putLong("last_export_millis", now).apply()
         return JSONObject()
             .put("format", "folio-backup")
             .put("version", FORMAT_VERSION)
-            .put("createdAt", Instant.ofEpochMilli(now).toString())
+            .put("createdAt", Instant.ofEpochMilli(createdAtMillis).toString())
             .put("files", files)
             .toString(2)
     }
@@ -42,7 +50,7 @@ object FolioBackup {
         require(root.optString("format") == "folio-backup") { "Not a Folio backup" }
         val version = root.optInt("version", 0)
         require(version in 1..FORMAT_VERSION) { "Unsupported Folio backup version $version" }
-        val files = root.getJSONObject("files")
+        val files = root.optJSONObject("files") ?: error("Backup data is incomplete")
         financePreferenceFiles.forEach { name ->
             val encoded = files.optJSONObject(name) ?: JSONObject()
             restorePreferences(context.getSharedPreferences(name, Context.MODE_PRIVATE), encoded)
