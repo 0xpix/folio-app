@@ -5,14 +5,12 @@ import android.content.ContextWrapper
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -26,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -40,8 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -50,62 +45,65 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-private enum class V07RootTab(val label: String) {
-    MONEY("Money"),
-    HOME("Home"),
-    PORTFOLIO("Portfolio"),
+private enum class V08RootTab {
+    MONEY,
+    HOME,
+    PORTFOLIO,
 }
 
 @Composable
 fun FolioApp(vm: V07ViewModel = viewModel()) {
     V07AppLockGate(vm) {
-        val tabs = V07RootTab.entries
+        val tabs = V08RootTab.entries
         val pagerState = rememberPagerState(
-            initialPage = tabs.indexOf(V07RootTab.HOME),
+            initialPage = tabs.indexOf(V08RootTab.HOME),
             pageCount = { tabs.size },
         )
         val scope = rememberCoroutineScope()
         var showSettings by remember { mutableStateOf(false) }
 
-        Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
-            bottomBar = {
-                V07BottomBar(
-                    selected = tabs[pagerState.currentPage],
-                    onSelect = { selected ->
-                        scope.launch { pagerState.animateScrollToPage(tabs.indexOf(selected)) }
-                    },
-                )
-            },
-        ) { innerPadding ->
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(bottom = innerPadding.calculateBottomPadding())
-                    .statusBarsPadding()
-            ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                ) { page ->
-                    when (tabs[page]) {
-                        V07RootTab.MONEY -> V07MoneyScreen(vm)
-                        V07RootTab.HOME -> V07HomeScreen(
-                            vm = vm,
-                            onOpenMoney = {
-                                scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V07RootTab.MONEY)) }
-                            },
-                            onOpenPortfolio = {
-                                scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V07RootTab.PORTFOLIO)) }
-                            },
-                            onSettings = { showSettings = true },
-                        )
-                        V07RootTab.PORTFOLIO -> V07PortfolioScreen(vm)
-                    }
+        LaunchedEffect(vm.summary, vm.recurringSavingsRules) {
+            withContext(Dispatchers.IO) { vm.mirrorToRoomV08() }
+        }
+
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .statusBarsPadding()
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                when (tabs[page]) {
+                    V08RootTab.MONEY -> V07MoneyScreen(vm)
+                    V08RootTab.HOME -> V07HomeScreen(
+                        vm = vm,
+                        onOpenMoney = {
+                            scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.MONEY)) }
+                        },
+                        onOpenPortfolio = {
+                            scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.PORTFOLIO)) }
+                        },
+                        onSettings = { showSettings = true },
+                    )
+                    V08RootTab.PORTFOLIO -> V07PortfolioScreen(vm)
                 }
             }
+
+            V08PageIndicator(
+                currentPage = pagerState.currentPage,
+                pageCount = tabs.size,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 8.dp),
+            )
         }
 
         if (showSettings) {
@@ -115,35 +113,24 @@ fun FolioApp(vm: V07ViewModel = viewModel()) {
 }
 
 @Composable
-private fun V07BottomBar(selected: V07RootTab, onSelect: (V07RootTab) -> Unit) {
+private fun V08PageIndicator(currentPage: Int, pageCount: Int, modifier: Modifier = Modifier) {
     Row(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 9.dp),
-        horizontalArrangement = Arrangement.Center,
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.88f), CircleShape)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        V07RootTab.entries.forEach { tab ->
-            val active = selected == tab
+        repeat(pageCount) { index ->
             Box(
                 Modifier
-                    .size(42.dp)
-                    .semantics { contentDescription = tab.label }
-                    .clickable { onSelect(tab) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    Modifier
-                        .size(if (active) 9.dp else 6.dp)
-                        .background(
-                            if (active) MaterialTheme.colorScheme.onBackground
-                            else MaterialTheme.colorScheme.outline,
-                            CircleShape,
-                        )
-                )
-            }
+                    .size(if (index == currentPage) 7.dp else 4.dp)
+                    .background(
+                        if (index == currentPage) MaterialTheme.colorScheme.onBackground
+                        else MaterialTheme.colorScheme.outline,
+                        CircleShape,
+                    )
+            )
         }
     }
 }
