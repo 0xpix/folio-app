@@ -44,8 +44,8 @@ jobs:
         with:
           gradle-version: "9.4.1"
 
-      - name: Compile beta and Play debug variants
-        run: gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon --stacktrace
+      - name: Test and compile beta and Play debug variants
+        run: gradle :app:testBetaDebugUnitTest :app:testPlayDebugUnitTest :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon --stacktrace
 
       - name: Upload beta debug artifact
         uses: actions/upload-artifact@v7
