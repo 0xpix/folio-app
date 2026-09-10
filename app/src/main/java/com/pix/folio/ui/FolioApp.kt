@@ -107,7 +107,7 @@ fun FolioApp(vm: V07ViewModel = viewModel()) {
         }
 
         if (showSettings) {
-            V07SettingsSheet(vm, onDismiss = { showSettings = false })
+            V08SettingsSheet(vm, onDismiss = { showSettings = false })
         }
     }
 }
