@@ -15,6 +15,33 @@ internal data class V081HoldingValuation(
         get() = if (exact) "Exact from owned units" else "Estimated"
 }
 
+internal data class V081ValuationDecision(
+    val value: Double,
+    val exact: Boolean,
+)
+
+/** Pure valuation rule kept separate so CI can protect the broker-matching path. */
+internal fun v081CurrentValue(
+    fallbackValue: Double,
+    units: Double?,
+    latestPrice: Double?,
+    quoteCurrency: String?,
+    unitsAreComplete: Boolean,
+): V081ValuationDecision {
+    val normalizedCurrency = quoteCurrency?.trim()?.uppercase()
+    val canUseExactUnits =
+        latestPrice != null && latestPrice > 0.0 &&
+            units != null && units > 0.0 &&
+            normalizedCurrency == "EUR" &&
+            unitsAreComplete
+
+    return if (canUseExactUnits) {
+        V081ValuationDecision(units * latestPrice, true)
+    } else {
+        V081ValuationDecision(fallbackValue, false)
+    }
+}
+
 /**
  * Prefer broker-reported current units and the freshest EUR quote Folio has. When either side is
  * missing, keep the existing ratio-based estimate rather than presenting cross-currency units as
@@ -39,27 +66,21 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
     val transactionUnits = transactions.sumOf { it.units.coerceAtLeast(0.0) }.takeIf { it > 0.0 }
     val completeTransactionUnits = transactions.isNotEmpty() && transactions.all { it.units > 0.0 }
     val units = brokerUnits ?: transactionUnits
-    val canUseExactUnits =
-        latest != null && latest > 0.0 &&
-            currency == "EUR" &&
-            units != null &&
-            (brokerUnits != null || completeTransactionUnits)
+    val fallbackValue = trackedMarketValue(holding)
+    val decision = v081CurrentValue(
+        fallbackValue = fallbackValue,
+        units = units,
+        latestPrice = latest,
+        quoteCurrency = currency,
+        unitsAreComplete = brokerUnits != null || completeTransactionUnits,
+    )
 
-    return if (canUseExactUnits) {
-        V081HoldingValuation(
-            value = units * latest,
-            units = units,
-            currency = currency,
-            exact = true,
-        )
-    } else {
-        V081HoldingValuation(
-            value = trackedMarketValue(holding),
-            units = units,
-            currency = currency,
-            exact = false,
-        )
-    }
+    return V081HoldingValuation(
+        value = decision.value,
+        units = units,
+        currency = currency,
+        exact = decision.exact,
+    )
 }
 
 internal val V07ViewModel.v081PortfolioTotal: Double
