@@ -2,11 +2,14 @@ package com.pix.folio.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
@@ -15,35 +18,41 @@ import androidx.core.view.WindowCompat
 import com.pix.folio.R
 import com.pix.folio.model.AppFontChoice
 
-val FolioInk = Color(0xFF111111)
-val FolioPaper = Color(0xFFF6F4EF)
-val FolioPaperDark = Color(0xFF0D0D0D)
-val FolioMuted = Color(0xFF77746E)
-val FolioGain = Color(0xFF2C6E55)
-val FolioLoss = Color(0xFFB2473F)
+private object FolioPalette {
+    val Ink = Color(0xFF111111)
+    val Paper = Color(0xFFF6F4EF)
+    val PaperDark = Color(0xFF0D0D0D)
+    val LightSurfaceVariant = Color(0xFFEAE7E1)
+    val LightMuted = Color(0xFF706D67)
+    val LightOutline = Color(0x1F111111)
+    val DarkInk = Color(0xFFF4F1EA)
+    val DarkSurfaceVariant = Color(0xFF1B1B1B)
+    val DarkMuted = Color(0xFFAAA69F)
+    val DarkOutline = Color(0x2FFFFFFF)
+}
 
 private val Light = lightColorScheme(
-    primary = FolioInk,
-    onPrimary = FolioPaper,
-    background = FolioPaper,
-    onBackground = FolioInk,
-    surface = FolioPaper,
-    onSurface = FolioInk,
-    surfaceVariant = Color(0xFFEAE7E1),
-    onSurfaceVariant = Color(0xFF706D67),
-    outlineVariant = Color(0x1F111111),
+    primary = FolioPalette.Ink,
+    onPrimary = FolioPalette.Paper,
+    background = FolioPalette.Paper,
+    onBackground = FolioPalette.Ink,
+    surface = FolioPalette.Paper,
+    onSurface = FolioPalette.Ink,
+    surfaceVariant = FolioPalette.LightSurfaceVariant,
+    onSurfaceVariant = FolioPalette.LightMuted,
+    outlineVariant = FolioPalette.LightOutline,
 )
 
 private val Dark = darkColorScheme(
-    primary = Color(0xFFF4F1EA),
-    onPrimary = FolioInk,
-    background = FolioPaperDark,
-    onBackground = Color(0xFFF4F1EA),
-    surface = FolioPaperDark,
-    onSurface = Color(0xFFF4F1EA),
-    surfaceVariant = Color(0xFF1B1B1B),
-    onSurfaceVariant = Color(0xFFAAA69F),
-    outlineVariant = Color(0x2FFFFFFF),
+    primary = FolioPalette.DarkInk,
+    onPrimary = FolioPalette.Ink,
+    background = FolioPalette.PaperDark,
+    onBackground = FolioPalette.DarkInk,
+    surface = FolioPalette.PaperDark,
+    onSurface = FolioPalette.DarkInk,
+    surfaceVariant = FolioPalette.DarkSurfaceVariant,
+    onSurfaceVariant = FolioPalette.DarkMuted,
+    outlineVariant = FolioPalette.DarkOutline,
 )
 
 private val GoogleFontsProvider = GoogleFont.Provider(
@@ -96,9 +105,17 @@ fun FolioTheme(
         WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !dark
         WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !dark
     }
+
+    val scheme = if (dark) Dark else Light
     MaterialTheme(
-        colorScheme = if (dark) Dark else Light,
+        colorScheme = scheme,
         typography = Typography().withFamily(folioFontFamily(fontChoice)),
-        content = content,
-    )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = scheme.background,
+            contentColor = scheme.onBackground,
+            content = content,
+        )
+    }
 }
