@@ -63,7 +63,7 @@ internal fun V08HomeScreen(
         Spacer(Modifier.height(30.dp))
         V07TinyStats(
             listOf(
-                "BANK" to v07Euro(summary.cashBalance),
+                "SPENDABLE" to v07Euro(summary.cashBalance),
                 "SAVINGS" to v07Euro(summary.totalSavings),
                 "INVESTED" to v07Euro(vm.trackedPortfolioTotal),
             )
@@ -71,12 +71,12 @@ internal fun V08HomeScreen(
 
         Spacer(Modifier.height(34.dp))
         V07Panel(onClick = onOpenMoney) {
-            Text("FREE TO PLAN THIS MONTH", fontSize = 11.sp, letterSpacing = 1.1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("UNASSIGNED THIS MONTH", fontSize = 11.sp, letterSpacing = 1.1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(5.dp))
             Text(v07Euro(envelope.availableCash), fontSize = 42.sp, lineHeight = 46.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(8.dp))
             Text(
-                "This is a planning number: ${v07Euro(envelope.expectedIncome)} expected income minus bills, investments, spending budgets and savings. Your actual bank balance is ${v07Euro(summary.cashBalance)}.",
+                "Planning only: ${v07Euro(envelope.expectedIncome)} expected income minus bills, investments, spending budgets and savings. Spendable now is ${v07Euro(summary.cashBalance)} and can be different.",
                 fontSize = 12.sp,
                 lineHeight = 18.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
