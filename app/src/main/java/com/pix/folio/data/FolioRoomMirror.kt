@@ -31,7 +31,7 @@ interface FolioSnapshotDao {
     suspend fun put(snapshot: FolioSnapshotEntity)
 
     @Query("SELECT * FROM folio_snapshots WHERE slot = :slot LIMIT 1")
-    suspend fun get(slot: String = "latest"): FolioSnapshotEntity?
+    suspend fun get(slot: String): FolioSnapshotEntity?
 }
 
 @Database(
@@ -57,7 +57,7 @@ abstract class FolioRoomDatabase : RoomDatabase() {
 
 object FolioRoomMirror {
     suspend fun save(context: Context) {
-        val payload = FolioBackup.export(context)
+        val payload = FolioBackup.snapshot(context)
         FolioRoomDatabase.get(context).snapshots().put(
             FolioSnapshotEntity(
                 createdAtMillis = System.currentTimeMillis(),
@@ -67,7 +67,7 @@ object FolioRoomMirror {
     }
 
     suspend fun restoreLatest(context: Context): Result<Boolean> = runCatching {
-        val snapshot = FolioRoomDatabase.get(context).snapshots().get() ?: return@runCatching false
+        val snapshot = FolioRoomDatabase.get(context).snapshots().get("latest") ?: return@runCatching false
         FolioBackup.import(context, snapshot.payload).getOrThrow()
         true
     }
