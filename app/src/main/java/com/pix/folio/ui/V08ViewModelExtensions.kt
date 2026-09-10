@@ -18,6 +18,15 @@ internal fun V07ViewModel.setInvestmentPurchaseDateTime(id: String, dateTime: Lo
     setInvestmentPurchaseDate(id, safe.toLocalDate())
 }
 
+internal fun V07ViewModel.ownedUnitsFor(id: String): Double? =
+    InvestmentTrackingStore(getApplication<Application>()).ownedUnits(id)
+        ?: summary.unitsFor(id).takeIf { it > 0.0 }
+
+internal fun V07ViewModel.setInvestmentOwnedUnits(id: String, units: Double?) {
+    InvestmentTrackingStore(getApplication<Application>()).setOwnedUnits(id, units)
+    refreshTrackedInvestment(id)
+}
+
 internal fun V07ViewModel.addInvestmentV08(
     kind: InvestmentKind,
     name: String,
@@ -27,6 +36,7 @@ internal fun V07ViewModel.addInvestmentV08(
     isin: String = "",
     figi: String = "",
     exchange: String = "",
+    units: Double = 0.0,
     marketHashName: String = "",
     cs2AssetType: Cs2AssetType = Cs2AssetType.OTHER,
 ) {
@@ -38,6 +48,8 @@ internal fun V07ViewModel.addInvestmentV08(
         isin = isin,
         figi = figi,
         exchange = exchange,
+        units = units,
+        unitPrice = if (units > 0.0) amount / units else 0.0,
         marketHashName = marketHashName,
         cs2AssetType = cs2AssetType,
         purchaseDate = purchaseDateTime.toLocalDate(),
