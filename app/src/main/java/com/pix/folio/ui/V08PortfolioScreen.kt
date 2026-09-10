@@ -44,12 +44,12 @@ private enum class V08PortfolioGraphMode(val label: String) { VALUE("VALUE"), RE
 @Composable
 internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val summary = vm.summary
-    val total = vm.trackedPortfolioTotal
-    val gain = vm.trackedPortfolioGain
-    val gainPct = vm.trackedPortfolioGainPct
-    val valueHistory = vm.trackedPortfolioHistory
+    val total = vm.v081PortfolioTotal
+    val gain = vm.v081PortfolioGain
+    val gainPct = vm.v081PortfolioGainPct
+    val valueHistory = vm.v081PortfolioHistory
     var graphMode by remember { mutableStateOf(V08PortfolioGraphMode.VALUE) }
-    var editTimestamp by remember { mutableStateOf<InvestmentHolding?>(null) }
+    var editHolding by remember { mutableStateOf<InvestmentHolding?>(null) }
     var showAdd by remember { mutableStateOf(false) }
     var showFullManager by remember { mutableStateOf(false) }
 
@@ -70,6 +70,9 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         }
     }
 
+    val valuations = summary.investments.associateWith(vm::v081Valuation)
+    val hasEstimatedHolding = valuations.values.any { !it.exact }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -87,6 +90,15 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (hasEstimatedHolding) {
+            Text(
+                "Some holdings are estimated. Tap one and enter the exact units from your brokerage for broker-style valuation when the market quote is in EUR.",
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
 
         Spacer(Modifier.height(24.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -103,7 +115,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             )
             Text(
                 when (graphMode) {
-                    V08PortfolioGraphMode.VALUE -> "Market value across all holdings."
+                    V08PortfolioGraphMode.VALUE -> "Market value across all holdings. Today's endpoint uses exact unit-based values where available."
                     V08PortfolioGraphMode.RETURN -> "Market value minus contributions recorded by that date."
                     V08PortfolioGraphMode.CONTRIBUTIONS -> "How much you contributed over time."
                 },
@@ -137,7 +149,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             ) { Text(if (vm.marketRefreshing || vm.trackingRefreshing) "Updating…" else "Refresh") }
         }
         Text(
-            "Purchase time is stored locally together with the purchase date. Tap a holding to correct it.",
+            "Tap a holding to edit its purchase date, time, and exact owned units.",
             fontSize = 11.sp,
             lineHeight = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -147,25 +159,28 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         if (summary.investments.isEmpty()) {
             V07Panel(onClick = { showAdd = true }) {
                 Text("Add your first investment", fontSize = 19.sp, fontWeight = FontWeight.Medium)
-                Text("Add the exact purchase date and time, or resolve an ETF/stock by ISIN.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Add exact units, purchase date and time, or resolve an ETF/stock by ISIN.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
-            summary.investments.sortedByDescending(vm::trackedMarketValue).forEachIndexed { index, holding ->
-                val market = vm.trackedMarketValue(holding)
-                val timestamp = vm.purchaseDateTimeFor(holding.id)
-                val allocation = if (total > 0.0) market / total * 100.0 else 0.0
-                V07Metric(
-                    label = holding.name,
-                    value = v07Euro(market),
-                    detail = buildString {
-                        append("${String.format(Locale.US, "%.1f", allocation)}% · ${holding.kind.label}")
-                        if (timestamp != null) append(" · bought ${timestamp.format(V08BoughtFormat)}")
-                        else append(" · add purchase date & time")
-                    },
-                    onClick = { editTimestamp = holding },
-                )
-                if (index != summary.investments.lastIndex) V07Divider()
-            }
+            summary.investments
+                .sortedByDescending { holding -> valuations[holding]?.value ?: 0.0 }
+                .forEachIndexed { index, holding ->
+                    val valuation = valuations.getValue(holding)
+                    val timestamp = vm.purchaseDateTimeFor(holding.id)
+                    val allocation = if (total > 0.0) valuation.value / total * 100.0 else 0.0
+                    V07Metric(
+                        label = holding.name,
+                        value = v07Euro(valuation.value),
+                        detail = buildString {
+                            append("${String.format(Locale.US, "%.1f", allocation)}% · ${holding.kind.label} · ${valuation.status}")
+                            valuation.units?.let { append(" · ${v081Units(it)} units") }
+                            if (timestamp != null) append(" · bought ${timestamp.format(V08BoughtFormat)}")
+                            else append(" · add purchase date & time")
+                        },
+                        onClick = { editHolding = holding },
+                    )
+                    if (index != summary.investments.lastIndex) V07Divider()
+                }
         }
 
         Spacer(Modifier.height(30.dp))
@@ -181,14 +196,16 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         V08AddInvestmentSheet(vm = vm, onDismiss = { showAdd = false })
     }
 
-    editTimestamp?.let { holding ->
-        V08PurchaseTimestampSheet(
+    editHolding?.let { holding ->
+        V081HoldingDetailsSheet(
             holding = holding,
-            initial = vm.purchaseDateTimeFor(holding.id),
-            onDismiss = { editTimestamp = null },
-            onSave = {
-                vm.setInvestmentPurchaseDateTime(holding.id, it)
-                editTimestamp = null
+            initialTimestamp = vm.purchaseDateTimeFor(holding.id),
+            initialUnits = vm.ownedUnitsFor(holding.id),
+            onDismiss = { editHolding = null },
+            onSave = { timestamp, units ->
+                vm.setInvestmentPurchaseDateTime(holding.id, timestamp)
+                vm.setInvestmentOwnedUnits(holding.id, units)
+                editHolding = null
             },
         )
     }
@@ -208,22 +225,25 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun V08PurchaseTimestampSheet(
+private fun V081HoldingDetailsSheet(
     holding: InvestmentHolding,
-    initial: LocalDateTime?,
+    initialTimestamp: LocalDateTime?,
+    initialUnits: Double?,
     onDismiss: () -> Unit,
-    onSave: (LocalDateTime) -> Unit,
+    onSave: (LocalDateTime, Double?) -> Unit,
 ) {
-    val seed = initial ?: LocalDateTime.now()
-    var dateText by remember(holding.id, initial) { mutableStateOf(seed.toLocalDate().toString()) }
-    var timeText by remember(holding.id, initial) { mutableStateOf(seed.toLocalTime().withSecond(0).withNano(0).toString()) }
+    val seed = initialTimestamp ?: LocalDateTime.now()
+    var dateText by remember(holding.id, initialTimestamp) { mutableStateOf(seed.toLocalDate().toString()) }
+    var timeText by remember(holding.id, initialTimestamp) { mutableStateOf(seed.toLocalTime().withSecond(0).withNano(0).toString()) }
+    var unitsText by remember(holding.id, initialUnits) { mutableStateOf(initialUnits?.let(::v081Units).orEmpty()) }
     val date = runCatching { LocalDate.parse(dateText) }.getOrNull()
     val time = runCatching { LocalTime.parse(timeText) }.getOrNull()
     val timestamp = if (date != null && time != null) LocalDateTime.of(date, time) else null
+    val units = unitsText.v07Double().takeIf { it > 0.0 }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 34.dp)) {
-            Text("Purchase date & time", fontSize = 28.sp, fontWeight = FontWeight.Medium)
+            Text("Purchase details", fontSize = 28.sp, fontWeight = FontWeight.Medium)
             Text(holding.name, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(18.dp))
             OutlinedTextField(
@@ -242,19 +262,31 @@ private fun V08PurchaseTimestampSheet(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = unitsText,
+                onValueChange = { unitsText = it },
+                label = { Text("Current units owned") },
+                supportingText = { Text("Use the exact fractional quantity shown by your brokerage.") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(10.dp))
             Text(
-                "The clock time is stored as purchase metadata. Daily market graphs still use historical closes, because Folio does not pretend to have execution-grade intraday prices.",
+                "Date and time stay as purchase metadata. Exact current valuation uses your owned units only when the resolved market quote is EUR; otherwise Folio labels the value as estimated instead of silently mixing currencies.",
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(18.dp))
             Button(
-                onClick = { onSave(timestamp ?: return@Button) },
+                onClick = { onSave(timestamp ?: return@Button, units) },
                 enabled = timestamp != null && !timestamp.isAfter(LocalDateTime.now()),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
-            ) { Text("Save purchase time") }
+            ) { Text("Save details") }
         }
     }
 }
+
+private fun v081Units(value: Double): String =
+    String.format(Locale.US, "%.8f", value).trimEnd('0').trimEnd('.')
