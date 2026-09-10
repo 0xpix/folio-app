@@ -7,6 +7,32 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.8.1.beta] - 2026-09-11
+
+### Added
+- Exact fractional **units owned** can now be entered for new investments and corrected later for existing holdings.
+- Unit-based current valuation uses the complete owned quantity multiplied by the freshest available EUR market quote, with a visible **Exact from owned units** / **Estimated** status per holding.
+- A persisted root-navigation state remembers whether the user was on Money, Home, or Portfolio across app locking and process recreation.
+- Regression tests protect EUR unit valuation, non-EUR fallback behavior, and incomplete-unit fallback behavior.
+
+### Changed
+- The app theme now establishes its foreground color at the root Material surface, so default text and icons inherit the active light/dark color scheme instead of relying on per-screen color overrides.
+- The three-dot swipe indicator is transient and only appears while the pager is moving; it no longer sits permanently over page content.
+- Portfolio totals, Home net worth, portfolio intelligence, the primary portfolio screen, and the detailed portfolio manager all use the same v0.8.1 valuation path.
+- Folio refreshes current market quotes when the app opens, while still keeping manual Refresh controls.
+- Market-symbol resolution is generic: exchange-aware stored tickers plus Yahoo search by ISIN/name replace application-code mappings for individual securities.
+- The market-data User-Agent now uses the actual app version from `BuildConfig` instead of a stale release string.
+- Beta version advanced to `v0.8.1.beta`.
+
+### Fixed
+- Fixed dark mode rendering major text and icons in black on a near-black background.
+- Fixed returning from the background, unlocking Folio, and being sent back to Home instead of the root page that was open before locking.
+- Fixed the pager indicator overlapping content such as the “Where did my money go?” section.
+- Fixed portfolio values continuing to use purchase-amount growth estimates even when a complete owned-unit quantity is available.
+- Fixed the clean investment flow dropping the unit quantity that the underlying finance model already supports.
+- Removed the security-specific MSCI/SCWX market-symbol hardcoding and replaced it with reusable metadata/search-based resolution.
+- Kept non-EUR and incomplete-unit holdings explicitly estimated instead of silently treating a foreign-currency or partial-unit calculation as an exact euro value.
+
 ## [0.8.0.beta] - 2026-09-10
 
 ### Added
