@@ -30,9 +30,9 @@ class InvestmentTrackingStore(context: Context) {
             .apply()
     }
 
-    /** Date-only editor compatibility. Preserve an existing clock time when possible. */
+    /** Date-only editor compatibility. New purchases inherit the current clock time. */
     fun setPurchaseDate(holdingId: String, date: LocalDate) {
-        val time = purchaseDateTime(holdingId)?.toLocalTime() ?: LocalTime.NOON
+        val time = purchaseDateTime(holdingId)?.toLocalTime() ?: LocalTime.now().withSecond(0).withNano(0)
         setPurchaseDateTime(holdingId, date.atTime(time))
     }
 
