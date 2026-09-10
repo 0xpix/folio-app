@@ -81,8 +81,8 @@ fun FolioApp(vm: V07ViewModel = viewModel()) {
                 modifier = Modifier.fillMaxSize(),
             ) { page ->
                 when (tabs[page]) {
-                    V08RootTab.MONEY -> V07MoneyScreen(vm)
-                    V08RootTab.HOME -> V07HomeScreen(
+                    V08RootTab.MONEY -> V08MoneyScreen(vm)
+                    V08RootTab.HOME -> V08HomeScreen(
                         vm = vm,
                         onOpenMoney = {
                             scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.MONEY)) }
@@ -92,7 +92,7 @@ fun FolioApp(vm: V07ViewModel = viewModel()) {
                         },
                         onSettings = { showSettings = true },
                     )
-                    V08RootTab.PORTFOLIO -> V07PortfolioScreen(vm)
+                    V08RootTab.PORTFOLIO -> V08PortfolioScreen(vm)
                 }
             }
 
