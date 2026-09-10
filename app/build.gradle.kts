@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
+    id("com.android.legacy-kapt")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
