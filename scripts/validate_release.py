@@ -64,8 +64,8 @@ build_checks = {
     "JUnit": 'junit:junit:4.13.2',
 }
 failed = [name for name, token in build_checks.items() if token not in build]
-if 'org.jetbrains.kotlin.kapt' not in root_build or 'org.jetbrains.kotlin.kapt' not in build:
-    failed.append("Room kapt plugin")
+if 'com.android.legacy-kapt' not in root_build or 'com.android.legacy-kapt' not in build:
+    failed.append("AGP-compatible Room kapt plugin")
 if failed:
     print("Build validation failed:", ", ".join(failed))
     sys.exit(1)
