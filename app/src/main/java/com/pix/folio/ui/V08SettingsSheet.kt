@@ -67,6 +67,7 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             runCatching {
                 context.contentResolver.openOutputStream(uri, "w")!!.bufferedWriter().use { it.write(payload) }
             }.onSuccess {
+                FolioBackup.markExported(context)
                 backupRefresh += 1
                 Toast.makeText(context, "Folio backup saved", Toast.LENGTH_SHORT).show()
             }.onFailure {
@@ -166,7 +167,7 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             V07Metric(
                 "Restore Folio",
                 "Import",
-                "Choose a Folio backup. The file is validated before its local data is restored.",
+                "Choose a Folio backup. The file is fully validated before local data is restored, and Folio rolls back if a restore write fails.",
                 onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
             )
             Text(
