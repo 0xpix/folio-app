@@ -72,7 +72,7 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
     ) {
         Text("Money", fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium)
         Text(
-            "One salary-funded envelope per month. Previous leftovers never roll in automatically.",
+            "Detailed monthly planning. Unassigned money is planned income without a job yet; Spendable now is your real liquid balance.",
             fontSize = 13.sp,
             lineHeight = 19.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -87,7 +87,7 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
         )
 
         Spacer(Modifier.height(20.dp))
-        Text("Available this month", fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Unassigned this month", fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
             v07Euro(envelope.availableCash),
             fontSize = 58.sp,
@@ -97,20 +97,20 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "${v07Euro(envelope.expectedIncome)} salary/income − ${v07Euro(envelope.committed)} planned = ${v07Euro(envelope.availableCash)} free",
+            "${v07Euro(envelope.expectedIncome)} expected income − ${v07Euro(envelope.committed)} planned = ${v07Euro(envelope.availableCash)} unassigned",
             fontSize = 14.sp,
             lineHeight = 20.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            "Received for this envelope ${v07Euro(envelope.receivedIncome)} · account cash ${v07Euro(summary.cashBalance)} · prior-month cash excluded",
+            "Received for this plan ${v07Euro(envelope.receivedIncome)} · Spendable now ${v07Euro(summary.cashBalance)} · old leftovers excluded from the monthly plan",
             fontSize = 11.sp,
             lineHeight = 17.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (monthIsCurrent && allocationDefault > 0.0) {
             TextButton(onClick = { showAllocation = true }) {
-                Text("Allocate available money →")
+                Text("Allocate unassigned money →")
             }
         }
 
@@ -178,7 +178,7 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
             TextButton(onClick = { showTargets = true }) { Text("Targets") }
         }
         Text(
-            "Savings balances stay manual. Monthly savings rules simply move the amount you choose from that month's salary envelope.",
+            "Savings balances stay separate from Spendable now. Monthly savings rules assign the amount you choose from that month's plan.",
             fontSize = 12.sp,
             lineHeight = 18.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -245,7 +245,7 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
             V07Divider()
             V07Metric("Savings", "−${v07Euro(envelope.savingsCommitment)}")
             V07Divider()
-            V07Metric("Available", v07Euro(envelope.availableCash), "Does not include previous-month leftover cash")
+            V07Metric("Unassigned", v07Euro(envelope.availableCash), "Planning only; old leftover money is not counted as new monthly income")
         }
 
         Spacer(Modifier.height(34.dp))
