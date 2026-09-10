@@ -103,7 +103,7 @@ feature_groups = {
     "touch chart inspection": ["awaitEachGesture", "selectedIndex"],
     "portfolio modes": ["VALUE", "RETURN", "CONTRIBUTIONS"],
     "portfolio intelligence": ["Portfolio intelligence", "Largest position", "Market growth"],
-    "purchase timestamp": ["purchase_datetime_", "purchaseDateTimeFor", "Purchase time · HH:mm"],
+    "purchase timestamp": ["KEY_PURCHASE_DATETIME", "purchaseDateTimeFor", "Purchase time · HH:mm"],
     "unit valuation": ["v081CurrentValue", "ownedUnits", "Units owned (recommended)", "Current units owned"],
     "last-page restore": ["folio_navigation_v1", "root_page"],
     "portable backup": ["folio-backup", "Export Folio", "Restore Folio"],
