@@ -21,12 +21,15 @@ object FolioBackup {
         "folio_monthly_plan_v1",
     )
 
-    /** User-initiated portable export. This is the timestamp shown in Settings. */
-    fun export(context: Context): String {
-        val now = System.currentTimeMillis()
+    /** Build a user-initiated portable export. Call [markExported] only after the file was written. */
+    fun export(context: Context): String = buildPayload(context, System.currentTimeMillis())
+
+    /** Records a successful user-visible export, never an attempted/cancelled export. */
+    fun markExported(context: Context) {
         context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
-            .edit().putLong("last_export_millis", now).apply()
-        return buildPayload(context, now)
+            .edit()
+            .putLong("last_export_millis", System.currentTimeMillis())
+            .apply()
     }
 
     /** Internal safety snapshot used by the Room migration bridge; does not pretend to be an exported file. */
@@ -46,25 +49,24 @@ object FolioBackup {
     }
 
     fun import(context: Context, raw: String): Result<Unit> = runCatching {
-        val root = JSONObject(raw)
-        require(root.optString("format") == "folio-backup") { "Not a Folio backup" }
-        val version = root.optInt("version", 0)
-        require(version in 1..FORMAT_VERSION) { "Unsupported Folio backup version $version" }
-        val files = root.optJSONObject("files") ?: error("Backup data is incomplete")
-        financePreferenceFiles.forEach { name ->
-            val encoded = files.optJSONObject(name) ?: JSONObject()
-            restorePreferences(context.getSharedPreferences(name, Context.MODE_PRIVATE), encoded)
+        val incomingFiles = parseAndValidate(raw).second
+        val previousFiles = parseAndValidate(snapshot(context)).second
+
+        try {
+            restoreFiles(context, incomingFiles)
+        } catch (restoreError: Throwable) {
+            runCatching { restoreFiles(context, previousFiles) }
+            throw restoreError
         }
+
         context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
-            .edit().putLong("last_restore_millis", System.currentTimeMillis()).apply()
+            .edit()
+            .putLong("last_restore_millis", System.currentTimeMillis())
+            .apply()
     }
 
     fun validate(raw: String): Result<String> = runCatching {
-        val root = JSONObject(raw)
-        require(root.optString("format") == "folio-backup") { "Not a Folio backup" }
-        val version = root.optInt("version", 0)
-        require(version in 1..FORMAT_VERSION) { "Unsupported Folio backup version $version" }
-        require(root.optJSONObject("files") != null) { "Backup data is incomplete" }
+        val (root, _) = parseAndValidate(raw)
         root.optString("createdAt").ifBlank { "unknown date" }
     }
 
@@ -73,6 +75,46 @@ object FolioBackup {
 
     fun lastRestoreMillis(context: Context): Long =
         context.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE).getLong("last_restore_millis", 0L)
+
+    private fun parseAndValidate(raw: String): Pair<JSONObject, JSONObject> {
+        val root = JSONObject(raw)
+        require(root.optString("format") == "folio-backup") { "Not a Folio backup" }
+        val version = root.optInt("version", 0)
+        require(version in 1..FORMAT_VERSION) { "Unsupported Folio backup version $version" }
+        val files = root.optJSONObject("files") ?: error("Backup data is incomplete")
+        financePreferenceFiles.forEach { name ->
+            require(files.optJSONObject(name) != null) { "Backup data is incomplete: $name" }
+        }
+        validateEncodedFiles(files)
+        return root to files
+    }
+
+    private fun validateEncodedFiles(files: JSONObject) {
+        val supportedTypes = setOf("string", "boolean", "int", "long", "float", "string_set")
+        financePreferenceFiles.forEach { name ->
+            val encoded = files.getJSONObject(name)
+            val keys = encoded.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = encoded.optJSONObject(key) ?: error("Invalid backup entry: $name/$key")
+                val type = value.optString("type")
+                require(type in supportedTypes) { "Unsupported backup value type: $type" }
+                require(value.has("value")) { "Invalid backup entry: $name/$key" }
+                if (type == "string_set") {
+                    require(value.optJSONArray("value") != null) { "Invalid string set: $name/$key" }
+                }
+            }
+        }
+    }
+
+    private fun restoreFiles(context: Context, files: JSONObject) {
+        financePreferenceFiles.forEach { name ->
+            restorePreferences(
+                context.getSharedPreferences(name, Context.MODE_PRIVATE),
+                files.getJSONObject(name),
+            )
+        }
+    }
 
     private fun encodePreferences(prefs: SharedPreferences): JSONObject {
         val result = JSONObject()
@@ -101,17 +143,17 @@ object FolioBackup {
         val keys = encoded.keys()
         while (keys.hasNext()) {
             val key = keys.next()
-            val value = encoded.optJSONObject(key) ?: continue
-            when (value.optString("type")) {
-                "string" -> editor.putString(key, value.optString("value"))
-                "boolean" -> editor.putBoolean(key, value.optBoolean("value"))
-                "int" -> editor.putInt(key, value.optInt("value"))
-                "long" -> editor.putLong(key, value.optLong("value"))
-                "float" -> editor.putFloat(key, value.optDouble("value").toFloat())
+            val value = encoded.getJSONObject(key)
+            when (value.getString("type")) {
+                "string" -> editor.putString(key, value.getString("value"))
+                "boolean" -> editor.putBoolean(key, value.getBoolean("value"))
+                "int" -> editor.putInt(key, value.getInt("value"))
+                "long" -> editor.putLong(key, value.getLong("value"))
+                "float" -> editor.putFloat(key, value.getDouble("value").toFloat())
                 "string_set" -> {
-                    val array = value.optJSONArray("value") ?: JSONArray()
+                    val array = value.getJSONArray("value")
                     editor.putStringSet(key, buildSet {
-                        for (index in 0 until array.length()) add(array.optString(index))
+                        for (index in 0 until array.length()) add(array.getString(index))
                     })
                 }
             }
