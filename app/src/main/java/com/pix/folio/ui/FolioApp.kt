@@ -75,6 +75,10 @@ fun FolioApp(vm: V07ViewModel = viewModel()) {
     val scope = rememberCoroutineScope()
     var showSettings by rememberSaveable { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        vm.refreshMarketPrices()
+    }
+
     LaunchedEffect(pagerState.currentPage) {
         tabs.getOrNull(pagerState.currentPage)?.let { tab ->
             navigationStore.setLastRootPage(tab.name)
