@@ -55,7 +55,9 @@ jobs:
           if-no-files-found: error
 
   beta_release:
-    if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, 'beta')
+    if: >-
+      (startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, 'beta')) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: ci
     runs-on: ubuntu-latest
     permissions:
@@ -66,26 +68,72 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Resolve beta release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF" == refs/tags/v* && "$GITHUB_REF_NAME" == *beta* ]]; then
+            RELEASE_TAG="$GITHUB_REF_NAME"
+          else
+            RELEASE_VERSION="$(python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path("CHANGELOG.md").read_text()
+          match = re.search(r"(?m)^## \[([^]]+)\]", text)
+          if not match:
+              raise SystemExit("Could not find the current changelog version")
+          print(match.group(1))
+          PY
+          )"
+
+            if [[ "$RELEASE_VERSION" != *beta* ]]; then
+              echo "Current changelog version is not a beta; no beta release needed."
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+              echo "tag=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            RELEASE_TAG="v${RELEASE_VERSION}"
+          fi
+
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; skipping publication."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release $RELEASE_TAG is missing and will be published after CI."
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Java 17
+        if: steps.release.outputs.should_release == 'true'
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Android SDK
+        if: steps.release.outputs.should_release == 'true'
         uses: android-actions/setup-android@v4
         with:
           packages: ""
 
       - name: Install Android 17 / API 37 SDK
+        if: steps.release.outputs.should_release == 'true'
         run: sdkmanager --channel=3 "platform-tools" "platforms;android-37.0" "build-tools;36.0.0"
 
       - name: Set up Gradle 9.4.1
+        if: steps.release.outputs.should_release == 'true'
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "9.4.1"
 
       - name: Validate signing secrets
+        if: steps.release.outputs.should_release == 'true'
         env:
           KEYSTORE: ${{ secrets.FOLIO_BETA_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.FOLIO_BETA_KEYSTORE_PASSWORD }}
@@ -100,6 +148,7 @@ jobs:
           test -n "$KEY_PASSWORD"
 
       - name: Restore beta keystore
+        if: steps.release.outputs.should_release == 'true'
         env:
           KEYSTORE: ${{ secrets.FOLIO_BETA_KEYSTORE_BASE64 }}
         shell: bash
@@ -109,6 +158,7 @@ jobs:
           chmod 600 "$RUNNER_TEMP/folio-beta.jks"
 
       - name: Verify beta keystore alias
+        if: steps.release.outputs.should_release == 'true'
         env:
           STORE_PASSWORD: ${{ secrets.FOLIO_BETA_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.FOLIO_BETA_KEY_ALIAS }}
@@ -121,12 +171,13 @@ jobs:
             -alias "$KEY_ALIAS" >/dev/null 2>&1
 
       - name: Build signed beta APK
+        if: steps.release.outputs.should_release == 'true'
         env:
           FOLIO_KEYSTORE_FILE: ${{ runner.temp }}/folio-beta.jks
           FOLIO_KEYSTORE_PASSWORD: ${{ secrets.FOLIO_BETA_KEYSTORE_PASSWORD }}
           FOLIO_KEY_ALIAS: ${{ secrets.FOLIO_BETA_KEY_ALIAS }}
           FOLIO_KEY_PASSWORD: ${{ secrets.FOLIO_BETA_KEY_PASSWORD }}
-          FOLIO_VERSION_NAME: ${{ github.ref_name }}
+          FOLIO_VERSION_NAME: ${{ steps.release.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
@@ -134,18 +185,22 @@ jobs:
           gradle :app:assembleBetaRelease --no-daemon --stacktrace
 
       - name: Verify beta APK signature
+        if: steps.release.outputs.should_release == 'true'
         shell: bash
         run: |
           set -euo pipefail
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/beta/release/app-beta-release.apk
 
       - name: Verify beta APK version matches tag
+        if: steps.release.outputs.should_release == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
           AAPT="$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt"
           BADGING="$($AAPT dump badging app/build/outputs/apk/beta/release/app-beta-release.apk | head -n 1)"
-          python3 - "$GITHUB_REF_NAME" "$BADGING" <<'PY'
+          python3 - "$RELEASE_TAG" "$BADGING" <<'PY'
           import re
           import sys
 
@@ -160,16 +215,20 @@ jobs:
           PY
 
       - name: Prepare beta APK and checksum
+        if: steps.release.outputs.should_release == 'true'
         id: beta
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          APK_NAME="folio-${GITHUB_REF_NAME}.apk"
+          APK_NAME="folio-${RELEASE_TAG}.apk"
           cp app/build/outputs/apk/beta/release/app-beta-release.apk "$APK_NAME"
           sha256sum "$APK_NAME" > "$APK_NAME.sha256"
           echo "apk=$APK_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload beta artifact
+        if: steps.release.outputs.should_release == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: folio-beta-release
@@ -179,10 +238,13 @@ jobs:
           if-no-files-found: error
 
       - name: Prepare changelog release notes
+        if: steps.release.outputs.should_release == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 - "$GITHUB_REF_NAME" "$RUNNER_TEMP/release-notes.md" <<'PY'
+          python3 - "$RELEASE_TAG" "$RUNNER_TEMP/release-notes.md" <<'PY'
           from pathlib import Path
           import re
           import sys
@@ -198,16 +260,19 @@ jobs:
           PY
 
       - name: Publish GitHub beta release
+        if: steps.release.outputs.should_release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" \
+          gh release create "$RELEASE_TAG" \
             "${{ steps.beta.outputs.apk }}" \
             "${{ steps.beta.outputs.apk }}.sha256" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Folio $GITHUB_REF_NAME" \
+            --target "$GITHUB_SHA" \
+            --title "Folio $RELEASE_TAG" \
             --prerelease \
             --notes-file "$RUNNER_TEMP/release-notes.md"
 
