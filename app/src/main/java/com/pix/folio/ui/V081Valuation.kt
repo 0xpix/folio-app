@@ -16,13 +16,23 @@ internal data class V081HoldingValuation(
 }
 
 /**
- * Prefer broker-reported current units and a EUR market quote. When either side is missing, keep
- * the existing ratio-based estimate rather than presenting cross-currency units as euros.
+ * Prefer broker-reported current units and the freshest EUR quote Folio has. When either side is
+ * missing, keep the existing ratio-based estimate rather than presenting cross-currency units as
+ * euros.
  */
 internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081HoldingValuation {
     val history = trackedHistories[holding.id]
-    val latest = history?.latestPrice?.takeIf { it > 0.0 }
-    val currency = history?.currency?.trim()?.uppercase()?.takeIf(String::isNotBlank)
+    val historyPoint = history?.points?.lastOrNull()
+    val storedPoint = summary.priceHistoryFor(holding.id).lastOrNull()
+    val useStoredPoint = storedPoint != null &&
+        (historyPoint == null || !storedPoint.date.isBefore(historyPoint.date))
+    val latest = if (useStoredPoint) storedPoint?.close else historyPoint?.close
+    val currency = if (useStoredPoint) {
+        storedPoint?.currency?.ifBlank { holding.priceCurrency }
+    } else {
+        history?.currency?.ifBlank { holding.priceCurrency }
+    }?.trim()?.uppercase()?.takeIf(String::isNotBlank)
+
     val tracking = InvestmentTrackingStore(getApplication<Application>())
     val brokerUnits = tracking.ownedUnits(holding.id)
     val transactions = summary.transactionsFor(holding.id)
@@ -30,7 +40,7 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
     val completeTransactionUnits = transactions.isNotEmpty() && transactions.all { it.units > 0.0 }
     val units = brokerUnits ?: transactionUnits
     val canUseExactUnits =
-        latest != null &&
+        latest != null && latest > 0.0 &&
             currency == "EUR" &&
             units != null &&
             (brokerUnits != null || completeTransactionUnits)
@@ -68,7 +78,7 @@ internal val V07ViewModel.v081PortfolioGainPct: Double
 internal val V07ViewModel.v081NetWorth: Double
     get() = summary.cashBalance + summary.totalSavings + v081PortfolioTotal
 
-/** Keep the reconstructed historical curve, but make today's endpoint match the exact current total. */
+/** Keep the reconstructed historical curve, but make today's endpoint match the current total. */
 internal val V07ViewModel.v081PortfolioHistory: List<Pair<LocalDate, Double>>
     get() {
         val current = v081PortfolioTotal
