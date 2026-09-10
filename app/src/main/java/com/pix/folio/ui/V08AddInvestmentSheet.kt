@@ -45,6 +45,7 @@ internal fun V08AddInvestmentSheet(
     var name by remember { mutableStateOf("") }
     var symbol by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
+    var units by remember { mutableStateOf("") }
     var purchaseDate by remember { mutableStateOf(LocalDate.now().toString()) }
     var purchaseTime by remember {
         mutableStateOf(LocalTime.now().withSecond(0).withNano(0).toString())
@@ -63,6 +64,7 @@ internal fun V08AddInvestmentSheet(
     val parsedTimestamp = if (parsedDate != null && parsedTime != null) {
         LocalDateTime.of(parsedDate, parsedTime)
     } else null
+    val parsedUnits = units.v07Double().takeIf { it > 0.0 }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -139,6 +141,19 @@ internal fun V08AddInvestmentSheet(
             }
             Spacer(Modifier.height(10.dp))
             V07NumberField(amount, "Amount paid (€)") { amount = it }
+
+            if (kind != InvestmentKind.CS2) {
+                Spacer(Modifier.height(10.dp))
+                V07NumberField(units, "Units owned (recommended)") { units = it }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Enter the exact fractional units shown by your brokerage. With a EUR market quote, Folio will use units × latest price instead of estimating from the purchase amount.",
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             Spacer(Modifier.height(10.dp))
             V07TextField(purchaseDate, "Purchase date · YYYY-MM-DD") { purchaseDate = it.take(10) }
             Spacer(Modifier.height(10.dp))
@@ -164,6 +179,7 @@ internal fun V08AddInvestmentSheet(
                         isin = isin.trim(),
                         figi = figi.trim(),
                         exchange = exchange.trim(),
+                        units = parsedUnits ?: 0.0,
                         marketHashName = marketName.trim(),
                         cs2AssetType = cs2Type,
                     )

@@ -2,7 +2,10 @@ package com.pix.folio
 
 import com.pix.folio.data.BudgetEnvelope
 import com.pix.folio.model.RecurringIncome
+import com.pix.folio.ui.v081CurrentValue
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.YearMonth
 
@@ -69,5 +72,44 @@ class V08FinanceModelTest {
         )
         assertEquals(500.0, envelope.savingsCommitment, 0.001)
         assertEquals(204.0, envelope.availableCash, 0.001)
+    }
+
+    @Test
+    fun exactEurUnitsUseLatestMarketPrice() {
+        val decision = v081CurrentValue(
+            fallbackValue = 1_041.0,
+            units = 10.0,
+            latestPrice = 103.8,
+            quoteCurrency = "EUR",
+            unitsAreComplete = true,
+        )
+        assertTrue(decision.exact)
+        assertEquals(1_038.0, decision.value, 0.001)
+    }
+
+    @Test
+    fun nonEurQuoteDoesNotPretendToBeEuroExact() {
+        val decision = v081CurrentValue(
+            fallbackValue = 1_041.0,
+            units = 10.0,
+            latestPrice = 103.8,
+            quoteCurrency = "USD",
+            unitsAreComplete = true,
+        )
+        assertFalse(decision.exact)
+        assertEquals(1_041.0, decision.value, 0.001)
+    }
+
+    @Test
+    fun incompleteUnitsStayEstimated() {
+        val decision = v081CurrentValue(
+            fallbackValue = 1_041.0,
+            units = 10.0,
+            latestPrice = 103.8,
+            quoteCurrency = "EUR",
+            unitsAreComplete = false,
+        )
+        assertFalse(decision.exact)
+        assertEquals(1_041.0, decision.value, 0.001)
     }
 }

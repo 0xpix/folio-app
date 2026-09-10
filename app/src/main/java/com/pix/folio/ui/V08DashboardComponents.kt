@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pix.folio.model.ExpenseCategory
 import com.pix.folio.model.FolioSummary
-import com.pix.folio.model.InvestmentHolding
 import com.pix.folio.model.ValueSnapshot
 import java.time.Instant
 import java.time.LocalDate
@@ -129,7 +126,7 @@ private fun V08InteractiveValueChart(
 
     fun selectAt(x: Float) {
         val fraction = (x / measuredWidth.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
-        selectedIndex = (fraction * (points.lastIndex)).roundToInt().coerceIn(0, points.lastIndex)
+        selectedIndex = (fraction * points.lastIndex).roundToInt().coerceIn(0, points.lastIndex)
     }
 
     val selected = points[selectedIndex]
@@ -167,7 +164,7 @@ private fun V08InteractiveValueChart(
             val span = (max - min).takeIf { it > 0.00001 } ?: 1.0
             val path = Path()
             points.forEachIndexed { index, point ->
-                val x = if (points.lastIndex == 0) 0f else size.width * index / points.lastIndex.toFloat()
+                val x = size.width * index / points.lastIndex.toFloat()
                 val y = size.height - ((point.second - min) / span).toFloat() * size.height
                 if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
@@ -190,6 +187,7 @@ internal fun V08SpendingBreakdown(summary: FolioSummary, month: java.time.YearMo
     val total = rows.sumOf { it.second }
     val previousTotal = ExpenseCategory.entries.sumOf { summary.spentFor(it, month.minusMonths(1)) }
     val difference = total - previousTotal
+    val visibleRows = rows.take(6)
 
     Column(
         Modifier
@@ -204,16 +202,16 @@ internal fun V08SpendingBreakdown(summary: FolioSummary, month: java.time.YearMo
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
-        if (rows.isEmpty()) {
+        if (visibleRows.isEmpty()) {
             Text("No spending recorded for this month.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            rows.take(6).forEachIndexed { index, (category, amount) ->
+            visibleRows.forEachIndexed { index, (category, amount) ->
                 val share = if (total > 0.0) amount / total * 100.0 else 0.0
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                     Text(category.label.uppercase(), fontSize = 12.sp, modifier = Modifier.weight(1f))
                     Text("${v07Euro(amount)} · ${String.format(Locale.US, "%.0f", share)}%", fontSize = 12.sp)
                 }
-                if (index != rows.take(6).lastIndex) V07Divider()
+                if (index != visibleRows.lastIndex) V07Divider()
             }
         }
     }
@@ -222,15 +220,23 @@ internal fun V08SpendingBreakdown(summary: FolioSummary, month: java.time.YearMo
 @Composable
 internal fun V08PortfolioIntelligence(vm: V07ViewModel) {
     val summary = vm.summary
-    val holdings = summary.investments.sortedByDescending(vm::trackedMarketValue)
-    val total = vm.trackedPortfolioTotal
+    val valuations = summary.investments.associateWith(vm::v081Valuation)
+    val holdings = summary.investments.sortedByDescending { valuations.getValue(it).value }
+    val total = vm.v081PortfolioTotal
     if (holdings.isEmpty() || total <= 0.0) return
+
+    fun returnPct(index: Int): Double {
+        val holding = holdings[index]
+        if (holding.amount <= 0.0) return 0.0
+        return (valuations.getValue(holding).value - holding.amount) / holding.amount * 100.0
+    }
+
     val largest = holdings.first()
-    val largestValue = vm.trackedMarketValue(largest)
+    val largestValue = valuations.getValue(largest).value
     val largestShare = largestValue / total * 100.0
-    val best = holdings.maxByOrNull(vm::trackedGainPct)
-    val worst = holdings.minByOrNull(vm::trackedGainPct)
-    val marketGrowth = vm.trackedPortfolioTotal - summary.portfolioCostBasis
+    val bestIndex = holdings.indices.maxByOrNull(::returnPct)
+    val worstIndex = holdings.indices.minByOrNull(::returnPct)
+    val marketGrowth = total - summary.portfolioCostBasis
 
     Column(
         Modifier
@@ -254,11 +260,11 @@ internal fun V08PortfolioIntelligence(vm: V07ViewModel) {
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
-        if (best != null && worst != null && holdings.size > 1) {
+        if (bestIndex != null && worstIndex != null && holdings.size > 1) {
             V07Divider()
-            V07Metric("Best return", "${String.format(Locale.US, "%+.1f%%", vm.trackedGainPct(best))}", best.name)
+            V07Metric("Best return", "${String.format(Locale.US, "%+.1f%%", returnPct(bestIndex))}", holdings[bestIndex].name)
             V07Divider()
-            V07Metric("Lowest return", "${String.format(Locale.US, "%+.1f%%", vm.trackedGainPct(worst))}", worst.name)
+            V07Metric("Lowest return", "${String.format(Locale.US, "%+.1f%%", returnPct(worstIndex))}", holdings[worstIndex].name)
         }
     }
 }

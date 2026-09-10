@@ -3,14 +3,13 @@ package com.pix.folio.ui.components
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.core.content.res.ResourcesCompat
 import com.pix.folio.R
 import kotlin.math.roundToInt
 
-/** Renders Google Fonts Noto Emoji as a monochrome bitmap. The font file is not bundled. */
+/** Renders Google Fonts Noto Emoji as a caller-colored monochrome bitmap. */
 object NotoEmojiRenderer {
     @Volatile private var cachedTypeface: Typeface? = null
 
@@ -21,12 +20,12 @@ object NotoEmojiRenderer {
         return loaded ?: Typeface.DEFAULT
     }
 
-    fun render(context: Context, glyph: String, sizeDp: Int): Bitmap {
+    fun render(context: Context, glyph: String, sizeDp: Int, colorArgb: Int): Bitmap {
         val density = context.resources.displayMetrics.density
         val sizePx = (sizeDp * density).roundToInt().coerceAtLeast(1)
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
-            color = Color.WHITE
+            color = colorArgb
             textAlign = Paint.Align.CENTER
             textSize = sizePx * 0.72f
             typeface = typeface(context)

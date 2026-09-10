@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.8.0.beta`
+**Current beta source:** `0.8.1.beta`
 
 ## What Folio tracks
 
@@ -16,13 +16,14 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Emergency fund, crash reserve, and general savings
 - Investments added manually or resolved from an **ISIN** with OpenFIGI v3
 - Exact local purchase **date and time** metadata for investments
+- Exact fractional **units owned** for broker-style unit-based valuation when a EUR market quote is available
 - Investment contribution history and allocation percentages
 - Portfolio **Value / Return / Contributions** graph modes
 - Portfolio concentration, best/lowest return, contribution, and market-growth summaries
 - Interactive net-worth history with **1M / 3M / 1Y / ALL** ranges
 - Transaction timeline, monthly comparison, milestones, annual review, and growth projections
 - Automatic market tracking for supported exchange-traded assets plus Steam Community Market support for CS2 assets
-- Optional biometric / device-credential app lock
+- Optional biometric / device-credential app lock that restores the last root page after unlocking
 - Minimal 3×1 balance widget
 - Portable local backup and restore
 
@@ -48,7 +49,7 @@ They are allowed to be different. **Spendable now** reflects recorded real money
 
 Savings are not spendable, but they still count toward net worth. Investments are tracked separately and also count toward net worth at their tracked market value when available.
 
-## Investment identity and history
+## Investment identity, units, and valuation
 
 The Android app can resolve an ISIN through OpenFIGI v3:
 
@@ -58,13 +59,25 @@ ISIN → OpenFIGI mapping → matching listing → tracked holding
 
 Folio stores the ISIN together with the selected FIGI, ticker, exchange code, name, and inferred holding type. An OpenFIGI API key is not bundled or required for normal use; anonymous public requests use OpenFIGI's lower rate limit.
 
-For exchange-traded assets, Folio also stores the user's local purchase date and `HH:mm` time. Historical value graphs currently use daily market closes rather than pretending that daily data represents an exact execution price at the stored clock time.
+Market-symbol resolution is generic. Folio uses stored/exchange-aware ticker metadata and Yahoo search by ISIN/name instead of maintaining security-specific mappings in application code.
+
+For exchange-traded assets, Folio stores the user's local purchase date and `HH:mm` time. Historical value graphs currently use daily market closes rather than pretending that daily data represents an exact execution price at the stored clock time.
+
+For current value, Folio prefers:
+
+```text
+owned units × freshest available EUR market quote
+```
+
+when the complete owned-unit quantity is known. Existing holdings can be updated with the exact fractional quantity shown by the brokerage. When Folio does not know complete units, or the resolved quote is not EUR, the value is explicitly labelled **Estimated** instead of silently mixing currencies or pretending an estimate is exact. A public market quote can still differ slightly from a brokerage quote because of source timing, exchange delay, spread, or the brokerage's own display rules.
 
 ## Navigation and visual direction
 
 - horizontal swipe navigation: **Money ← Home → Portfolio**
 - no permanent bottom navigation bar
-- subtle three-dot page indicator
+- transient three-dot page indicator shown only during a swipe, so it never covers settled content
+- last root page is persisted and restored after app lock / process recreation
+- theme-owned foreground/background colors in both system light and dark mode
 - warm off-white / near-black surfaces
 - large numbers and generous whitespace
 - no brokerage-style Buy / Sell controls
@@ -77,7 +90,7 @@ For exchange-traded assets, Folio also stores the user's local purchase date and
 
 Folio remains local-first. User finance data is not tied to an account.
 
-`v0.8.0.beta` adds two protection layers:
+The v0.8 line adds two protection layers:
 
 1. **Portable backup / restore** — export a local Folio JSON backup and import it later.
 2. **Room migration safety mirror** — after finance changes, Folio mirrors a complete local snapshot into a Room database while the existing SharedPreferences model remains the beta source of truth.
@@ -130,16 +143,11 @@ FOLIO_BETA_KEY_ALIAS
 FOLIO_BETA_KEY_PASSWORD
 ```
 
-## Publish the beta
+## Publish a beta
 
-After the v0.8 branch is validated and merged:
+The beta version in `app/build.gradle.kts`, README, and CHANGELOG must agree. Pull requests run static validation, unit tests, and both Android debug builds. After a validated beta is merged into `main`, the release workflow detects the newest missing beta in the changelog, builds and verifies the signed APK, creates its SHA-256 checksum, and publishes the matching GitHub prerelease. Existing releases are skipped safely.
 
-```bash
-git tag v0.8.0.beta
-git push origin v0.8.0.beta
-```
-
-The tag run tests and builds the app, signs the beta APK, verifies its signature and version, creates a SHA-256 checksum, and publishes the APK and matching changelog section to a GitHub prerelease.
+Tag-triggered release runs remain supported for recovery/manual workflows.
 
 ## Build locally
 
@@ -160,4 +168,4 @@ app/build/outputs/apk/beta/debug/app-beta-debug.apk
 
 Recurring actions are month-aware. Marking or automatically processing salary, a bill, or a recurring investment writes a local ledger/transaction entry so previous months are preserved instead of only remembering the latest toggle state.
 
-Investment contributions are stored separately from the holding total. Purchase timestamps are separate tracking metadata so older date-only Folio data stays readable during the v0.8 migration.
+Investment contributions are stored separately from the holding total. Purchase timestamps and optional broker-reported current units are separate tracking metadata so older Folio data stays readable during the v0.8 migration. Both are included in Folio's portable backup because they live in the investment-tracking preference store.

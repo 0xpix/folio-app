@@ -45,6 +45,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pix.folio.data.FolioNavigationStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,23 +58,41 @@ private enum class V08RootTab {
 
 @Composable
 fun FolioApp(vm: V07ViewModel = viewModel()) {
-    V07AppLockGate(vm) {
-        val tabs = V08RootTab.entries
-        val pagerState = rememberPagerState(
-            initialPage = tabs.indexOf(V08RootTab.HOME),
-            pageCount = { tabs.size },
-        )
-        val scope = rememberCoroutineScope()
-        var showSettings by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val tabs = V08RootTab.entries
+    val navigationStore = remember(context.applicationContext) {
+        FolioNavigationStore(context.applicationContext)
+    }
+    val initialTab = remember(navigationStore) {
+        navigationStore.lastRootPage()
+            ?.let { stored -> V08RootTab.entries.firstOrNull { it.name == stored } }
+            ?: V08RootTab.HOME
+    }
+    val pagerState = rememberPagerState(
+        initialPage = tabs.indexOf(initialTab),
+        pageCount = { tabs.size },
+    )
+    val scope = rememberCoroutineScope()
+    var showSettings by rememberSaveable { mutableStateOf(false) }
 
-        LaunchedEffect(vm.summary, vm.recurringSavingsRules) {
-            withContext(Dispatchers.IO) { vm.mirrorToRoomV08() }
+    LaunchedEffect(Unit) {
+        vm.refreshMarketPrices()
+    }
+
+    LaunchedEffect(pagerState.currentPage) {
+        tabs.getOrNull(pagerState.currentPage)?.let { tab ->
+            navigationStore.setLastRootPage(tab.name)
         }
+    }
 
+    LaunchedEffect(vm.summary, vm.recurringSavingsRules) {
+        withContext(Dispatchers.IO) { vm.mirrorToRoomV08() }
+    }
+
+    V07AppLockGate(vm) {
         Box(
             Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
                 .statusBarsPadding()
         ) {
             HorizontalPager(
@@ -96,14 +115,18 @@ fun FolioApp(vm: V07ViewModel = viewModel()) {
                 }
             }
 
-            V08PageIndicator(
-                currentPage = pagerState.currentPage,
-                pageCount = tabs.size,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 8.dp),
-            )
+            // Keep navigation visually quiet and never cover static content. The dots only appear
+            // while the user is actively paging, then disappear as soon as the gesture settles.
+            if (pagerState.isScrollInProgress) {
+                V08PageIndicator(
+                    currentPage = pagerState.currentPage,
+                    pageCount = tabs.size,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 8.dp),
+                )
+            }
         }
 
         if (showSettings) {

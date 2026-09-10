@@ -37,7 +37,7 @@ internal fun V08HomeScreen(
     val summary = vm.summary
     val month = vm.suggestedBudgetMonth()
     val envelope = vm.budgetEnvelope(month)
-    val netWorth = vm.trackedNetWorth
+    val netWorth = vm.v081NetWorth
     val startDate = FolioStartMonth.atDay(1)
     val historyStartMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
     val history = summary.balanceHistory.filter { it.atMillis >= historyStartMillis }
@@ -65,7 +65,7 @@ internal fun V08HomeScreen(
             listOf(
                 "SPENDABLE" to v07Euro(summary.cashBalance),
                 "SAVINGS" to v07Euro(summary.totalSavings),
-                "INVESTED" to v07Euro(vm.trackedPortfolioTotal),
+                "INVESTED" to v07Euro(vm.v081PortfolioTotal),
             )
         )
 
