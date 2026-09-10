@@ -1,5 +1,6 @@
 package com.pix.folio.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,6 +38,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val V08BoughtFormat = DateTimeFormatter.ofPattern("MMM d, yyyy · HH:mm", Locale.ENGLISH)
+private enum class V08PortfolioGraphMode(val label: String) { VALUE("VALUE"), RETURN("RETURN"), CONTRIBUTIONS("CONTRIBUTIONS") }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,8 +47,27 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val total = vm.trackedPortfolioTotal
     val gain = vm.trackedPortfolioGain
     val gainPct = vm.trackedPortfolioGainPct
+    val valueHistory = vm.trackedPortfolioHistory
+    var graphMode by remember { mutableStateOf(V08PortfolioGraphMode.VALUE) }
     var editTimestamp by remember { mutableStateOf<InvestmentHolding?>(null) }
     var showFullManager by remember { mutableStateOf(false) }
+
+    val graphSeries = remember(valueHistory, summary.investmentTransactions, graphMode) {
+        when (graphMode) {
+            V08PortfolioGraphMode.VALUE -> valueHistory
+            V08PortfolioGraphMode.CONTRIBUTIONS -> valueHistory.map { (date, _) ->
+                date to summary.investmentTransactions
+                    .filter { !it.date.isAfter(date) }
+                    .sumOf { it.amount }
+            }
+            V08PortfolioGraphMode.RETURN -> valueHistory.map { (date, value) ->
+                val contributed = summary.investmentTransactions
+                    .filter { !it.date.isAfter(date) }
+                    .sumOf { it.amount }
+                date to (value - contributed)
+            }
+        }
+    }
 
     Column(
         Modifier
@@ -63,11 +84,27 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Spacer(Modifier.height(26.dp))
-        if (vm.trackedPortfolioHistory.size >= 2) {
+        Spacer(Modifier.height(24.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            V08PortfolioGraphMode.entries.forEach { option ->
+                TextButton(onClick = { graphMode = option }, modifier = Modifier.weight(1f)) {
+                    Text(if (graphMode == option) "• ${option.label}" else option.label, fontSize = 10.sp)
+                }
+            }
+        }
+        if (graphSeries.size >= 2) {
             V08PortfolioHistory(
-                history = vm.trackedPortfolioHistory,
+                history = graphSeries,
                 modifier = Modifier.fillMaxWidth().height(170.dp),
+            )
+            Text(
+                when (graphMode) {
+                    V08PortfolioGraphMode.VALUE -> "Market value across all holdings."
+                    V08PortfolioGraphMode.RETURN -> "Market value minus contributions recorded by that date."
+                    V08PortfolioGraphMode.CONTRIBUTIONS -> "How much you contributed over time."
+                },
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
             V07Panel {
@@ -96,7 +133,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             ) { Text(if (vm.marketRefreshing || vm.trackingRefreshing) "Updating…" else "Refresh") }
         }
         Text(
-            "Purchase time is stored locally together with the purchase date. Tap a holding's timestamp to correct it.",
+            "Purchase time is stored locally together with the purchase date. Tap a holding to correct it.",
             fontSize = 11.sp,
             lineHeight = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -112,11 +149,12 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             summary.investments.sortedByDescending(vm::trackedMarketValue).forEachIndexed { index, holding ->
                 val market = vm.trackedMarketValue(holding)
                 val timestamp = vm.purchaseDateTimeFor(holding.id)
+                val allocation = if (total > 0.0) market / total * 100.0 else 0.0
                 V07Metric(
                     label = holding.name,
                     value = v07Euro(market),
                     detail = buildString {
-                        append(holding.kind.label)
+                        append("${String.format(Locale.US, "%.1f", allocation)}% · ${holding.kind.label}")
                         if (timestamp != null) append(" · bought ${timestamp.format(V08BoughtFormat)}")
                         else append(" · add purchase date & time")
                     },
@@ -197,7 +235,7 @@ private fun V08PurchaseTimestampSheet(
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                "For exchange-traded assets, the exact clock time is metadata for your history. Daily market graphs still use the market's historical close because Folio does not claim execution-grade intraday pricing.",
+                "The clock time is stored as purchase metadata. Daily market graphs still use historical closes, because Folio does not pretend to have execution-grade intraday prices.",
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
