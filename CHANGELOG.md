@@ -7,6 +7,41 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.8.0.beta] - 2026-09-10
+
+### Added
+- A new **Spendable now** money value for the liquid amount Folio treats as usable today, separated visually and conceptually from monthly budgeting.
+- A new **Unassigned this month** planning value: expected income minus planned bills, investments, spending budgets, and savings. It deliberately remains different from real spendable money when appropriate.
+- A simplified Money overview with a direct explanation of both values, month-plan arithmetic, savings totals, and access to the full detailed money manager without removing existing controls.
+- Interactive net-worth history with `1M`, `3M`, `1Y`, and `ALL` ranges plus touch/drag point inspection.
+- A **Where did my money go?** monthly category breakdown with category shares and comparison against the previous month.
+- Portfolio graph modes for **VALUE**, **RETURN**, and **CONTRIBUTIONS**.
+- Portfolio intelligence for contributed amount, market growth, largest-position concentration, and best/lowest tracked return.
+- Per-holding allocation percentages.
+- Exact local investment purchase **date and time** metadata (`YYYY-MM-DD` + `HH:mm`) with backward-compatible reading of older date-only records.
+- A v0.8 investment creation sheet that accepts the exact purchase time while preserving ISIN lookup, ticker/exchange metadata, CS2 asset support, and market tracking.
+- A purchase timestamp editor for existing holdings. Daily historical market graphs remain daily-close based and do not pretend the stored clock time is an execution-grade intraday quote.
+- Portable local **Export Folio / Restore Folio** backup files with format/version validation and a user-visible last-export timestamp.
+- An AndroidX Room safety-mirror database (`folio_v08.db`) that automatically stores a complete transactional local snapshot after finance changes while SharedPreferences remains the beta source of truth during migration.
+- Finance unit tests for February/day-31 clamping, end-of-month salary attribution, monthly planning semantics, and savings commitment behavior.
+
+### Changed
+- Folio now uses horizontal swipe navigation as the primary shell: **Money ← Home → Portfolio**. The persistent bottom navigation bar is removed and replaced by a subtle three-dot page indicator.
+- Home is more focused: oversized net worth, interactive history, Spendable/Savings/Invested totals, one Unassigned-this-month block, spending breakdown, and recent activity.
+- Portfolio creation now asks for purchase time instead of recording date alone.
+- Existing detailed Money and Portfolio managers remain available behind explicit management actions so advanced recurring, ISIN, notes, tags, savings, and editing features are not lost in the cleaner primary screens.
+- Automatic Room safety snapshots are intentionally separate from user-exported backups; they never change the **Last exported backup** label.
+- CI now runs beta and Play unit tests before building both debug APK variants.
+- Beta version advanced to `v0.8.0.beta` with the standardized PIX beta naming convention.
+
+### Fixed
+- Fixed the confusing use of “cash” / “available cash” for two fundamentally different concepts. Real liquid money is now **Spendable now** and monthly budget capacity is **Unassigned this month**.
+- Fixed Home implying that Folio's internal liquid balance was necessarily a separate bank-account balance.
+- Fixed investment history lacking an exact purchase clock time.
+- Fixed newly created investments only capturing the purchase date by adding an explicit `HH:mm` field in the v0.8 creation flow.
+- Fixed the stale README beta source and old beta-tag example.
+- Added release validation to catch missing v0.8 screens, backup/Room infrastructure, purchase timestamps, graph modes, money semantics, and finance tests before release.
+
 ## [0.7.4.beta] - 2026-09-09
 
 ### Added

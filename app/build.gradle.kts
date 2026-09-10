@@ -1,5 +1,6 @@
 plugins {
     id("com.android.application")
+    id("com.android.legacy-kapt")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -14,8 +15,8 @@ android {
         val ciVersionName = System.getenv("FOLIO_VERSION_NAME")
         val ciVersionCode = System.getenv("FOLIO_VERSION_CODE")?.toIntOrNull()
             ?: System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()?.let { 100_000 + it }
-        versionCode = ciVersionCode ?: 704
-        versionName = ciVersionName ?: "0.7.4"
+        versionCode = ciVersionCode ?: 800
+        versionName = ciVersionName ?: "0.8.0"
 
         val commit = (System.getenv("GITHUB_SHA") ?: "local").take(7)
         buildConfigField("String", "GIT_COMMIT", "\"$commit\"")
@@ -101,5 +102,10 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.5")
     implementation("androidx.work:work-runtime-ktx:2.10.3")
 
+    val roomVersion = "2.8.5"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    kapt("androidx.room:room-compiler:$roomVersion")
+
+    testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
