@@ -24,6 +24,7 @@ internal fun V07ViewModel.ownedUnitsFor(id: String): Double? =
 
 internal fun V07ViewModel.setInvestmentOwnedUnits(id: String, units: Double?) {
     InvestmentTrackingStore(getApplication<Application>()).setOwnedUnits(id, units)
+    refresh()
     refreshTrackedInvestment(id)
 }
 
