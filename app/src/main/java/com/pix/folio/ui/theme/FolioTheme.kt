@@ -29,7 +29,13 @@ private object FolioPalette {
     val DarkSurfaceVariant = Color(0xFF1B1B1B)
     val DarkMuted = Color(0xFFAAA69F)
     val DarkOutline = Color(0x2FFFFFFF)
+    val Gain = Color(0xFF2C6E55)
+    val Loss = Color(0xFFB2473F)
 }
+
+// Semantic finance tokens are defined once here so screens never invent their own gain/loss colors.
+val FolioGain: Color = FolioPalette.Gain
+val FolioLoss: Color = FolioPalette.Loss
 
 private val Light = lightColorScheme(
     primary = FolioPalette.Ink,
