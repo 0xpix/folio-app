@@ -50,6 +50,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val valueHistory = vm.trackedPortfolioHistory
     var graphMode by remember { mutableStateOf(V08PortfolioGraphMode.VALUE) }
     var editTimestamp by remember { mutableStateOf<InvestmentHolding?>(null) }
+    var showAdd by remember { mutableStateOf(false) }
     var showFullManager by remember { mutableStateOf(false) }
 
     val graphSeries = remember(valueHistory, summary.investmentTransactions, graphMode) {
@@ -75,7 +76,10 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        Text("Portfolio", fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Text("Portfolio", fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            TextButton(onClick = { showAdd = true }) { Text("+ Add") }
+        }
         Spacer(Modifier.height(8.dp))
         Text(v07Euro(total), fontSize = 58.sp, lineHeight = 62.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         Text(
@@ -141,9 +145,9 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         Spacer(Modifier.height(10.dp))
 
         if (summary.investments.isEmpty()) {
-            V07Panel(onClick = { showFullManager = true }) {
+            V07Panel(onClick = { showAdd = true }) {
                 Text("Add your first investment", fontSize = 19.sp, fontWeight = FontWeight.Medium)
-                Text("The full portfolio manager handles ISIN lookup, tracking and recurring contributions.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Add the exact purchase date and time, or resolve an ETF/stock by ISIN.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             summary.investments.sortedByDescending(vm::trackedMarketValue).forEachIndexed { index, holding ->
@@ -171,6 +175,10 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             shape = RoundedCornerShape(22.dp),
         ) { Text("Open full portfolio manager") }
         Spacer(Modifier.height(80.dp))
+    }
+
+    if (showAdd) {
+        V08AddInvestmentSheet(vm = vm, onDismiss = { showAdd = false })
     }
 
     editTimestamp?.let { holding ->
