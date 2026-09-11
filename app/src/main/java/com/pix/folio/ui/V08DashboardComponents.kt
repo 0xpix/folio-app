@@ -75,6 +75,7 @@ internal fun V08NetWorthHistory(
             }
         }
     }
+    val rangeChange = filtered.lastOrNull()?.value?.minus(filtered.firstOrNull()?.value ?: currentValue) ?: 0.0
 
     Column(modifier) {
         V08InteractiveValueChart(
@@ -82,6 +83,7 @@ internal fun V08NetWorthHistory(
             labelFor = { millis ->
                 Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(V08InspectDate)
             },
+            semanticTrend = rangeChange,
             modifier = Modifier.fillMaxWidth().height(154.dp),
         )
         Spacer(Modifier.height(4.dp))
@@ -102,12 +104,18 @@ internal fun V08NetWorthHistory(
 internal fun V08PortfolioHistory(
     history: List<Pair<LocalDate, Double>>,
     modifier: Modifier = Modifier,
+    semanticTrend: Double? = null,
+    showZeroLine: Boolean = false,
+    signedValues: Boolean = false,
 ) {
     if (history.size < 2) return
     val zone = ZoneId.systemDefault()
     V08InteractiveValueChart(
         points = history.map { (date, value) -> date.atStartOfDay(zone).toInstant().toEpochMilli() to value },
         labelFor = { millis -> Instant.ofEpochMilli(millis).atZone(zone).toLocalDate().format(V07ShortDateFormat) },
+        semanticTrend = semanticTrend,
+        showZeroLine = showZeroLine,
+        signedValues = signedValues,
         modifier = modifier,
     )
 }
@@ -117,9 +125,12 @@ private fun V08InteractiveValueChart(
     points: List<Pair<Long, Double>>,
     labelFor: (Long) -> String,
     modifier: Modifier = Modifier,
+    semanticTrend: Double? = null,
+    showZeroLine: Boolean = false,
+    signedValues: Boolean = false,
 ) {
     if (points.size < 2) return
-    val lineColor = MaterialTheme.colorScheme.onBackground
+    val lineColor = semanticTrend?.let { folioChangeColor(it) } ?: MaterialTheme.colorScheme.onBackground
     val guideColor = MaterialTheme.colorScheme.outlineVariant
     var selectedIndex by remember(points) { mutableIntStateOf(points.lastIndex) }
     var measuredWidth by remember { mutableIntStateOf(1) }
@@ -138,7 +149,12 @@ private fun V08InteractiveValueChart(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
-            Text(v07Euro(selected.second), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(
+                if (signedValues) v07SignedEuro(selected.second) else v07Euro(selected.second),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (semanticTrend != null) lineColor else MaterialTheme.colorScheme.onBackground,
+            )
         }
         Spacer(Modifier.height(8.dp))
         Canvas(
@@ -159,8 +175,10 @@ private fun V08InteractiveValueChart(
                 }
         ) {
             val values = points.map { it.second }
-            val min = values.minOrNull() ?: 0.0
-            val max = values.maxOrNull() ?: min
+            val rawMin = values.minOrNull() ?: 0.0
+            val rawMax = values.maxOrNull() ?: rawMin
+            val min = if (showZeroLine) minOf(rawMin, 0.0) else rawMin
+            val max = if (showZeroLine) maxOf(rawMax, 0.0) else rawMax
             val span = (max - min).takeIf { it > 0.00001 } ?: 1.0
             val path = Path()
             points.forEachIndexed { index, point ->
@@ -168,6 +186,24 @@ private fun V08InteractiveValueChart(
                 val y = size.height - ((point.second - min) / span).toFloat() * size.height
                 if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
+
+            val zeroY = size.height - ((0.0 - min) / span).toFloat() * size.height
+            if (showZeroLine) {
+                drawLine(guideColor, Offset(0f, zeroY), Offset(size.width, zeroY), strokeWidth = 1.dp.toPx())
+            }
+
+            val fillBaseY = if (showZeroLine) zeroY else size.height
+            val area = Path().apply {
+                points.forEachIndexed { index, point ->
+                    val x = size.width * index / points.lastIndex.toFloat()
+                    val y = size.height - ((point.second - min) / span).toFloat() * size.height
+                    if (index == 0) moveTo(x, y) else lineTo(x, y)
+                }
+                lineTo(size.width, fillBaseY)
+                lineTo(0f, fillBaseY)
+                close()
+            }
+            drawPath(area, lineColor.copy(alpha = 0.08f))
             drawPath(path, lineColor, style = Stroke(width = 3f))
 
             val x = size.width * selectedIndex / points.lastIndex.toFloat()
@@ -199,7 +235,8 @@ internal fun V08SpendingBreakdown(summary: FolioSummary, month: java.time.YearMo
         Text(
             if (previousTotal > 0.0) "${v07SignedEuro(difference)} vs last month" else "Your spending by category",
             fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (previousTotal > 0.0) folioChangeColor(difference, positiveIsGood = false)
+            else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
         if (visibleRows.isEmpty()) {
@@ -207,11 +244,12 @@ internal fun V08SpendingBreakdown(summary: FolioSummary, month: java.time.YearMo
         } else {
             visibleRows.forEachIndexed { index, (category, amount) ->
                 val share = if (total > 0.0) amount / total * 100.0 else 0.0
-                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 5.dp)) {
                     Text(category.label.uppercase(), fontSize = 12.sp, modifier = Modifier.weight(1f))
                     Text("${v07Euro(amount)} · ${String.format(Locale.US, "%.0f", share)}%", fontSize = 12.sp)
                 }
-                if (index != visibleRows.lastIndex) V07Divider()
+                V07Progress(share / 100.0)
+                if (index != visibleRows.lastIndex) Spacer(Modifier.height(9.dp))
             }
         }
     }
@@ -248,7 +286,11 @@ internal fun V08PortfolioIntelligence(vm: V07ViewModel) {
         Spacer(Modifier.height(12.dp))
         V07Metric("Contributed", v07Euro(summary.portfolioCostBasis))
         V07Divider()
-        V07Metric("Market growth", v07SignedEuro(marketGrowth))
+        V07Metric(
+            "Market growth",
+            v07SignedEuro(marketGrowth),
+            valueColor = folioChangeColor(marketGrowth),
+        )
         V07Divider()
         V07Metric("Largest position", "${String.format(Locale.US, "%.0f", largestShare)}%", largest.name)
         if (largestShare >= 25.0) {
@@ -261,10 +303,22 @@ internal fun V08PortfolioIntelligence(vm: V07ViewModel) {
             )
         }
         if (bestIndex != null && worstIndex != null && holdings.size > 1) {
+            val bestReturn = returnPct(bestIndex)
+            val worstReturn = returnPct(worstIndex)
             V07Divider()
-            V07Metric("Best return", "${String.format(Locale.US, "%+.1f%%", returnPct(bestIndex))}", holdings[bestIndex].name)
+            V07Metric(
+                "Best return",
+                "${String.format(Locale.US, "%+.1f%%", bestReturn)}",
+                holdings[bestIndex].name,
+                valueColor = folioChangeColor(bestReturn),
+            )
             V07Divider()
-            V07Metric("Lowest return", "${String.format(Locale.US, "%+.1f%%", returnPct(worstIndex))}", holdings[worstIndex].name)
+            V07Metric(
+                "Lowest return",
+                "${String.format(Locale.US, "%+.1f%%", worstReturn)}",
+                holdings[worstIndex].name,
+                valueColor = folioChangeColor(worstReturn),
+            )
         }
     }
 }
