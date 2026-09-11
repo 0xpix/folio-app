@@ -45,8 +45,8 @@ build = (root / "app/build.gradle.kts").read_text()
 root_build = (root / "build.gradle.kts").read_text()
 for label, token in {
     "application id": 'applicationId = "com.pix.folio"',
-    "v0.8.1 version": 'versionName = ciVersionName ?: "0.8.1"',
-    "v0.8.1 version code": 'versionCode = ciVersionCode ?: 801',
+    "v0.8.2 version": 'versionName = ciVersionName ?: "0.8.2"',
+    "v0.8.2 version code": 'versionCode = ciVersionCode ?: 802',
     "Room runtime": 'androidx.room:room-runtime',
     "Room compiler": 'androidx.room:room-compiler',
     "JUnit": 'junit:junit:4.13.2',
@@ -75,25 +75,33 @@ for token in [
     "V08HomeScreen",
     "V08PortfolioScreen",
     "V08SettingsSheet",
-    "V08PageIndicator",
     "mirrorToRoomV08",
     "FolioNavigationStore",
     "lastRootPage",
     "setLastRootPage",
-    "pagerState.isScrollInProgress",
     "refreshMarketPrices",
 ]:
     if token not in app:
-        raise SystemExit(f"Missing v0.8.1 app-shell token: {token}")
-if "bottomBar =" in app or "V07BottomBar" in app:
-    raise SystemExit("v0.8.1 must not restore a persistent bottom navigation bar")
+        raise SystemExit(f"Missing v0.8.2 app-shell token: {token}")
+for forbidden in ["bottomBar =", "V07BottomBar", "V08PageIndicator", "pagerState.isScrollInProgress"]:
+    if forbidden in app:
+        raise SystemExit(f"v0.8.2 must not render pager navigation chrome: {forbidden}")
 
 # The app's root content color must come from the active Material color scheme. This protects every
-# unstyled Text/Icon from becoming black-on-black in system dark mode.
+# unstyled Text/Icon from becoming black-on-black in system dark mode. Finance change colors must be
+# defined centrally through adaptive Material semantic roles rather than per-screen literals.
 theme = (root / "app/src/main/java/com/pix/folio/ui/theme/FolioTheme.kt").read_text()
-for token in ["Surface(", "color = scheme.background", "contentColor = scheme.onBackground"]:
+for token in [
+    "Surface(",
+    "color = scheme.background",
+    "contentColor = scheme.onBackground",
+    "tertiary = FolioPalette.LightGain",
+    "tertiary = FolioPalette.DarkGain",
+    "error = FolioPalette.LightLoss",
+    "error = FolioPalette.DarkLoss",
+]:
     if token not in theme:
-        raise SystemExit(f"Theme-aware root content color is incomplete: {token}")
+        raise SystemExit(f"Theme-aware visual semantics are incomplete: {token}")
 
 source = "\n".join(p.read_text() for p in root.glob("app/src/main/java/**/*.kt"))
 feature_groups = {
@@ -101,6 +109,9 @@ feature_groups = {
     "spending breakdown": ["Where did my money go?"],
     "interactive net-worth ranges": ["ONE_MONTH", "THREE_MONTHS", "ONE_YEAR", "ALL"],
     "touch chart inspection": ["awaitEachGesture", "selectedIndex"],
+    "semantic performance color": ["folioChangeColor", "MaterialTheme.colorScheme.tertiary", "MaterialTheme.colorScheme.error"],
+    "semantic chart visuals": ["semanticTrend", "showZeroLine", "signedValues", "lineColor.copy(alpha = 0.08f)"],
+    "spending share bars": ["V07Progress(share / 100.0)"],
     "portfolio modes": ["VALUE", "RETURN", "CONTRIBUTIONS"],
     "portfolio intelligence": ["Portfolio intelligence", "Largest position", "Market growth"],
     "purchase timestamp": ["KEY_PURCHASE_DATETIME", "purchaseDateTimeFor", "Purchase time · HH:mm"],
@@ -119,7 +130,7 @@ feature_groups = {
 for label, tokens in feature_groups.items():
     missing_tokens = [t for t in tokens if t not in source]
     if missing_tokens:
-        raise SystemExit(f"Missing v0.8.1 feature {label}: {', '.join(missing_tokens)}")
+        raise SystemExit(f"Missing v0.8.2 feature {label}: {', '.join(missing_tokens)}")
 
 market = (root / "app/src/main/java/com/pix/folio/data/MarketPriceService.kt").read_text()
 for forbidden in ["knownYahooSymbols", "LU2903252349", "SCWX.DE", 'Folio/0.7.3 Android']:
@@ -147,9 +158,9 @@ for name in [
 
 readme = (root / "README.md").read_text()
 changelog = (root / "CHANGELOG.md").read_text()
-if "`0.8.1.beta`" not in readme or "owned units × freshest available EUR market quote" not in readme:
-    raise SystemExit("README v0.8.1 documentation is incomplete")
-if "## [0.8.1.beta] - 2026-09-11" not in changelog:
-    raise SystemExit("CHANGELOG is missing v0.8.1.beta")
+if "`0.8.2.beta`" not in readme or "no transient pager dots" not in readme:
+    raise SystemExit("README v0.8.2 documentation is incomplete")
+if "## [0.8.2.beta] - 2026-09-11" not in changelog:
+    raise SystemExit("CHANGELOG is missing v0.8.2.beta")
 
-print("Folio v0.8.1 static validation passed.")
+print("Folio v0.8.2 static validation passed.")
