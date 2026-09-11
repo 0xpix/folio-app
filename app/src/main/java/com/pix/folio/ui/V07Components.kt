@@ -117,8 +117,8 @@ internal fun V07Metric(
     value: String,
     detail: String? = null,
     modifier: Modifier = Modifier,
-    valueColor: Color = Color.Unspecified,
     onClick: (() -> Unit)? = null,
+    valueColor: Color = Color.Unspecified,
 ) {
     val rowModifier = modifier
         .fillMaxWidth()
