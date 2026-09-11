@@ -72,6 +72,11 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
 
     val valuations = summary.investments.associateWith(vm::v081Valuation)
     val hasEstimatedHolding = valuations.values.any { !it.exact }
+    val graphSemanticTrend = when (graphMode) {
+        V08PortfolioGraphMode.VALUE -> gain
+        V08PortfolioGraphMode.RETURN -> graphSeries.lastOrNull()?.second
+        V08PortfolioGraphMode.CONTRIBUTIONS -> null
+    }
 
     Column(
         Modifier
@@ -88,7 +93,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         Text(
             "${v07SignedEuro(gain)} · ${String.format(Locale.US, "%+.1f%%", gainPct)} since purchase",
             fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = folioChangeColor(gain),
         )
         if (hasEstimatedHolding) {
             Text(
@@ -112,11 +117,14 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             V08PortfolioHistory(
                 history = graphSeries,
                 modifier = Modifier.fillMaxWidth().height(170.dp),
+                semanticTrend = graphSemanticTrend,
+                showZeroLine = graphMode == V08PortfolioGraphMode.RETURN,
+                signedValues = graphMode == V08PortfolioGraphMode.RETURN,
             )
             Text(
                 when (graphMode) {
                     V08PortfolioGraphMode.VALUE -> "Market value across all holdings. Today's endpoint uses exact unit-based values where available."
-                    V08PortfolioGraphMode.RETURN -> "Market value minus contributions recorded by that date."
+                    V08PortfolioGraphMode.RETURN -> "Market value minus contributions recorded by that date. Zero is shown as a baseline."
                     V08PortfolioGraphMode.CONTRIBUTIONS -> "How much you contributed over time."
                 },
                 fontSize = 10.sp,
@@ -168,16 +176,21 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                     val valuation = valuations.getValue(holding)
                     val timestamp = vm.purchaseDateTimeFor(holding.id)
                     val allocation = if (total > 0.0) valuation.value / total * 100.0 else 0.0
+                    val holdingGain = valuation.value - holding.amount
+                    val holdingReturnPct = if (holding.amount > 0.0) holdingGain / holding.amount * 100.0 else null
                     V07Metric(
                         label = holding.name,
                         value = v07Euro(valuation.value),
                         detail = buildString {
                             append("${String.format(Locale.US, "%.1f", allocation)}% · ${holding.kind.label} · ${valuation.status}")
+                            holdingReturnPct?.let { append(" · ${String.format(Locale.US, "%+.1f%%", it)} return") }
                             valuation.units?.let { append(" · ${v081Units(it)} units") }
                             if (timestamp != null) append(" · bought ${timestamp.format(V08BoughtFormat)}")
                             else append(" · add purchase date & time")
                         },
                         onClick = { editHolding = holding },
+                        valueColor = holdingReturnPct?.let { folioChangeColor(holdingGain) }
+                            ?: MaterialTheme.colorScheme.onBackground,
                     )
                     if (index != summary.investments.lastIndex) V07Divider()
                 }
