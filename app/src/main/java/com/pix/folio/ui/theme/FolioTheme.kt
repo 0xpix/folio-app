@@ -29,13 +29,23 @@ private object FolioPalette {
     val DarkSurfaceVariant = Color(0xFF1B1B1B)
     val DarkMuted = Color(0xFFAAA69F)
     val DarkOutline = Color(0x2FFFFFFF)
-    val Gain = Color(0xFF2C6E55)
-    val Loss = Color(0xFFB2473F)
+
+    // Finance semantics. Green/red are intentionally reserved for change and performance,
+    // not ordinary cash, spending, or contribution values.
+    val LightGain = Color(0xFF216B49)
+    val LightGainContainer = Color(0xFFDCEFE4)
+    val LightLoss = Color(0xFFB13D36)
+    val LightLossContainer = Color(0xFFF6DFDC)
+    val DarkGain = Color(0xFF73D9A1)
+    val DarkGainContainer = Color(0xFF173E2C)
+    val DarkLoss = Color(0xFFFF8F86)
+    val DarkLossContainer = Color(0xFF4C2422)
 }
 
-// Semantic finance tokens are defined once here so screens never invent their own gain/loss colors.
-val FolioGain: Color = FolioPalette.Gain
-val FolioLoss: Color = FolioPalette.Loss
+// Legacy semantic tokens used by older screens. New screens should prefer the adaptive
+// MaterialTheme tertiary/error roles below so contrast follows light/dark mode automatically.
+val FolioGain: Color = FolioPalette.LightGain
+val FolioLoss: Color = FolioPalette.LightLoss
 
 private val Light = lightColorScheme(
     primary = FolioPalette.Ink,
@@ -47,6 +57,14 @@ private val Light = lightColorScheme(
     surfaceVariant = FolioPalette.LightSurfaceVariant,
     onSurfaceVariant = FolioPalette.LightMuted,
     outlineVariant = FolioPalette.LightOutline,
+    tertiary = FolioPalette.LightGain,
+    onTertiary = Color.White,
+    tertiaryContainer = FolioPalette.LightGainContainer,
+    onTertiaryContainer = FolioPalette.LightGain,
+    error = FolioPalette.LightLoss,
+    onError = Color.White,
+    errorContainer = FolioPalette.LightLossContainer,
+    onErrorContainer = FolioPalette.LightLoss,
 )
 
 private val Dark = darkColorScheme(
@@ -59,6 +77,14 @@ private val Dark = darkColorScheme(
     surfaceVariant = FolioPalette.DarkSurfaceVariant,
     onSurfaceVariant = FolioPalette.DarkMuted,
     outlineVariant = FolioPalette.DarkOutline,
+    tertiary = FolioPalette.DarkGain,
+    onTertiary = FolioPalette.PaperDark,
+    tertiaryContainer = FolioPalette.DarkGainContainer,
+    onTertiaryContainer = FolioPalette.DarkGain,
+    error = FolioPalette.DarkLoss,
+    onError = FolioPalette.PaperDark,
+    errorContainer = FolioPalette.DarkLossContainer,
+    onErrorContainer = FolioPalette.DarkLoss,
 )
 
 private val GoogleFontsProvider = GoogleFont.Provider(
