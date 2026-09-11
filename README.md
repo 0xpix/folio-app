@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.8.1.beta`
+**Current beta source:** `0.8.2.beta`
 
 ## What Folio tracks
 
@@ -74,16 +74,17 @@ when the complete owned-unit quantity is known. Existing holdings can be updated
 ## Navigation and visual direction
 
 - horizontal swipe navigation: **Money ← Home → Portfolio**
-- no permanent bottom navigation bar
-- transient three-dot page indicator shown only during a swipe, so it never covers settled content
+- no permanent bottom navigation bar and no transient pager dots
 - last root page is persisted and restored after app lock / process recreation
 - theme-owned foreground/background colors in both system light and dark mode
+- adaptive semantic finance colors: green for positive performance/change, red for negative performance/change, neutral for balances, spending, and contributions
+- net-worth and portfolio charts use a subtle semantic area tint; Return mode includes a visible zero baseline and signed values
+- spending-category rows include compact proportional bars while keeping the palette monochrome
 - warm off-white / near-black surfaces
 - large numbers and generous whitespace
 - no brokerage-style Buy / Sell controls
 - no dense dashboard-card grid
 - monochrome Noto Emoji category glyphs
-- restrained color only for meaningful financial state
 - Nothing-inspired Folio `F.` adaptive icon
 
 ## Data and backups

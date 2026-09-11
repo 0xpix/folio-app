@@ -7,6 +7,27 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.8.2.beta] - 2026-09-11
+
+### Added
+- Adaptive semantic finance colors: positive performance/change is green, negative performance/change is red, with separate light- and dark-mode tones defined centrally in the theme.
+- Portfolio and net-worth charts now use a subtle semantic area tint to make direction easier to read without turning Folio into a dense trading dashboard.
+- Portfolio **RETURN** mode now shows a real zero baseline and signed inspected values, so positive and negative performance are visually distinguishable.
+- Spending-category rows now include compact proportional bars to show which categories dominate the month at a glance.
+- Individual holdings now expose their tracked percentage return alongside allocation/status metadata and tint the current value by gain/loss state.
+
+### Changed
+- Portfolio headline gain/loss, market growth, best/lowest return, holdings, and trend charts now use the same centralized semantic color rules.
+- Month-over-month spending change is red when spending increased and green when spending decreased; ordinary expense values remain neutral.
+- Green/red are intentionally reserved for financial change and performance. Balances, contributions, savings, and normal spending values remain neutral to keep the visual language meaningful.
+- Swipe navigation remains **Money ← Home → Portfolio**, but no pager dots or bottom navigation chrome are rendered at all.
+- Beta version advanced to `v0.8.2.beta`.
+
+### Fixed
+- Fixed the three-dot pager indicator briefly appearing while vertically scrolling because a tiny horizontal gesture component could mark the pager as scrolling.
+- Removed the pager-indicator implementation entirely instead of trying to hide it with timing or gesture thresholds.
+- Kept all new gain/loss colors theme-owned instead of hardcoding per-screen color literals.
+
 ## [0.8.1.beta] - 2026-09-11
 
 ### Added

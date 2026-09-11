@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -51,6 +52,16 @@ internal fun v07SignedEuro(value: Double): String = when {
     else -> v07Euro(0.0)
 }
 internal fun String.v07Double(): Double = replace("€", "").replace(" ", "").replace(',', '.').toDoubleOrNull() ?: 0.0
+
+@Composable
+internal fun folioChangeColor(value: Double, positiveIsGood: Boolean = true): Color {
+    val semanticValue = if (positiveIsGood) value else -value
+    return when {
+        semanticValue > 0.005 -> MaterialTheme.colorScheme.tertiary
+        semanticValue < -0.005 -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+}
 
 @Composable
 internal fun V07SectionLabel(text: String, modifier: Modifier = Modifier) {
@@ -107,6 +118,7 @@ internal fun V07Metric(
     detail: String? = null,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    valueColor: Color = Color.Unspecified,
 ) {
     val rowModifier = modifier
         .fillMaxWidth()
@@ -121,7 +133,7 @@ internal fun V07Metric(
             }
         }
         Spacer(Modifier.width(14.dp))
-        Text(value, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Text(value, fontSize = 17.sp, fontWeight = FontWeight.Medium, color = valueColor)
     }
 }
 
