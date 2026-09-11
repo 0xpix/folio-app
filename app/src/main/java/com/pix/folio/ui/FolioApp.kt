@@ -4,22 +4,16 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -90,70 +84,30 @@ fun FolioApp(vm: V07ViewModel = viewModel()) {
     }
 
     V07AppLockGate(vm) {
-        Box(
-            Modifier
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-        ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-            ) { page ->
-                when (tabs[page]) {
-                    V08RootTab.MONEY -> V08MoneyScreen(vm)
-                    V08RootTab.HOME -> V08HomeScreen(
-                        vm = vm,
-                        onOpenMoney = {
-                            scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.MONEY)) }
-                        },
-                        onOpenPortfolio = {
-                            scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.PORTFOLIO)) }
-                        },
-                        onSettings = { showSettings = true },
-                    )
-                    V08RootTab.PORTFOLIO -> V08PortfolioScreen(vm)
-                }
-            }
-
-            // Keep navigation visually quiet and never cover static content. The dots only appear
-            // while the user is actively paging, then disappear as soon as the gesture settles.
-            if (pagerState.isScrollInProgress) {
-                V08PageIndicator(
-                    currentPage = pagerState.currentPage,
-                    pageCount = tabs.size,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 8.dp),
+                .statusBarsPadding(),
+        ) { page ->
+            when (tabs[page]) {
+                V08RootTab.MONEY -> V08MoneyScreen(vm)
+                V08RootTab.HOME -> V08HomeScreen(
+                    vm = vm,
+                    onOpenMoney = {
+                        scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.MONEY)) }
+                    },
+                    onOpenPortfolio = {
+                        scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.PORTFOLIO)) }
+                    },
+                    onSettings = { showSettings = true },
                 )
+                V08RootTab.PORTFOLIO -> V08PortfolioScreen(vm)
             }
         }
 
         if (showSettings) {
             V08SettingsSheet(vm, onDismiss = { showSettings = false })
-        }
-    }
-}
-
-@Composable
-private fun V08PageIndicator(currentPage: Int, pageCount: Int, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.88f), CircleShape)
-            .padding(horizontal = 12.dp, vertical = 7.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        repeat(pageCount) { index ->
-            Box(
-                Modifier
-                    .size(if (index == currentPage) 7.dp else 4.dp)
-                    .background(
-                        if (index == currentPage) MaterialTheme.colorScheme.onBackground
-                        else MaterialTheme.colorScheme.outline,
-                        CircleShape,
-                    )
-            )
         }
     }
 }
