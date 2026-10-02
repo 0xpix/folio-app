@@ -14,7 +14,7 @@ internal data class V081HoldingValuation(
     val exact: Boolean,
 ) {
     val status: String
-        get() = if (exact) "Exact from owned units" else "Estimated"
+        get() = if (exact) "Exact from broker units" else "Estimated from purchase lots"
 }
 
 internal data class V081ValuationDecision(
@@ -61,9 +61,8 @@ internal fun v081ResolvedOwnedUnits(
     brokerUnits: Double?,
     transactions: List<InvestmentTransaction>,
 ): Double? {
-    val completeTransactions = transactions.isNotEmpty() && transactions.all { it.units > 0.0 }
     val transactionUnits = transactions.sumOf { it.units.coerceAtLeast(0.0) }.takeIf { it > 0.0 }
-    return if (completeTransactions) transactionUnits else brokerUnits ?: transactionUnits
+    return brokerUnits ?: transactionUnits
 }
 
 
@@ -99,7 +98,7 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
     val historyPoint = history?.points?.lastOrNull()
     val storedPoint = summary.priceHistoryFor(holding.id).lastOrNull()
     val useStoredPoint = storedPoint != null &&
-        (historyPoint == null || !storedPoint.date.isBefore(historyPoint.date))
+        (historyPoint == null || storedPoint.date.isAfter(historyPoint.date))
     val latest = if (useStoredPoint) storedPoint?.close else historyPoint?.close
     val currency = if (useStoredPoint) {
         storedPoint?.currency?.ifBlank { holding.priceCurrency }
@@ -108,9 +107,8 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
     }?.trim()?.uppercase()?.takeIf(String::isNotBlank)
 
     val tracking = InvestmentTrackingStore(getApplication<Application>())
-    val brokerUnits = tracking.ownedUnits(holding.id)
+    val brokerUnits = tracking.brokerOwnedUnits(holding.id)
     val transactions = summary.transactionsFor(holding.id)
-    val completeTransactionUnits = transactions.isNotEmpty() && transactions.all { it.units > 0.0 }
     val units = v081ResolvedOwnedUnits(brokerUnits, transactions)
 
     val latestDate = historyPoint?.date ?: storedPoint?.date ?: LocalDate.now()
@@ -140,12 +138,12 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
         units = units,
         latestPrice = latest,
         quoteCurrency = currency,
-        unitsAreComplete = completeTransactionUnits || (brokerUnits != null && brokerUnits > 0.0),
+        unitsAreComplete = brokerUnits != null && brokerUnits > 0.0,
     )
 
     return V081HoldingValuation(
         value = decision.value,
-        units = units,
+        units = brokerUnits,
         currency = currency,
         exact = decision.exact,
     )

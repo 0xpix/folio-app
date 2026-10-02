@@ -9,6 +9,22 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.11.3.beta] - 2026-10-02
+
+### Changed
+- Exact ETF/stock valuation now uses only a **current broker-unit total explicitly confirmed by the user**.
+- Legacy/inferred transaction units remain available for purchase-history estimates but are no longer allowed to silently replace the broker total or label the holding as exact.
+- New purchases invalidate the confirmed broker-unit snapshot so stale quantities cannot keep driving current valuation.
+- Fund-like Yahoo market resolution now tries **ISIN matches before cached ticker symbols**, preventing a previously mis-resolved ETF ticker from staying sticky forever.
+- When tracked market history and a cached quote share the same date, Folio now prefers the freshly resolved tracked history instead of the stale cached quote.
+
+### Fixed
+- Fixed holdings such as multi-month MSCI ETF purchases showing a partial/inferred unit total as **Exact from owned units**.
+- Fixed transaction-derived units overriding a user-confirmed broker quantity.
+- Fixed recurring/manual contribution updates mutating the broker-unit snapshot behind the user’s back.
+- Fixed the widget using ambiguous legacy owned-unit data as an exact investment value.
+- Existing pre-0.11.3 owned-unit values are intentionally treated as unconfirmed; re-enter the current broker total once to restore exact broker-style valuation.
+
 ## [0.11.2.beta] - 2026-10-02
 
 ### Changed

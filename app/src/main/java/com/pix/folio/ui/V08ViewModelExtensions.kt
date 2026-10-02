@@ -28,11 +28,10 @@ internal fun V07ViewModel.setInvestmentPurchaseDateTime(id: String, dateTime: Lo
 }
 
 internal fun V07ViewModel.ownedUnitsFor(id: String): Double? =
-    InvestmentTrackingStore(getApplication<Application>()).ownedUnits(id)
-        ?: summary.unitsFor(id).takeIf { it > 0.0 }
+    InvestmentTrackingStore(getApplication<Application>()).brokerOwnedUnits(id)
 
 internal fun V07ViewModel.setInvestmentOwnedUnits(id: String, units: Double?) {
-    InvestmentTrackingStore(getApplication<Application>()).setOwnedUnits(id, units)
+    InvestmentTrackingStore(getApplication<Application>()).setBrokerOwnedUnits(id, units)
     refresh()
     refreshTrackedInvestment(id)
 }

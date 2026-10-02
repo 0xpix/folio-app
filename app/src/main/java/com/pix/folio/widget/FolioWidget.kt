@@ -84,7 +84,7 @@ private fun widgetValues(context: Context): WidgetValues {
     val tracking = InvestmentTrackingStore(context)
 
     val investments = summary.investments.sumOf { holding ->
-        val brokerUnits = tracking.ownedUnits(holding.id)
+        val brokerUnits = tracking.brokerOwnedUnits(holding.id)
         val latest = summary.priceHistoryFor(holding.id).lastOrNull()
         val exactEurValue = if (
             brokerUnits != null &&

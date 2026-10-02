@@ -124,7 +124,7 @@ feature_groups = {
     "portfolio modes": ["VALUE", "RETURN", "CONTRIBUTIONS"],
     "portfolio intelligence": ["Portfolio intelligence", "Largest position", "Market growth"],
     "purchase timestamp": ["KEY_PURCHASE_DATETIME", "purchaseDateTimeFor", "Purchase time · HH:mm"],
-    "unit valuation": ["v081CurrentValue", "ownedUnits", "Units owned (recommended)", "Current units owned"],
+    "unit valuation": ["v081CurrentValue", "brokerOwnedUnits", "KEY_BROKER_OWNED_UNITS", "Current broker units", "Exact from broker units"],
     "direct investment contributions": ["Add contribution now", "Units bought", "portfolioCostBasis"],
     "investment purchase history": ["Investment activity", "Edit purchase", "Purchase time · HH:mm", "purchasedAt"],
     "monthly investment totals": ["MONTH TOTAL", "Cumulative", "v081CumulativeMonthlyContributions", "v081PurchaseLotValueAt", "v081ResolvedOwnedUnits"],
@@ -152,6 +152,10 @@ for forbidden in ["knownYahooSymbols", "LU2903252349", "SCWX.DE", 'Folio/0.7.3 A
         raise SystemExit(f"Security/version-specific market hardcoding returned: {forbidden}")
 if "BuildConfig.VERSION_NAME" not in market or "searchYahooSymbols(isin, holding)" not in market:
     raise SystemExit("Generic market resolution/version metadata is incomplete")
+isin_first = market.find("if (isin.isNotBlank() && isFundLike)")
+cached_symbols = market.find("listOf(holding.priceSymbol, holding.symbol)")
+if isin_first < 0 or cached_symbols < 0 or isin_first > cached_symbols:
+    raise SystemExit("Fund-like Yahoo resolution must try ISIN candidates before cached symbols")
 
 workflow = (root / ".github/workflows/build-apk.yml").read_text()
 for task in [":app:testBetaDebugUnitTest", ":app:testPlayDebugUnitTest", ":app:assembleBetaDebug", ":app:assemblePlayDebug"]:
@@ -171,7 +175,8 @@ for name in [
     "investmentPurchasesStayInTheirRealMonths",
     "investmentPurchaseKeepsExactDateAndTime",
     "cumulativeContributionsAddEachMonthOnTop",
-    "completePurchaseUnitsBeatStaleBrokerOverride",
+    "confirmedBrokerUnitsBeatTransactionUnitSum",
+    "transactionUnitsRemainEstimatedWithoutBrokerConfirmation",
     "purchaseLotUsesItsOwnUnitsAtMarketPrice",
     "laterPurchaseDoesNotExistBeforeItsPurchaseDate",
     "purchaseLotStartsAtItsOwnCostBasis",

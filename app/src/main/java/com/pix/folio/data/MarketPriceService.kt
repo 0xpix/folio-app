@@ -190,6 +190,19 @@ object MarketPriceService {
     private fun resolveYahooCandidates(holding: InvestmentHolding): List<String> {
         val candidates = linkedSetOf<String>()
         val isin = holding.isin.trim().uppercase()
+        val isFundLike = holding.kind in setOf(
+            InvestmentKind.ETF,
+            InvestmentKind.FUND,
+            InvestmentKind.INDEX,
+            InvestmentKind.BOND,
+        )
+
+        // For fund-like instruments, an ISIN identifies the security more reliably than a ticker
+        // cached from an earlier fuzzy Yahoo search. Try ISIN matches first so a bad cached symbol
+        // cannot stay sticky forever.
+        if (isin.isNotBlank() && isFundLike) {
+            searchYahooSymbols(isin, holding).forEach(candidates::add)
+        }
 
         listOf(holding.priceSymbol, holding.symbol)
             .map(String::trim)
@@ -198,17 +211,14 @@ object MarketPriceService {
                 val upper = raw.uppercase()
                 candidates += yahooTickerForExchange(upper, holding.exchange)
                 candidates += upper
-                if (
-                    '.' !in upper &&
-                    holding.exchange.isBlank() &&
-                    holding.kind in setOf(InvestmentKind.ETF, InvestmentKind.FUND, InvestmentKind.INDEX, InvestmentKind.BOND)
-                ) {
-                    searchYahooSymbols(if (isin.isNotBlank()) isin else holding.name, holding)
-                        .forEach(candidates::add)
+                if ('.' !in upper && holding.exchange.isBlank() && isFundLike && isin.isBlank()) {
+                    searchYahooSymbols(holding.name, holding).forEach(candidates::add)
                 }
             }
 
-        if (isin.isNotBlank()) searchYahooSymbols(isin, holding).forEach(candidates::add)
+        if (isin.isNotBlank() && !isFundLike) {
+            searchYahooSymbols(isin, holding).forEach(candidates::add)
+        }
         if (holding.name.isNotBlank()) searchYahooSymbols(holding.name, holding).forEach(candidates::add)
         return candidates.filter(String::isNotBlank)
     }

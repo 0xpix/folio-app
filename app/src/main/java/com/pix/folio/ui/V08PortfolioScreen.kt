@@ -367,14 +367,14 @@ private fun V081HoldingDetailsSheet(
             OutlinedTextField(
                 value = unitsText,
                 onValueChange = { unitsText = it },
-                label = { Text("Current units owned") },
-                supportingText = { Text("Use the exact fractional quantity shown by your brokerage.") },
+                label = { Text("Current broker units") },
+                supportingText = { Text("Enter the total quantity currently shown by your brokerage. Only this confirmed total is treated as exact.") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                "This edits the earliest saved purchase for this holding. Exact current valuation uses your total owned units only when the resolved market quote is EUR.",
+                "This edits the earliest saved purchase for this holding. New purchases invalidate the confirmed broker-unit snapshot so Folio cannot silently keep using stale units.",
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
