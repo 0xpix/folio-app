@@ -2,7 +2,10 @@ package com.pix.folio
 
 import com.pix.folio.data.BudgetEnvelope
 import com.pix.folio.data.recurringInvestmentUnits
+import com.pix.folio.model.FolioSummary
+import com.pix.folio.model.InvestmentEntrySource
 import com.pix.folio.model.InvestmentPricePoint
+import com.pix.folio.model.InvestmentTransaction
 import com.pix.folio.model.RecurringIncome
 import com.pix.folio.ui.v081CurrentValue
 import org.junit.Assert.assertEquals
@@ -10,6 +13,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.YearMonth
 
 class V08FinanceModelTest {
@@ -135,6 +140,59 @@ class V08FinanceModelTest {
             currency = "USD",
         )
         assertEquals(0.0, recurringInvestmentUnits(500.0, price), 0.001)
+    }
+
+    @Test
+    fun investmentPurchasesStayInTheirRealMonths() {
+        val september = InvestmentTransaction(
+            id = "sep",
+            holdingId = "etf",
+            amount = 400.0,
+            date = LocalDate.of(2026, 9, 18),
+            source = InvestmentEntrySource.INITIAL,
+            time = LocalTime.of(9, 35),
+        )
+        val october = InvestmentTransaction(
+            id = "oct",
+            holdingId = "etf",
+            amount = 500.0,
+            date = LocalDate.of(2026, 10, 2),
+            source = InvestmentEntrySource.RECURRING,
+            time = LocalTime.of(16, 42),
+        )
+        val summary = FolioSummary(
+            cashBalance = 0.0,
+            emergencyFundBalance = 0.0,
+            investments = emptyList(),
+            investmentTransactions = listOf(september, october),
+            investmentPrices = emptyList(),
+            recurringInvestments = emptyList(),
+            expenses = emptyList(),
+            budgets = emptyList(),
+            payments = emptyList(),
+            incomes = emptyList(),
+            ledger = emptyList(),
+            balanceHistory = emptyList(),
+            investmentHistory = emptyList(),
+        )
+
+        assertEquals(400.0, summary.monthOverview(YearMonth.of(2026, 9)).invested, 0.001)
+        assertEquals(500.0, summary.monthOverview(YearMonth.of(2026, 10)).invested, 0.001)
+    }
+
+    @Test
+    fun investmentPurchaseKeepsExactDateAndTime() {
+        val transaction = InvestmentTransaction(
+            id = "purchase",
+            holdingId = "etf",
+            amount = 500.0,
+            date = LocalDate.of(2026, 9, 18),
+            time = LocalTime.of(9, 35),
+        )
+        assertEquals(
+            LocalDateTime.of(2026, 9, 18, 9, 35),
+            transaction.purchasedAt,
+        )
     }
 
 }
