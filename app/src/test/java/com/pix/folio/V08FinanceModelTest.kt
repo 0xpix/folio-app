@@ -1,12 +1,15 @@
 package com.pix.folio
 
 import com.pix.folio.data.BudgetEnvelope
+import com.pix.folio.data.recurringInvestmentUnits
+import com.pix.folio.model.InvestmentPricePoint
 import com.pix.folio.model.RecurringIncome
 import com.pix.folio.ui.v081CurrentValue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 import java.time.YearMonth
 
 class V08FinanceModelTest {
@@ -112,4 +115,26 @@ class V08FinanceModelTest {
         assertFalse(decision.exact)
         assertEquals(1_041.0, decision.value, 0.001)
     }
+    @Test
+    fun recurringInvestmentUsesEurQuoteForUnits() {
+        val price = InvestmentPricePoint(
+            holdingId = "etf",
+            date = LocalDate.of(2026, 10, 2),
+            close = 100.0,
+            currency = "EUR",
+        )
+        assertEquals(5.0, recurringInvestmentUnits(500.0, price), 0.001)
+    }
+
+    @Test
+    fun recurringInvestmentDoesNotTreatUsdAsEur() {
+        val price = InvestmentPricePoint(
+            holdingId = "etf",
+            date = LocalDate.of(2026, 10, 2),
+            close = 100.0,
+            currency = "USD",
+        )
+        assertEquals(0.0, recurringInvestmentUnits(500.0, price), 0.001)
+    }
+
 }
