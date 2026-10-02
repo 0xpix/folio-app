@@ -374,7 +374,7 @@ private fun V081HoldingDetailsSheet(
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                "This edits the earliest saved purchase for this holding. New purchases invalidate the confirmed broker-unit snapshot so Folio cannot silently keep using stale units."
+                "This edits the earliest saved purchase for this holding. New purchases invalidate the confirmed broker-unit snapshot so Folio cannot silently keep using stale units.",
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
