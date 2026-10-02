@@ -370,9 +370,12 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Combined portfolio curve. Every purchase starts contributing on its own purchase date.
-     * Tracked securities follow their market history; holdings without history stay at cost basis
-     * rather than disappearing from the total. The last point therefore matches the portfolio total.
+     * Combined portfolio curve built from individual purchase lots.
+     *
+     * A later contribution must not appear before its own transaction date. When market history is
+     * available, each lot follows the relative price move from its purchase date; otherwise the lot
+     * stays at cost basis. Today's endpoint is normalized by V081Valuation to the current portfolio
+     * value, including exact broker-owned units when available.
      */
     val trackedPortfolioHistory: List<Pair<LocalDate, Double>>
         get() {
@@ -380,6 +383,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
             if (holdings.isEmpty()) return emptyList()
 
             val dates = sortedSetOf<LocalDate>()
+            summary.investmentTransactions.forEach { dates += it.date }
             holdings.forEach { holding ->
                 purchaseDateFor(holding.id)?.let(dates::add)
                 trackedHistories[holding.id]?.points?.forEach { dates += it.date }
@@ -390,18 +394,35 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
             return dates.mapNotNull { date ->
                 var hasStartedHolding = false
                 val total = holdings.sumOf { holding ->
-                    val purchaseDate = purchaseDateFor(holding.id)
-                    if (purchaseDate != null && date.isBefore(purchaseDate)) {
-                        0.0
+                    val transactions = summary.transactionsFor(holding.id)
+                        .filter { !it.date.isAfter(date) }
+
+                    if (transactions.isEmpty()) {
+                        val legacyPurchaseDate = purchaseDateFor(holding.id)
+                        if (legacyPurchaseDate == null || date.isBefore(legacyPurchaseDate)) {
+                            0.0
+                        } else {
+                            hasStartedHolding = true
+                            holding.amount
+                        }
                     } else {
                         hasStartedHolding = true
                         val history = trackedHistories[holding.id]
-                        val first = history?.firstPrice?.takeIf { it > 0.0 }
-                        val point = history?.points?.lastOrNull { !it.date.isAfter(date) }
-                        if (first != null && point != null && point.close > 0.0) {
-                            holding.amount * point.close / first
-                        } else {
-                            holding.amount
+                        transactions.sumOf { transaction ->
+                            val point = history?.points?.lastOrNull {
+                                !it.date.isAfter(date) && it.close > 0.0
+                            }
+                            val purchasePoint = history?.points?.firstOrNull {
+                                !it.date.isBefore(transaction.date) && it.close > 0.0
+                            } ?: history?.points?.lastOrNull {
+                                !it.date.isAfter(transaction.date) && it.close > 0.0
+                            }
+
+                            if (point != null && purchasePoint != null && purchasePoint.close > 0.0) {
+                                transaction.amount * point.close / purchasePoint.close
+                            } else {
+                                transaction.amount
+                            }
                         }
                     }
                 }
