@@ -18,7 +18,7 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Investments added manually or resolved from an **ISIN** with OpenFIGI v3
 - Exact **date and HH:mm time on every investment purchase transaction**, including recurring purchases
 - Exact fractional **units owned** for broker-style unit-based valuation when a EUR market quote is available
-- Month-grouped investment purchase history with editable amount, units, date, and time for every entry
+- Month-grouped investment purchase history with editable amount, units, date, and time for every entry, plus explicit monthly and cumulative contribution totals
 - Direct per-holding **Add contribution now** flow with optional units bought
 - Portfolio **Value / Return / Contributions** graph modes, with Contributions showing independent monthly invested totals
 - Portfolio concentration, best/lowest return, contribution, and market-growth summaries
