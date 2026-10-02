@@ -50,7 +50,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val valuations = summary.investments.associateWith(vm::v081Valuation)
     val total = valuations.values.sumOf { it.value }
     val invested = summary.portfolioCostBasis
-    val gain = total - invested
+    val gain = v081AbsoluteReturn(total, invested)
     val valueHistory = vm.v081PortfolioHistory(total)
     val gainPct = v081TimeWeightedReturnPct(valueHistory, summary.investmentTransactions)
     var graphMode by remember { mutableStateOf(V08PortfolioGraphMode.VALUE) }
