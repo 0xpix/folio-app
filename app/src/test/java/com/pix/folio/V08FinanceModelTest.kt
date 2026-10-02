@@ -7,6 +7,7 @@ import com.pix.folio.model.InvestmentEntrySource
 import com.pix.folio.model.InvestmentPricePoint
 import com.pix.folio.model.InvestmentTransaction
 import com.pix.folio.model.RecurringIncome
+import com.pix.folio.ui.v081AbsoluteReturn
 import com.pix.folio.ui.v081AbsoluteReturnSeries
 import com.pix.folio.ui.v081CumulativeMonthlyContributions
 import com.pix.folio.ui.v081CurrentValue
@@ -422,6 +423,15 @@ class V08FinanceModelTest {
         assertEquals(100.0, returns[1].second, 0.001)
         assertEquals(100.0, returns[2].second, 0.001)
         assertEquals(205.0, returns.last().second, 0.001)
+    }
+
+    @Test
+    fun brokerStyleAbsoluteReturnUsesCurrentValueMinusInvestedCapital() {
+        assertEquals(
+            86.0,
+            v081AbsoluteReturn(currentValue = 2_286.0, investedCapital = 2_200.0),
+            0.001,
+        )
     }
 
 }
