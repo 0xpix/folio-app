@@ -71,7 +71,14 @@ internal fun V07ViewModel.addInvestmentV08(
         (normalizedIsin.isNotBlank() && it.isin.equals(normalizedIsin, true)) ||
             (normalizedSymbol.isNotBlank() && it.symbol.equals(normalizedSymbol, true)) ||
             it.name.equals(name.trim(), true)
-    }?.let { setInvestmentPurchaseDateTime(it.id, purchaseDateTime) }
+    }?.let { holding ->
+        summary.transactionsFor(holding.id)
+            .minByOrNull { it.purchasedAt }
+            ?.let { first ->
+                InvestmentTrackingStore(getApplication<Application>())
+                    .setPurchaseDateTime(holding.id, first.purchasedAt)
+            }
+    }
 }
 
 internal fun V07ViewModel.exportBackupV08(): String = FolioBackup.export(getApplication<Application>())
