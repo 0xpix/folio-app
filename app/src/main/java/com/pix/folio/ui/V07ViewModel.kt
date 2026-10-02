@@ -115,8 +115,8 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     fun togglePayment(id: String) {
         val row = summary.payments.firstOrNull { it.id == id } ?: return
         val month = YearMonth.now()
-        if (row.lastPaidMonth != month && planStore.budgetCashRemaining(summary, month) + 0.005 < row.amount) {
-            marketRefreshLabel = "Waiting for this month's assigned salary"
+        if (row.lastPaidMonth != month && summary.cashBalance + 0.005 < row.amount) {
+            marketRefreshLabel = "Not enough spendable cash for ${row.name}"
             return
         }
         store.togglePayment(id)
@@ -204,8 +204,8 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleRecurringInvestment(id: String) {
         val row = summary.recurringInvestments.firstOrNull { it.id == id } ?: return
         val month = YearMonth.now()
-        if (row.lastAppliedMonth != month && planStore.budgetCashRemaining(summary, month) + 0.005 < row.amount) {
-            marketRefreshLabel = "Waiting for this month's assigned salary"
+        if (row.lastAppliedMonth != month && summary.cashBalance + 0.005 < row.amount) {
+            marketRefreshLabel = "Not enough spendable cash for this investment"
             return
         }
         store.toggleRecurringInvestment(id)
@@ -428,7 +428,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
                 RecurringMoneyProcessor.process(getApplication())
             }
             marketRefreshLabel = if (result.totalApplied == 0) {
-                "Recurring plan is current or waiting for assigned salary"
+                "Recurring items are up to date, not due yet, or waiting for cash"
             } else {
                 "Applied ${result.totalApplied} recurring item${if (result.totalApplied == 1) "" else "s"}"
             }
