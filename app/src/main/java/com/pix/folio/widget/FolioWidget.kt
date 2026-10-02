@@ -2,7 +2,6 @@ package com.pix.folio.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -31,6 +30,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.pix.folio.MainActivity
+import com.pix.folio.R
 import com.pix.folio.data.FolioStore
 import com.pix.folio.data.InvestmentTrackingStore
 import java.text.NumberFormat
@@ -41,18 +41,9 @@ private val WidgetMoney = NumberFormat.getNumberInstance(Locale.US).apply {
     maximumFractionDigits = 0
 }
 
-private val WidgetBackground = ColorProvider(
-    day = Color(0xFFF5F3EE),
-    night = Color(0xFF171717),
-)
-private val WidgetForeground = ColorProvider(
-    day = Color(0xFF111111),
-    night = Color(0xFFF5F3EE),
-)
-private val WidgetMuted = ColorProvider(
-    day = Color(0xFF77746E),
-    night = Color(0xFFAAA69F),
-)
+private val WidgetBackground = ColorProvider(R.color.folio_widget_background)
+private val WidgetForeground = ColorProvider(R.color.folio_widget_foreground)
+private val WidgetMuted = ColorProvider(R.color.folio_widget_muted)
 
 private enum class WidgetMetric(val label: String) {
     NET_WORTH("NET WORTH"),
@@ -177,7 +168,7 @@ private fun BalanceWidgetContent(
                 modifier = GlanceModifier
                     .clickable(actionRunCallback<NextWidgetMetricAction>())
                     .padding(horizontal = 10.dp, vertical = 6.dp),
-                style = TextStyle(color = fg, fontSize = 18.sp, fontWeight = FontWeight.Medium),
+                style = TextStyle(color = WidgetForeground, fontSize = 18.sp, fontWeight = FontWeight.Medium),
             )
         }
     }
