@@ -9,6 +9,26 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.11.0.beta] - 2026-10-02
+
+### Added
+- A month-grouped **Investment activity** history on Portfolio showing every saved purchase and each month’s contributed total.
+- Every investment purchase can now be edited individually — **amount, units, purchase date, and exact HH:mm time** — including purchases created by recurring investment rules.
+- Investment transactions now store their own purchase time instead of relying only on holding-level metadata.
+
+### Changed
+- The holding-level “First purchase” editor now edits the earliest real purchase transaction instead of separate metadata.
+- Adding the same ETF again keeps the earliest transaction as the holding’s first-purchase timestamp while preserving the later purchase as its own transaction.
+- Monthly investment totals and remaining-budget accounting now use all investment transactions in their actual purchase month.
+- Editing a recorded recurring purchase changes only that historical purchase; the recurring amount/day for future months stays unchanged.
+- Beta version advanced to `v0.11.0.beta` because per-purchase history editing is a new user-facing capability.
+
+### Fixed
+- Fixed investments entered with a September purchase date being recorded in October simply because they were added to Folio in October.
+- Existing initial purchases migrate from the holding purchase date/time already saved in Folio so historical monthly totals can recover automatically.
+- Fixed manual and initial purchases being omitted from monthly invested accounting paths that previously considered recurring purchases only.
+- Fixed adding a later purchase of an existing ETF overwriting the holding’s original first-purchase timestamp.
+
 ## [0.10.0.beta] - 2026-10-02
 
 ### Added
