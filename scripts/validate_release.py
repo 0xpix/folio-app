@@ -221,7 +221,8 @@ if f"`{app_version_text}.beta`" not in readme:
     raise SystemExit(f"README current beta source is not {app_version_text}.beta")
 if "Net worth / Investments / Cash left" not in readme or "no transient pager dots" not in readme:
     raise SystemExit("README product documentation is incomplete")
-if "PATCH releases are fixes and maintenance only" not in readme:
+normalized_readme = readme.replace("**", "")
+if "PATCH releases are fixes and maintenance only" not in normalized_readme:
     raise SystemExit("README versioning policy is missing")
 
 print(f"Folio v{app_version_text} static validation passed.")
