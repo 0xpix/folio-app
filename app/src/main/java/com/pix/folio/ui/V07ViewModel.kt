@@ -28,6 +28,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.YearMonth
 
 class V07ViewModel(application: Application) : AndroidViewModel(application) {
@@ -159,10 +161,21 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         marketHashName: String = "",
         cs2AssetType: Cs2AssetType = Cs2AssetType.OTHER,
         purchaseDate: LocalDate = LocalDate.now(),
+        purchaseTime: LocalTime = LocalTime.now().withSecond(0).withNano(0),
     ) {
         store.addInvestment(
-            kind, name, symbol, amount, isin, figi, exchange,
-            units, unitPrice, marketHashName, cs2AssetType
+            kind = kind,
+            name = name,
+            symbol = symbol,
+            amount = amount,
+            isin = isin,
+            figi = figi,
+            exchange = exchange,
+            units = units,
+            unitPrice = unitPrice,
+            marketHashName = marketHashName,
+            cs2AssetType = cs2AssetType,
+            purchasedAt = LocalDateTime.of(purchaseDate, purchaseTime),
         )
         refresh()
         val normalizedIsin = isin.trim().uppercase()
@@ -183,6 +196,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         amount: Double,
         units: Double = 0.0,
         unitPrice: Double = 0.0,
+        purchasedAt: LocalDateTime = LocalDateTime.now(),
     ) {
         if (amount <= 0.0) return
         if (summary.cashBalance + 0.005 < amount) {
@@ -198,12 +212,29 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
             else -> 0.0
         }
 
-        store.addInvestmentContribution(holdingId, amount, units, resolvedUnitPrice)
+        store.addInvestmentContribution(
+            holdingId = holdingId,
+            amount = amount,
+            units = units,
+            unitPrice = resolvedUnitPrice,
+            purchasedAt = purchasedAt,
+        )
         if (units > 0.0) {
             trackingStore.setOwnedUnits(holdingId, previousUnits + units)
         }
         refresh()
         refreshTrackedInvestment(holdingId)
+    }
+
+    fun updateInvestmentTransaction(
+        id: String,
+        amount: Double,
+        units: Double,
+        purchasedAt: LocalDateTime,
+    ) {
+        store.updateInvestmentTransaction(id, amount, units, purchasedAt)
+        refresh()
+        summary.investmentTransactions.firstOrNull { it.id == id }?.holdingId?.let(::refreshTrackedInvestment)
     }
 
     fun addRecurringInvestment(holdingId: String, amount: Double, dayOfMonth: Int) {
