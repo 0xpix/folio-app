@@ -11,6 +11,7 @@ import com.pix.folio.ui.v081CumulativeMonthlyContributions
 import com.pix.folio.ui.v081CurrentValue
 import com.pix.folio.ui.v081PurchaseLotValueAt
 import com.pix.folio.ui.v081ResolvedOwnedUnits
+import com.pix.folio.ui.v081SelectedMarketDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -311,6 +312,30 @@ class V08FinanceModelTest {
                 date = LocalDate.of(2026, 10, 2),
                 purchaseClose = 110.0,
                 close = 117.28,
+            ),
+            0.001,
+        )
+    }
+
+    @Test
+    fun todaysStoredQuoteKeepsTodaysPurchaseInCurrentValue() {
+        val valuationDate = v081SelectedMarketDate(
+            useStoredPoint = true,
+            historyDate = LocalDate.of(2026, 10, 1),
+            storedDate = LocalDate.of(2026, 10, 2),
+            today = LocalDate.of(2026, 10, 2),
+        )
+
+        assertEquals(LocalDate.of(2026, 10, 2), valuationDate)
+        assertEquals(
+            100.0,
+            v081PurchaseLotValueAt(
+                amount = 100.0,
+                units = 0.0,
+                purchaseDate = LocalDate.of(2026, 10, 2),
+                date = valuationDate,
+                purchaseClose = 12.26,
+                close = 12.26,
             ),
             0.001,
         )
