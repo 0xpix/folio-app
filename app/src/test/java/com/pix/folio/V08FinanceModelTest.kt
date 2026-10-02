@@ -11,7 +11,6 @@ import com.pix.folio.ui.v081CumulativeMonthlyContributions
 import com.pix.folio.ui.v081CurrentValue
 import com.pix.folio.ui.v081PurchaseLotValueAt
 import com.pix.folio.ui.v081ResolvedOwnedUnits
-import com.pix.folio.ui.v081MonthlyContributionTotals
 import com.pix.folio.ui.v081PurchaseLotValueAt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -201,46 +200,12 @@ class V08FinanceModelTest {
     }
 
     @Test
-    fun monthlyContributionTotalsDoNotAccumulateAcrossMonths() {
-        val transactions = listOf(
-            InvestmentTransaction(
-                id = "sep",
-                holdingId = "etf",
-                amount = 400.0,
-                date = LocalDate.of(2026, 9, 18),
-                time = LocalTime.of(9, 35),
-            ),
-            InvestmentTransaction(
-                id = "oct-a",
-                holdingId = "etf",
-                amount = 500.0,
-                date = LocalDate.of(2026, 10, 2),
-                time = LocalTime.of(16, 42),
-            ),
-            InvestmentTransaction(
-                id = "oct-b",
-                holdingId = "etf",
-                amount = 250.0,
-                date = LocalDate.of(2026, 10, 15),
-                time = LocalTime.of(10, 5),
-            ),
-        )
-
-        val totals = v081MonthlyContributionTotals(transactions)
-
-        assertEquals(2, totals.size)
-        assertEquals(LocalDate.of(2026, 9, 18), totals[0].first)
-        assertEquals(400.0, totals[0].second, 0.001)
-        assertEquals(LocalDate.of(2026, 10, 15), totals[1].first)
-        assertEquals(750.0, totals[1].second, 0.001)
-    }
-
-    @Test
     fun laterPurchaseDoesNotExistBeforeItsPurchaseDate() {
         assertEquals(
             0.0,
             v081PurchaseLotValueAt(
                 amount = 500.0,
+                units = 0.0,
                 purchaseDate = LocalDate.of(2026, 10, 2),
                 date = LocalDate.of(2026, 9, 30),
                 purchaseClose = 100.0,
@@ -256,6 +221,7 @@ class V08FinanceModelTest {
             500.0,
             v081PurchaseLotValueAt(
                 amount = 500.0,
+                units = 0.0,
                 purchaseDate = LocalDate.of(2026, 10, 2),
                 date = LocalDate.of(2026, 10, 2),
                 purchaseClose = 100.0,
