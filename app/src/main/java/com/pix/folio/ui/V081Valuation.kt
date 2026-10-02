@@ -218,17 +218,20 @@ internal val V07ViewModel.v081PortfolioGainPct: Double
 internal val V07ViewModel.v081NetWorth: Double
     get() = summary.cashBalance + summary.totalSavings + v081PortfolioTotal
 
-/** Keep the reconstructed historical curve, but make today's endpoint match the current total. */
-internal val V07ViewModel.v081PortfolioHistory: List<Pair<LocalDate, Double>>
-    get() {
-        val current = v081PortfolioTotal
-        val today = LocalDate.now()
-        val base = trackedPortfolioHistory.toMutableList()
-        if (base.isEmpty()) return if (summary.investments.isEmpty()) emptyList() else listOf(today to current)
-        if (base.last().first == today) {
-            base[base.lastIndex] = today to current
-        } else {
-            base += today to current
-        }
-        return base
+/** Keep the reconstructed historical curve, but make today's endpoint match one shared current total. */
+internal fun V07ViewModel.v081PortfolioHistory(currentValue: Double): List<Pair<LocalDate, Double>> {
+    val today = LocalDate.now()
+    val base = trackedPortfolioHistory.toMutableList()
+    if (base.isEmpty()) {
+        return if (summary.investments.isEmpty()) emptyList() else listOf(today to currentValue)
     }
+    if (base.last().first == today) {
+        base[base.lastIndex] = today to currentValue
+    } else {
+        base += today to currentValue
+    }
+    return base
+}
+
+internal val V07ViewModel.v081PortfolioHistory: List<Pair<LocalDate, Double>>
+    get() = v081PortfolioHistory(v081PortfolioTotal)
