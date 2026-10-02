@@ -255,7 +255,7 @@ class V08FinanceModelTest {
     }
 
     @Test
-    fun completePurchaseUnitsBeatStaleBrokerOverride() {
+    fun confirmedBrokerUnitsBeatTransactionUnitSum() {
         val september = InvestmentTransaction(
             id = "sep",
             holdingId = "etf",
@@ -272,10 +272,32 @@ class V08FinanceModelTest {
         )
 
         assertEquals(
-            18.0,
+            10.0,
             v081ResolvedOwnedUnits(10.0, listOf(september, october)) ?: 0.0,
             0.001,
         )
+    }
+
+    @Test
+    fun transactionUnitsRemainEstimatedWithoutBrokerConfirmation() {
+        val transaction = InvestmentTransaction(
+            id = "auto",
+            holdingId = "etf",
+            amount = 1_000.0,
+            date = LocalDate.of(2026, 10, 1),
+            units = 81.25826058,
+        )
+        val inferredUnits = v081ResolvedOwnedUnits(null, listOf(transaction))
+        val decision = v081CurrentValue(
+            fallbackValue = 1_980.0,
+            units = inferredUnits,
+            latestPrice = 12.44,
+            quoteCurrency = "EUR",
+            unitsAreComplete = false,
+        )
+
+        assertFalse(decision.exact)
+        assertEquals(1_980.0, decision.value, 0.001)
     }
 
     @Test
