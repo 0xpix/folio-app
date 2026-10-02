@@ -7,6 +7,19 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.8.5.beta] - 2026-10-02
+
+### Changed
+- Simplified the home-screen widget to show one value at a time instead of a combined balance card with chart and monthly-change text.
+- Widget metrics now cycle between **Net worth**, **Investments**, and **Cash left** with compact up/down controls.
+- Widget investment valuation now prefers broker-owned units with the latest EUR market price when available, matching the app's exact-unit path more closely.
+- Beta version advanced to `v0.8.5.beta`.
+
+### Fixed
+- Fixed widget net worth using the legacy total-balance path that could make investments appear counted twice.
+- Fixed the widget showing a different investment/net-worth calculation from the main app.
+- Removed the legacy widget sparkline/history path that could disagree with current finance state.
+
 ## [0.8.4.beta] - 2026-10-02
 
 ### Added
