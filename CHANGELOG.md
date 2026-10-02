@@ -16,6 +16,7 @@ The GitHub release workflow publishes the matching section of this file as the r
 - Legacy/inferred transaction units remain available for purchase-history estimates but are no longer allowed to silently replace the broker total or label the holding as exact.
 - New purchases invalidate the confirmed broker-unit snapshot so stale quantities cannot keep driving current valuation.
 - Fund-like Yahoo market resolution now tries **ISIN matches before cached ticker symbols**, preventing a previously mis-resolved ETF ticker from staying sticky forever.
+- When tracked market history and a cached quote share the same date, Folio now prefers the freshly resolved tracked history instead of the stale cached quote.
 
 ### Fixed
 - Fixed holdings such as multi-month MSCI ETF purchases showing a partial/inferred unit total as **Exact from owned units**.
