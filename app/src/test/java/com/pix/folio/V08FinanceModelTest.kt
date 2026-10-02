@@ -7,11 +7,14 @@ import com.pix.folio.model.InvestmentEntrySource
 import com.pix.folio.model.InvestmentPricePoint
 import com.pix.folio.model.InvestmentTransaction
 import com.pix.folio.model.RecurringIncome
+import com.pix.folio.ui.v081AbsoluteReturn
+import com.pix.folio.ui.v081AbsoluteReturnSeries
 import com.pix.folio.ui.v081CumulativeMonthlyContributions
 import com.pix.folio.ui.v081CurrentValue
 import com.pix.folio.ui.v081PurchaseLotValueAt
 import com.pix.folio.ui.v081ResolvedOwnedUnits
 import com.pix.folio.ui.v081SelectedMarketDate
+import com.pix.folio.ui.v081TimeWeightedReturnPct
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -337,6 +340,96 @@ class V08FinanceModelTest {
                 purchaseClose = 12.26,
                 close = 12.26,
             ),
+            0.001,
+        )
+    }
+
+    @Test
+    fun depositAloneDoesNotCreatePerformance() {
+        val first = InvestmentTransaction(
+            id = "first",
+            holdingId = "etf",
+            amount = 1_000.0,
+            date = LocalDate.of(2026, 9, 1),
+        )
+        val second = InvestmentTransaction(
+            id = "second",
+            holdingId = "etf",
+            amount = 1_000.0,
+            date = LocalDate.of(2026, 10, 1),
+        )
+        val history = listOf(
+            LocalDate.of(2026, 9, 1) to 1_000.0,
+            LocalDate.of(2026, 10, 1) to 2_000.0,
+        )
+
+        assertEquals(
+            0.0,
+            v081TimeWeightedReturnPct(history, listOf(first, second)),
+            0.001,
+        )
+    }
+
+    @Test
+    fun timeWeightedReturnCompoundsAcrossContributionPeriods() {
+        val first = InvestmentTransaction(
+            id = "first",
+            holdingId = "etf",
+            amount = 1_000.0,
+            date = LocalDate.of(2026, 9, 1),
+        )
+        val second = InvestmentTransaction(
+            id = "second",
+            holdingId = "etf",
+            amount = 1_000.0,
+            date = LocalDate.of(2026, 10, 1),
+        )
+        val history = listOf(
+            LocalDate.of(2026, 9, 1) to 1_000.0,
+            LocalDate.of(2026, 9, 30) to 1_100.0,
+            LocalDate.of(2026, 10, 1) to 2_100.0,
+            LocalDate.of(2026, 10, 31) to 2_205.0,
+        )
+
+        assertEquals(
+            15.5,
+            v081TimeWeightedReturnPct(history, listOf(first, second)),
+            0.001,
+        )
+    }
+
+    @Test
+    fun absoluteReturnSubtractsInvestedCapitalNotDepositsFromPerformance() {
+        val first = InvestmentTransaction(
+            id = "first",
+            holdingId = "etf",
+            amount = 1_000.0,
+            date = LocalDate.of(2026, 9, 1),
+        )
+        val second = InvestmentTransaction(
+            id = "second",
+            holdingId = "etf",
+            amount = 1_000.0,
+            date = LocalDate.of(2026, 10, 1),
+        )
+        val history = listOf(
+            LocalDate.of(2026, 9, 1) to 1_000.0,
+            LocalDate.of(2026, 9, 30) to 1_100.0,
+            LocalDate.of(2026, 10, 1) to 2_100.0,
+            LocalDate.of(2026, 10, 31) to 2_205.0,
+        )
+        val returns = v081AbsoluteReturnSeries(history, listOf(first, second))
+
+        assertEquals(100.0, returns[1].second, 0.001)
+        assertEquals(100.0, returns[2].second, 0.001)
+        assertEquals(205.0, returns.last().second, 0.001)
+    }
+
+    @Test
+    fun brokerStyleAbsoluteReturnUsesCurrentValueMinusInvestedCapital() {
+        assertEquals(
+            86.0,
+            v081AbsoluteReturn(currentValue = 2_286.0, investedCapital = 2_200.0),
             0.001,
         )
     }

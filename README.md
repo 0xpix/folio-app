@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.11.4.beta`
+**Current beta source:** `0.12.0.beta`
 
 ## What Folio tracks
 
@@ -20,8 +20,8 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Confirmed current **broker units** for exact unit-based valuation when a EUR market quote is available; inferred transaction units stay estimated
 - Month-grouped investment purchase history with editable amount, units, date, and time for every entry, plus explicit monthly and cumulative contribution totals
 - Direct per-holding **Add contribution now** flow with optional units bought
-- Portfolio **Value / Return / Contributions** graph modes, with Contributions showing cumulative invested totals across months
-- Portfolio concentration, best/lowest return, contribution, and market-growth summaries
+- Portfolio **Value / Return / Contributions** graph modes: Value shows current securities value, Return shows absolute investment return in euros, and Contributions shows cumulative invested capital
+- Scalable-style portfolio performance summary with Portfolio value, Invested, Total return (€), and Time-weighted return (%)
 - Interactive net-worth history with **1M / 3M / 1Y / ALL** ranges
 - Transaction timeline, monthly comparison, milestones, annual review, and growth projections
 - Automatic market tracking for supported exchange-traded assets plus Steam Community Market support for CS2 assets
@@ -43,6 +43,28 @@ Folio uses feature-aware beta versioning:
 
 Patch releases must not introduce a new user-facing capability. CI validates this rule against the current changelog entry.
 
+
+## Portfolio performance model
+
+Folio uses broker-style performance semantics inspired by the model documented by Scalable Capital:
+
+```text
+Portfolio value
+= current value of all tracked holdings
+
+Invested
+= sum of recorded investment purchase amounts
+
+Total return (€)
+= portfolio value - invested capital
+
+Time-weighted return (%)
+= compounded market return across subperiods split by contributions
+```
+
+A new contribution changes **Invested** and **Portfolio value**, but does not create performance by itself. This keeps later deposits from distorting the percentage return.
+
+Folio currently models price performance from recorded purchases and market quotes. It does not yet model distributions, taxes, tax refunds, or order fees as separate investment-performance cash flows, so those cases may differ from a brokerage statement.
 
 ## Money model
 

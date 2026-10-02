@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pix.folio.model.ExpenseCategory
 import com.pix.folio.model.FolioSummary
+import com.pix.folio.model.InvestmentHolding
 import com.pix.folio.model.ValueSnapshot
 import java.time.Instant
 import java.time.LocalDate
@@ -256,11 +257,16 @@ internal fun V08SpendingBreakdown(summary: FolioSummary, month: java.time.YearMo
 }
 
 @Composable
-internal fun V08PortfolioIntelligence(vm: V07ViewModel) {
+internal fun V08PortfolioIntelligence(
+    vm: V07ViewModel,
+    valuations: Map<InvestmentHolding, V081HoldingValuation>,
+    total: Double,
+    invested: Double,
+    absoluteReturn: Double,
+    timeWeightedReturnPct: Double,
+) {
     val summary = vm.summary
-    val valuations = summary.investments.associateWith(vm::v081Valuation)
     val holdings = summary.investments.sortedByDescending { valuations.getValue(it).value }
-    val total = vm.v081PortfolioTotal
     if (holdings.isEmpty() || total <= 0.0) return
 
     fun returnPct(index: Int): Double {
@@ -274,7 +280,6 @@ internal fun V08PortfolioIntelligence(vm: V07ViewModel) {
     val largestShare = largestValue / total * 100.0
     val bestIndex = holdings.indices.maxByOrNull(::returnPct)
     val worstIndex = holdings.indices.minByOrNull(::returnPct)
-    val marketGrowth = vm.v081PortfolioGain
 
     Column(
         Modifier
@@ -282,14 +287,23 @@ internal fun V08PortfolioIntelligence(vm: V07ViewModel) {
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f), RoundedCornerShape(24.dp))
             .padding(18.dp)
     ) {
-        Text("Portfolio intelligence", fontSize = 20.sp, fontWeight = FontWeight.Medium)
+        Text("Portfolio performance", fontSize = 20.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(12.dp))
-        V07Metric("Contributed", v07Euro(summary.portfolioCostBasis))
+        V07Metric("Portfolio value", v07Euro(total))
+        V07Divider()
+        V07Metric("Invested", v07Euro(invested))
         V07Divider()
         V07Metric(
-            "Market growth",
-            v07SignedEuro(marketGrowth),
-            valueColor = folioChangeColor(marketGrowth),
+            "Total return",
+            v07SignedEuro(absoluteReturn),
+            valueColor = folioChangeColor(absoluteReturn),
+        )
+        V07Divider()
+        V07Metric(
+            "Time-weighted return",
+            "${String.format(Locale.US, "%+.2f%%", timeWeightedReturnPct)}",
+            "Deposits are excluded from performance",
+            valueColor = folioChangeColor(timeWeightedReturnPct),
         )
         V07Divider()
         V07Metric("Largest position", "${String.format(Locale.US, "%.0f", largestShare)}%", largest.name)
@@ -307,14 +321,14 @@ internal fun V08PortfolioIntelligence(vm: V07ViewModel) {
             val worstReturn = returnPct(worstIndex)
             V07Divider()
             V07Metric(
-                "Best return",
+                "Best holding return",
                 "${String.format(Locale.US, "%+.1f%%", bestReturn)}",
                 holdings[bestIndex].name,
                 valueColor = folioChangeColor(bestReturn),
             )
             V07Divider()
             V07Metric(
-                "Lowest return",
+                "Lowest holding return",
                 "${String.format(Locale.US, "%+.1f%%", worstReturn)}",
                 holdings[worstIndex].name,
                 valueColor = folioChangeColor(worstReturn),
