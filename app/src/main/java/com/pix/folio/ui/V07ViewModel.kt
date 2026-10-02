@@ -420,6 +420,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
 
                             v081PurchaseLotValueAt(
                                 amount = transaction.amount,
+                                units = transaction.units,
                                 purchaseDate = transaction.date,
                                 date = date,
                                 purchaseClose = purchasePoint?.close,
