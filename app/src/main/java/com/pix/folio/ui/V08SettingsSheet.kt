@@ -124,20 +124,20 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             Text("Pixify is the default Folio typeface.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Spacer(Modifier.height(26.dp))
-            V07SectionLabel("Automation")
+            V07SectionLabel("Recurring")
             V08SettingSwitchRow(
-                title = "Automatic monthly plan",
-                detail = "Apply due salary, fixed payments and recurring investments. Savings rules remain explicit.",
+                title = "Automatic recurring",
+                detail = "Post due income, bills, savings and investments when cash is available.",
                 checked = vm.autoRecurringEnabled,
                 onCheckedChange = vm::updateAutoRecurringEnabled,
             )
             V07Divider()
-            V07Metric("Run recurring plan now", "Run", "Re-check due recurring money.", onClick = vm::runRecurringNow)
+            V07Metric("Run recurring now", "Run", "Apply anything due today.", onClick = vm::runRecurringNow)
             V07Divider()
             V07Metric(
                 "Refresh market prices",
                 if (vm.marketRefreshing) "Updating…" else "Refresh",
-                "Refresh tracked ETF, stock and supported market values.",
+                "Update tracked market values.",
                 onClick = if (vm.marketRefreshing) null else vm::refreshMarketPrices,
             )
 
@@ -152,12 +152,12 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
 
             Spacer(Modifier.height(26.dp))
             V07SectionLabel("Backup & restore")
-            V07Metric("Last exported backup", lastBackupLabel, "Portable local backup. No account or cloud required.")
+            V07Metric("Last backup", lastBackupLabel)
             V07Divider()
             V07Metric(
                 "Export Folio",
                 "Export",
-                "Saves expenses, salary, bills, budgets, savings, holdings, purchase date/time and history.",
+                "Save a local copy of your Folio data.",
                 onClick = {
                     pendingExport = vm.exportBackupV08()
                     exportLauncher.launch("folio-${LocalDate.now()}.folio.json")
@@ -167,17 +167,9 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
             V07Metric(
                 "Restore Folio",
                 "Import",
-                "Choose a Folio backup. The file is fully validated before local data is restored, and Folio rolls back if a restore write fails.",
+                "Restore from a Folio backup file.",
                 onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
             )
-            Text(
-                "v0.8 also keeps a transactional Room shadow snapshot after finance changes. SharedPreferences remains the beta source of truth during this safe migration step.",
-                fontSize = 10.sp,
-                lineHeight = 15.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-
             Spacer(Modifier.height(26.dp))
             V07SectionLabel("Updates")
             V07Metric("Installed version", BuildConfig.VERSION_NAME, BuildConfig.UPDATE_CHANNEL)

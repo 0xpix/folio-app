@@ -187,8 +187,7 @@ class MonthlyPlanStore(context: Context) {
             }
             .forEach { rule ->
                 val summary = store.summary()
-                val availableForMonth = budgetCashRemaining(summary, month)
-                if (availableForMonth + 0.005 < rule.amount || summary.cashBalance + 0.005 < rule.amount) return@forEach
+                if (summary.cashBalance + 0.005 < rule.amount) return@forEach
                 store.transferSavings(rule.bucket, rule.amount, "Automatic monthly savings")
                 markApplied(rule.id, month)
                 applied += 1

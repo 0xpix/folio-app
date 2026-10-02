@@ -57,6 +57,9 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     var marketRefreshLabel by mutableStateOf<String?>(null)
         private set
 
+    var recurringStatusLabel by mutableStateOf<String?>(null)
+        private set
+
     var marketRefreshing by mutableStateOf(false)
         private set
 
@@ -115,8 +118,8 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     fun togglePayment(id: String) {
         val row = summary.payments.firstOrNull { it.id == id } ?: return
         val month = YearMonth.now()
-        if (row.lastPaidMonth != month && planStore.budgetCashRemaining(summary, month) + 0.005 < row.amount) {
-            marketRefreshLabel = "Waiting for this month's assigned salary"
+        if (row.lastPaidMonth != month && summary.cashBalance + 0.005 < row.amount) {
+            recurringStatusLabel = "Not enough available cash for ${row.name}"
             return
         }
         store.togglePayment(id)
@@ -204,8 +207,8 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleRecurringInvestment(id: String) {
         val row = summary.recurringInvestments.firstOrNull { it.id == id } ?: return
         val month = YearMonth.now()
-        if (row.lastAppliedMonth != month && planStore.budgetCashRemaining(summary, month) + 0.005 < row.amount) {
-            marketRefreshLabel = "Waiting for this month's assigned salary"
+        if (row.lastAppliedMonth != month && summary.cashBalance + 0.005 < row.amount) {
+            recurringStatusLabel = "Not enough available cash for this investment"
             return
         }
         store.toggleRecurringInvestment(id)
@@ -425,10 +428,10 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     fun runRecurringNow() {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
-                RecurringMoneyProcessor.process(getApplication())
+                RecurringMoneyProcessor.process(getApplication(), requireAutomationEnabled = false)
             }
-            marketRefreshLabel = if (result.totalApplied == 0) {
-                "Recurring plan is current or waiting for assigned salary"
+            recurringStatusLabel = if (result.totalApplied == 0) {
+                "Nothing due right now, or an item is waiting for cash"
             } else {
                 "Applied ${result.totalApplied} recurring item${if (result.totalApplied == 1) "" else "s"}"
             }

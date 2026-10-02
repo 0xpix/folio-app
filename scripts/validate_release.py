@@ -80,12 +80,14 @@ for token in [
     "lastRootPage",
     "setLastRootPage",
     "refreshMarketPrices",
+    "NavigationBar",
+    "NavigationBarItem",
 ]:
     if token not in app:
         raise SystemExit(f"Missing v0.8.2 app-shell token: {token}")
-for forbidden in ["bottomBar =", "V07BottomBar", "V08PageIndicator", "pagerState.isScrollInProgress"]:
+for forbidden in ["V07BottomBar", "V08PageIndicator", "pagerState.isScrollInProgress"]:
     if forbidden in app:
-        raise SystemExit(f"v0.8.2 must not render pager navigation chrome: {forbidden}")
+        raise SystemExit(f"v0.8.2 must not restore transient pager navigation chrome: {forbidden}")
 
 # The app's root content color must come from the active Material color scheme. This protects every
 # unstyled Text/Icon from becoming black-on-black in system dark mode. Finance change colors must be
@@ -105,7 +107,7 @@ for token in [
 
 source = "\n".join(p.read_text() for p in root.glob("app/src/main/java/**/*.kt"))
 feature_groups = {
-    "money semantics": ["SPENDABLE NOW", "UNASSIGNED THIS MONTH", "Planning only"],
+    "money semantics": ["AVAILABLE CASH", "LEFT TO PLAN", "Expected income"],
     "spending breakdown": ["Where did my money go?"],
     "interactive net-worth ranges": ["ONE_MONTH", "THREE_MONTHS", "ONE_YEAR", "ALL"],
     "touch chart inspection": ["awaitEachGesture", "selectedIndex"],

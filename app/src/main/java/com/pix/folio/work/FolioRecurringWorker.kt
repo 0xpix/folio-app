@@ -13,8 +13,8 @@ class FolioRecurringWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         return runCatching {
-            // Refresh prices first so a recurring investment can record units at the latest known price.
-            MarketPriceService.refreshAll(applicationContext)
+            // Market data is optional. A network/provider failure must never block recurring money.
+            runCatching { MarketPriceService.refreshAll(applicationContext) }
             RecurringMoneyProcessor.process(applicationContext)
             FolioWidgetUpdater.request(applicationContext)
             Result.success()

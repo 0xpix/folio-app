@@ -8,8 +8,8 @@ import java.time.YearMonth
  * Applies due recurring income, fixed payments, investment contributions and monthly savings.
  *
  * Salary keeps its real receive date while FolioStore attributes it to the configured budget
- * month. Outflows are only allowed against income that is actually assigned to that month, so
- * leftover cash from a previous month can never silently fund the next month's plan.
+ * month. Budget attribution is planning/reporting metadata; due recurring transactions use the
+ * actual available cash balance so a hidden planning envelope cannot block them.
  */
 object RecurringMoneyProcessor {
     data class Result(
@@ -21,10 +21,14 @@ object RecurringMoneyProcessor {
         val totalApplied: Int get() = incomes + payments + investments + savings
     }
 
-    fun process(context: Context, today: LocalDate = LocalDate.now()): Result {
+    fun process(
+        context: Context,
+        today: LocalDate = LocalDate.now(),
+        requireAutomationEnabled: Boolean = true,
+    ): Result {
         val appContext = context.applicationContext
         val store = FolioStore(appContext)
-        if (!store.autoRecurringEnabled()) return Result(0, 0, 0, 0)
+        if (requireAutomationEnabled && !store.autoRecurringEnabled()) return Result(0, 0, 0, 0)
 
         val planStore = MonthlyPlanStore(appContext)
         val month = YearMonth.from(today)
@@ -44,13 +48,11 @@ object RecurringMoneyProcessor {
                 incomesApplied += 1
             }
 
-        fun hasBudgetMoney(amount: Double): Boolean {
-            val summary = store.summary()
-            return summary.cashBalance + 0.005 >= amount &&
-                planStore.budgetCashRemaining(summary, month) + 0.005 >= amount
-        }
+        fun hasCash(amount: Double): Boolean =
+            store.summary().cashBalance + 0.005 >= amount
 
-        // Fixed bills are posted only after this budget month has received enough assigned income.
+        // A due recurring item is a real transaction. If the account has the cash, post it.
+        // Budget envelopes remain planning information and never silently block automation.
         store.summary().payments
             .filter { payment ->
                 payment.enabled &&
@@ -58,13 +60,13 @@ object RecurringMoneyProcessor {
                     !payment.dueDateFor(month).isAfter(today)
             }
             .forEach { payment ->
-                if (hasBudgetMoney(payment.amount)) {
+                if (hasCash(payment.amount)) {
                     store.togglePayment(payment.id)
                     paymentsApplied += 1
                 }
             }
 
-        // Recurring investments follow the same envelope guard; old carry-over cash is excluded.
+        // Recurring investments use the same real-cash rule as bills.
         store.summary().recurringInvestments
             .filter { investment ->
                 investment.enabled &&
@@ -72,7 +74,7 @@ object RecurringMoneyProcessor {
                     !investment.dueDateFor(month).isAfter(today)
             }
             .forEach { investment ->
-                if (hasBudgetMoney(investment.amount)) {
+                if (hasCash(investment.amount)) {
                     store.toggleRecurringInvestment(investment.id)
                     investmentsApplied += 1
                 }

@@ -15,9 +15,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -45,8 +53,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private enum class V08RootTab {
-    MONEY,
     HOME,
+    MONEY,
     PORTFOLIO,
 }
 
@@ -84,25 +92,59 @@ fun FolioApp(vm: V07ViewModel = viewModel()) {
     }
 
     V07AppLockGate(vm) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-        ) { page ->
-            when (tabs[page]) {
-                V08RootTab.MONEY -> V08MoneyScreen(vm)
-                V08RootTab.HOME -> V08HomeScreen(
-                    vm = vm,
-                    onOpenMoney = {
-                        scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.MONEY)) }
-                    },
-                    onOpenPortfolio = {
-                        scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.PORTFOLIO)) }
-                    },
-                    onSettings = { showSettings = true },
-                )
-                V08RootTab.PORTFOLIO -> V08PortfolioScreen(vm)
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
+                    tabs.forEachIndexed { index, tab ->
+                        val selected = pagerState.currentPage == index
+                        val label = when (tab) {
+                            V08RootTab.HOME -> "Home"
+                            V08RootTab.MONEY -> "Money"
+                            V08RootTab.PORTFOLIO -> "Portfolio"
+                        }
+                        val icon = when (tab) {
+                            V08RootTab.HOME -> Icons.Outlined.Home
+                            V08RootTab.MONEY -> Icons.Outlined.AccountBalanceWallet
+                            V08RootTab.PORTFOLIO -> Icons.Outlined.ShowChart
+                        }
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                if (!selected) {
+                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                }
+                            },
+                            icon = { Icon(icon, contentDescription = label) },
+                            label = { Text(label, fontSize = 11.sp) },
+                            alwaysShowLabel = true,
+                        )
+                    }
+                }
+            },
+        ) { innerPadding ->
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .statusBarsPadding(),
+            ) { page ->
+                when (tabs[page]) {
+                    V08RootTab.HOME -> V08HomeScreen(
+                        vm = vm,
+                        onOpenMoney = {
+                            scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.MONEY)) }
+                        },
+                        onOpenPortfolio = {
+                            scope.launch { pagerState.animateScrollToPage(tabs.indexOf(V08RootTab.PORTFOLIO)) }
+                        },
+                        onSettings = { showSettings = true },
+                    )
+                    V08RootTab.MONEY -> V08MoneyScreen(vm)
+                    V08RootTab.PORTFOLIO -> V08PortfolioScreen(vm)
+                }
             }
         }
 
