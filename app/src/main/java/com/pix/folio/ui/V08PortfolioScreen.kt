@@ -234,6 +234,7 @@ private fun V081HoldingDetailsSheet(
     val recurring = vm.summary.recurringInvestments.firstOrNull { it.holdingId == holding.id }
     var contributionAmount by remember(holding.id) { mutableStateOf("") }
     var contributionUnits by remember(holding.id) { mutableStateOf("") }
+    var contributionMessage by remember(holding.id) { mutableStateOf<String?>(null) }
     val contributionValue = contributionAmount.v07Double()
     val contributionUnitsValue = contributionUnits.v07Double()
     val exactUnitsAlreadyTracked = initialUnits != null && initialUnits > 0.0
@@ -325,11 +326,13 @@ private fun V081HoldingDetailsSheet(
             Spacer(Modifier.height(10.dp))
             Button(
                 onClick = {
+                    val amount = contributionValue
                     vm.addInvestmentContribution(
                         holdingId = holding.id,
-                        amount = contributionValue,
+                        amount = amount,
                         units = contributionUnitsValue,
                     )
+                    contributionMessage = "Added ${v07Euro(amount)} to ${holding.name}"
                     contributionAmount = ""
                     contributionUnits = ""
                 },
@@ -339,7 +342,7 @@ private fun V081HoldingDetailsSheet(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
             ) { Text("Add contribution") }
-            vm.investmentActionLabel?.let {
+            contributionMessage?.let {
                 Text(
                     it,
                     fontSize = 10.sp,
