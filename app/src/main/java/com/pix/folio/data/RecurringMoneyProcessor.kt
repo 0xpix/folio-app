@@ -44,13 +44,11 @@ object RecurringMoneyProcessor {
                 incomesApplied += 1
             }
 
-        fun hasBudgetMoney(amount: Double): Boolean {
-            val summary = store.summary()
-            return summary.cashBalance + 0.005 >= amount &&
-                planStore.budgetCashRemaining(summary, month) + 0.005 >= amount
-        }
+        fun hasCash(amount: Double): Boolean =
+            store.summary().cashBalance + 0.005 >= amount
 
-        // Fixed bills are posted only after this budget month has received enough assigned income.
+        // A due recurring item is a real transaction. If the account has the cash, post it.
+        // Budget envelopes remain planning information and never silently block automation.
         store.summary().payments
             .filter { payment ->
                 payment.enabled &&
@@ -58,13 +56,13 @@ object RecurringMoneyProcessor {
                     !payment.dueDateFor(month).isAfter(today)
             }
             .forEach { payment ->
-                if (hasBudgetMoney(payment.amount)) {
+                if (hasCash(payment.amount)) {
                     store.togglePayment(payment.id)
                     paymentsApplied += 1
                 }
             }
 
-        // Recurring investments follow the same envelope guard; old carry-over cash is excluded.
+        // Recurring investments use the same real-cash rule as bills.
         store.summary().recurringInvestments
             .filter { investment ->
                 investment.enabled &&
@@ -72,7 +70,7 @@ object RecurringMoneyProcessor {
                     !investment.dueDateFor(month).isAfter(today)
             }
             .forEach { investment ->
-                if (hasBudgetMoney(investment.amount)) {
+                if (hasCash(investment.amount)) {
                     store.toggleRecurringInvestment(investment.id)
                     investmentsApplied += 1
                 }
