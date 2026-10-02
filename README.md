@@ -2,11 +2,12 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.8.3.beta`
+**Current beta source:** `0.8.4.beta`
 
 ## What Folio tracks
 
 - **Available cash** — liquid money Folio treats as usable today
+- **Invested** — money actually contributed to holdings; current market value is shown separately in Portfolio
 - **Left to plan** — expected monthly income that has not yet been assigned to bills, investments, spending budgets, or savings
 - Net worth across spendable money, savings, and investments
 - Expenses grouped by month and category, including a “Where did my money go?” breakdown
@@ -18,6 +19,7 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Exact local purchase **date and time** metadata for investments
 - Exact fractional **units owned** for broker-style unit-based valuation when a EUR market quote is available
 - Investment contribution history and allocation percentages
+- Direct per-holding **Add contribution now** flow with optional units bought
 - Portfolio **Value / Return / Contributions** graph modes
 - Portfolio concentration, best/lowest return, contribution, and market-growth summaries
 - Interactive net-worth history with **1M / 3M / 1Y / ALL** ranges
