@@ -308,7 +308,7 @@ class V08FinanceModelTest {
 
         assertEquals(
             18.0,
-            v081ResolvedOwnedUnits(10.0, listOf(september, october)),
+            v081ResolvedOwnedUnits(10.0, listOf(september, october)) ?: 0.0,
             0.001,
         )
     }
