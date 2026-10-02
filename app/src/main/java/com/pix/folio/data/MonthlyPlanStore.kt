@@ -3,7 +3,6 @@ package com.pix.folio.data
 import android.content.Context
 import com.pix.folio.model.ExpenseCategory
 import com.pix.folio.model.FolioSummary
-import com.pix.folio.model.InvestmentEntrySource
 import com.pix.folio.model.LedgerEntryType
 import com.pix.folio.model.SavingsBucketType
 import org.json.JSONArray
@@ -168,9 +167,9 @@ class MonthlyPlanStore(context: Context) {
         val payments = summary.ledger.filter {
             it.type == LedgerEntryType.PAYMENT && (it.budgetMonth ?: YearMonth.from(it.date)) == month
         }.sumOf { it.amount }
-        val invested = summary.investmentTransactions.filter {
-            YearMonth.from(it.date) == month && it.source == InvestmentEntrySource.RECURRING
-        }.sumOf { it.amount }
+        val invested = summary.investmentTransactions
+            .filter { YearMonth.from(it.date) == month }
+            .sumOf { it.amount }
         val expenses = summary.expenses.filter { YearMonth.from(it.date) == month }.sumOf { it.amount }
         val savings = summary.savingsTransfers.filter {
             YearMonth.from(it.date) == month && it.amount > 0.0
