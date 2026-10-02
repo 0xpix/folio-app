@@ -212,6 +212,16 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             .groupBy { YearMonth.from(it.date) }
             .toList()
             .sortedByDescending { it.first }
+        val cumulativeByMonth = buildMap<YearMonth, Double> {
+            var running = 0.0
+            summary.investmentTransactions
+                .groupBy { YearMonth.from(it.date) }
+                .toSortedMap()
+                .forEach { (month, rows) ->
+                    running += rows.sumOf { it.amount }
+                    put(month, running)
+                }
+        }
 
         if (activityByMonth.isEmpty()) {
             V07Panel {
@@ -242,6 +252,11 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                                 v07Euro(rows.sumOf { it.amount }),
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                "Cumulative ${v07Euro(cumulativeByMonth[month] ?: 0.0)}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
