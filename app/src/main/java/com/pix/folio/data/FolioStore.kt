@@ -25,6 +25,8 @@ import com.pix.folio.model.ValueSnapshot
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.YearMonth
 import java.util.UUID
 
@@ -63,6 +65,7 @@ class FolioStore(context: Context) {
         removeLegacyDemoDataOnce()
         migrateRecurringLedgerOnce()
         migrateV07Once()
+        migrateInvestmentPurchaseTimesOnce()
     }
 
     fun summary(): FolioSummary = FolioSummary(
@@ -243,8 +246,15 @@ class FolioStore(context: Context) {
             referenceId = json.optString("referenceId"),
             units = json.optDouble("units", 0.0),
             unitPrice = json.optDouble("unitPrice", 0.0),
+            time = json.optString("time")
+                .takeIf(String::isNotBlank)
+                ?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
+                ?: LocalTime.NOON,
         )
-    }.sortedByDescending { it.date }
+    }.sortedWith(
+        compareByDescending<InvestmentTransaction> { it.date }
+            .thenByDescending { it.time }
+    )
 
     fun investmentPrices(): List<InvestmentPricePoint> = parseArray("investment_prices") { json ->
         InvestmentPricePoint(
@@ -390,6 +400,7 @@ class FolioStore(context: Context) {
         unitPrice: Double = 0.0,
         marketHashName: String = "",
         cs2AssetType: Cs2AssetType = Cs2AssetType.OTHER,
+        purchasedAt: LocalDateTime = LocalDateTime.now(),
     ) {
         if (amount <= 0.0 || name.isBlank()) return
         val current = investments()
@@ -437,11 +448,24 @@ class FolioStore(context: Context) {
             }
         }
         writeInvestments(next)
-        appendInvestmentTransaction(holdingId, amount, source, units = units, unitPrice = unitPrice)
+        appendInvestmentTransaction(
+            holdingId = holdingId,
+            amount = amount,
+            source = source,
+            units = units,
+            unitPrice = unitPrice,
+            purchasedAt = purchasedAt,
+        )
         recordSnapshots()
     }
 
-    fun addInvestmentContribution(holdingId: String, amount: Double, units: Double = 0.0, unitPrice: Double = 0.0) {
+    fun addInvestmentContribution(
+        holdingId: String,
+        amount: Double,
+        units: Double = 0.0,
+        unitPrice: Double = 0.0,
+        purchasedAt: LocalDateTime = LocalDateTime.now(),
+    ) {
         if (
             amount <= 0.0 ||
             investments().none { it.id == holdingId } ||
@@ -449,8 +473,60 @@ class FolioStore(context: Context) {
         ) return
         captureUndo()
         writeInvestments(investments().map { if (it.id == holdingId) it.copy(amount = it.amount + amount) else it })
-        appendInvestmentTransaction(holdingId, amount, InvestmentEntrySource.MANUAL, units = units, unitPrice = unitPrice)
+        appendInvestmentTransaction(
+            holdingId = holdingId,
+            amount = amount,
+            source = InvestmentEntrySource.MANUAL,
+            units = units,
+            unitPrice = unitPrice,
+            purchasedAt = purchasedAt,
+        )
         setCashBalanceInternal((cashBalance() - amount).coerceAtLeast(0.0))
+        recordSnapshots()
+    }
+
+    fun updateInvestmentTransaction(
+        id: String,
+        amount: Double,
+        units: Double,
+        purchasedAt: LocalDateTime,
+    ) {
+        if (amount <= 0.0 || !amount.isFinite() || units < 0.0 || !units.isFinite()) return
+        val safeTimestamp = purchasedAt.coerceAtMost(LocalDateTime.now())
+        val current = investmentTransactions()
+        val existing = current.firstOrNull { it.id == id } ?: return
+        val holding = investments().firstOrNull { it.id == existing.holdingId } ?: return
+
+        captureUndo()
+        val amountDelta = amount - existing.amount
+        val unitDelta = units - existing.units
+        writeInvestments(
+            investments().map {
+                if (it.id == holding.id) it.copy(amount = (it.amount + amountDelta).coerceAtLeast(0.0))
+                else it
+            }
+        )
+
+        val updated = existing.copy(
+            amount = amount,
+            date = safeTimestamp.toLocalDate(),
+            time = safeTimestamp.toLocalTime().withSecond(0).withNano(0),
+            units = units,
+            unitPrice = if (units > 0.0) amount / units else 0.0,
+        )
+        val next = current.map { if (it.id == id) updated else it }
+        writeInvestmentTransactions(next)
+
+        val tracking = InvestmentTrackingStore(appContext)
+        if (unitDelta != 0.0) {
+            tracking.ownedUnits(holding.id)?.let { currentUnits ->
+                tracking.setOwnedUnits(holding.id, (currentUnits + unitDelta).takeIf { it > 0.0 })
+            }
+        }
+        next.filter { it.holdingId == holding.id }
+            .minByOrNull { it.purchasedAt }
+            ?.let { tracking.setPurchaseDateTime(holding.id, it.purchasedAt) }
+
         recordSnapshots()
     }
 
@@ -482,8 +558,15 @@ class FolioStore(context: Context) {
             writeInvestments(investments().map { if (it.id == holding.id) it.copy(amount = it.amount + row.amount) else it })
             if (tx.none { it.referenceId == marker }) {
                 tx += InvestmentTransaction(
-                    UUID.randomUUID().toString(), holding.id, row.amount, row.dueDateFor(month),
-                    InvestmentEntrySource.RECURRING, marker, units, latest
+                    id = UUID.randomUUID().toString(),
+                    holdingId = holding.id,
+                    amount = row.amount,
+                    date = row.dueDateFor(month),
+                    source = InvestmentEntrySource.RECURRING,
+                    referenceId = marker,
+                    units = units,
+                    unitPrice = latest,
+                    time = LocalTime.now().withSecond(0).withNano(0),
                 )
             }
 
@@ -652,12 +735,22 @@ class FolioStore(context: Context) {
         referenceId: String = "",
         units: Double = 0.0,
         unitPrice: Double = 0.0,
-        date: LocalDate = LocalDate.now(),
+        purchasedAt: LocalDateTime = LocalDateTime.now(),
     ) {
-        writeInvestmentTransactions(investmentTransactions() + InvestmentTransaction(
-            UUID.randomUUID().toString(), holdingId, amount, date, source, referenceId,
-            units.coerceAtLeast(0.0), unitPrice.coerceAtLeast(0.0)
-        ))
+        val safeTimestamp = purchasedAt.coerceAtMost(LocalDateTime.now())
+        writeInvestmentTransactions(
+            investmentTransactions() + InvestmentTransaction(
+                id = UUID.randomUUID().toString(),
+                holdingId = holdingId,
+                amount = amount,
+                date = safeTimestamp.toLocalDate(),
+                source = source,
+                referenceId = referenceId,
+                units = units.coerceAtLeast(0.0),
+                unitPrice = unitPrice.coerceAtLeast(0.0),
+                time = safeTimestamp.toLocalTime().withSecond(0).withNano(0),
+            )
+        )
     }
 
     private fun recordInvestmentPriceInternal(
@@ -718,7 +811,8 @@ class FolioStore(context: Context) {
 
     private fun writeInvestmentTransactions(rows: List<InvestmentTransaction>) = writeArray("investment_transactions", rows) { row ->
         JSONObject().put("id", row.id).put("holdingId", row.holdingId).put("amount", row.amount)
-            .put("date", row.date.toString()).put("source", row.source.name).put("referenceId", row.referenceId)
+            .put("date", row.date.toString()).put("time", row.time.toString())
+            .put("source", row.source.name).put("referenceId", row.referenceId)
             .put("units", row.units).put("unitPrice", row.unitPrice)
     }
 
@@ -822,6 +916,26 @@ class FolioStore(context: Context) {
         prefs.edit().putString(key, array.toString()).apply()
     }
 
+    private fun migrateInvestmentPurchaseTimesOnce() {
+        if (prefs.getBoolean("investment_purchase_times_migrated_v1", false)) return
+        val tracking = InvestmentTrackingStore(appContext)
+        val current = investmentTransactions()
+        var changed = false
+        val migrated = current.map { row ->
+            if (row.source != InvestmentEntrySource.INITIAL) return@map row
+            val timestamp = tracking.purchaseDateTime(row.holdingId) ?: return@map row
+            val normalized = timestamp.coerceAtMost(LocalDateTime.now())
+            val next = row.copy(
+                date = normalized.toLocalDate(),
+                time = normalized.toLocalTime().withSecond(0).withNano(0),
+            )
+            if (next != row) changed = true
+            next
+        }
+        if (changed) writeInvestmentTransactions(migrated)
+        prefs.edit().putBoolean("investment_purchase_times_migrated_v1", true).apply()
+    }
+
     private fun migrateV07Once() {
         if (prefs.getBoolean("v07_migrated", false)) return
         if (!prefs.contains("emergency_fund_target")) prefs.edit().putString("emergency_fund_target", "3500.0").apply()
@@ -851,6 +965,9 @@ class FolioStore(context: Context) {
         writeLedger(entries)
         prefs.edit().putBoolean("recurring_ledger_migrated_v1", true).apply()
     }
+
+    private fun LocalDateTime.coerceAtMost(maximum: LocalDateTime): LocalDateTime =
+        if (isAfter(maximum)) maximum else this
 
     private fun removeLegacyDemoDataOnce() {
         if (prefs.getBoolean("legacy_demo_removed_v3", false)) return

@@ -2,6 +2,8 @@ package com.pix.folio.model
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.Year
 import java.time.YearMonth
 import java.time.ZoneId
@@ -134,7 +136,10 @@ data class InvestmentTransaction(
     val referenceId: String = "",
     val units: Double = 0.0,
     val unitPrice: Double = 0.0,
-)
+    val time: LocalTime = LocalTime.NOON,
+) {
+    val purchasedAt: LocalDateTime get() = LocalDateTime.of(date, time)
+}
 
 data class InvestmentPricePoint(
     val holdingId: String,
@@ -421,7 +426,9 @@ data class FolioSummary(
         investmentPrices.filter { it.holdingId == holdingId }.sortedBy { it.date }
 
     fun transactionsFor(holdingId: String): List<InvestmentTransaction> =
-        investmentTransactions.filter { it.holdingId == holdingId }.sortedBy { it.date }
+        investmentTransactions
+            .filter { it.holdingId == holdingId }
+            .sortedWith(compareBy<InvestmentTransaction> { it.date }.thenBy { it.time })
 
     fun unitsFor(holdingId: String): Double = transactionsFor(holdingId).sumOf { it.units }
 

@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.10.0.beta`
+**Current beta source:** `0.11.0.beta`
 
 ## What Folio tracks
 
@@ -16,9 +16,9 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Salary attribution to the same or following budget month
 - Emergency fund, crash reserve, and general savings
 - Investments added manually or resolved from an **ISIN** with OpenFIGI v3
-- Exact local purchase **date and time** metadata for investments
+- Exact **date and HH:mm time on every investment purchase transaction**, including recurring purchases
 - Exact fractional **units owned** for broker-style unit-based valuation when a EUR market quote is available
-- Investment contribution history and allocation percentages
+- Month-grouped investment purchase history with editable amount, units, date, and time for every entry
 - Direct per-holding **Add contribution now** flow with optional units bought
 - Portfolio **Value / Return / Contributions** graph modes
 - Portfolio concentration, best/lowest return, contribution, and market-growth summaries
@@ -74,7 +74,7 @@ Folio stores the ISIN together with the selected FIGI, ticker, exchange code, na
 
 Market-symbol resolution is generic. Folio uses stored/exchange-aware ticker metadata and Yahoo search by ISIN/name instead of maintaining security-specific mappings in application code.
 
-For exchange-traded assets, Folio stores the user's local purchase date and `HH:mm` time. Historical value graphs currently use daily market closes rather than pretending that daily data represents an exact execution price at the stored clock time.
+For exchange-traded assets, Folio stores a local purchase date and `HH:mm` time on every transaction. The Portfolio activity section groups those transactions by their real month, and each purchase — initial, manual, or recurring — can be corrected individually without changing the future recurring rule. Historical value graphs still use daily market closes rather than pretending that daily data represents an exact execution price at the stored clock time.
 
 For current value, Folio prefers:
 

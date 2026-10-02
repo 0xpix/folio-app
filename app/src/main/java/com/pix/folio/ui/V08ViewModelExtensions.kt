@@ -13,9 +13,18 @@ internal fun V07ViewModel.purchaseDateTimeFor(id: String): LocalDateTime? =
 
 internal fun V07ViewModel.setInvestmentPurchaseDateTime(id: String, dateTime: LocalDateTime) {
     val safe = dateTime.coerceAtMost(LocalDateTime.now())
-    InvestmentTrackingStore(getApplication<Application>()).setPurchaseDateTime(id, safe)
-    // Re-use the existing history refresh path after the timestamp is persisted.
-    setInvestmentPurchaseDate(id, safe.toLocalDate())
+    val firstPurchase = summary.transactionsFor(id).minByOrNull { it.purchasedAt }
+    if (firstPurchase != null) {
+        updateInvestmentTransaction(
+            id = firstPurchase.id,
+            amount = firstPurchase.amount,
+            units = firstPurchase.units,
+            purchasedAt = safe,
+        )
+    } else {
+        InvestmentTrackingStore(getApplication<Application>()).setPurchaseDateTime(id, safe)
+        setInvestmentPurchaseDate(id, safe.toLocalDate())
+    }
 }
 
 internal fun V07ViewModel.ownedUnitsFor(id: String): Double? =
@@ -54,6 +63,7 @@ internal fun V07ViewModel.addInvestmentV08(
         marketHashName = marketHashName,
         cs2AssetType = cs2AssetType,
         purchaseDate = purchaseDateTime.toLocalDate(),
+        purchaseTime = purchaseDateTime.toLocalTime(),
     )
     val normalizedIsin = isin.trim().uppercase()
     val normalizedSymbol = symbol.trim().uppercase()
@@ -61,7 +71,14 @@ internal fun V07ViewModel.addInvestmentV08(
         (normalizedIsin.isNotBlank() && it.isin.equals(normalizedIsin, true)) ||
             (normalizedSymbol.isNotBlank() && it.symbol.equals(normalizedSymbol, true)) ||
             it.name.equals(name.trim(), true)
-    }?.let { setInvestmentPurchaseDateTime(it.id, purchaseDateTime) }
+    }?.let { holding ->
+        summary.transactionsFor(holding.id)
+            .minByOrNull { it.purchasedAt }
+            ?.let { first ->
+                InvestmentTrackingStore(getApplication<Application>())
+                    .setPurchaseDateTime(holding.id, first.purchasedAt)
+            }
+    }
 }
 
 internal fun V07ViewModel.exportBackupV08(): String = FolioBackup.export(getApplication<Application>())

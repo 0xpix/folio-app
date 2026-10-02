@@ -29,14 +29,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pix.folio.model.InvestmentEntrySource
 import com.pix.folio.model.InvestmentHolding
+import com.pix.folio.model.InvestmentTransaction
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val V08BoughtFormat = DateTimeFormatter.ofPattern("MMM d, yyyy · HH:mm", Locale.ENGLISH)
+private val V08InvestmentMonthFormat = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH)
 private enum class V08PortfolioGraphMode(val label: String) { VALUE("VALUE"), RETURN("RETURN"), CONTRIBUTIONS("CONTRIBUTIONS") }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +53,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val valueHistory = vm.v081PortfolioHistory
     var graphMode by remember { mutableStateOf(V08PortfolioGraphMode.VALUE) }
     var editHolding by remember { mutableStateOf<InvestmentHolding?>(null) }
+    var editTransaction by remember { mutableStateOf<InvestmentTransaction?>(null) }
     var showAdd by remember { mutableStateOf(false) }
 
     val graphSeries = remember(valueHistory, summary.investmentTransactions, graphMode) {
@@ -194,6 +199,72 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                 }
         }
 
+        Spacer(Modifier.height(36.dp))
+        Text("Investment activity", fontSize = 27.sp, fontWeight = FontWeight.Medium)
+        Text(
+            "Every saved purchase appears in its real month. Tap any entry to correct its amount, units, date, or exact time — recurring purchases included.",
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+
+        val holdingNames = summary.investments.associate { it.id to it.name }
+        val activityByMonth = summary.investmentTransactions
+            .sortedByDescending { it.purchasedAt }
+            .groupBy { YearMonth.from(it.date) }
+            .toList()
+            .sortedByDescending { it.first }
+
+        if (activityByMonth.isEmpty()) {
+            V07Panel {
+                Text("No purchases recorded yet", fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    "Add an investment or contribution and it will appear here.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            activityByMonth.forEach { (month, rows) ->
+                V07Panel {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            month.atDay(1).format(V08InvestmentMonthFormat),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            v07Euro(rows.sumOf { it.amount }),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    rows.forEachIndexed { index, transaction ->
+                        V07Metric(
+                            label = holdingNames[transaction.holdingId] ?: "Investment",
+                            value = v07Euro(transaction.amount),
+                            detail = buildString {
+                                append(v08InvestmentSourceLabel(transaction.source))
+                                append(" · ")
+                                append(transaction.purchasedAt.format(V08BoughtFormat))
+                                if (transaction.units > 0.0) {
+                                    append(" · ")
+                                    append(v081Units(transaction.units))
+                                    append(" units")
+                                }
+                            },
+                            onClick = { editTransaction = transaction },
+                        )
+                        if (index != rows.lastIndex) V07Divider()
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+        }
+
         Spacer(Modifier.height(80.dp))
     }
 
@@ -211,7 +282,14 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         )
     }
 
-
+    editTransaction?.let { transaction ->
+        V08InvestmentTransactionSheet(
+            vm = vm,
+            transaction = transaction,
+            holdingName = summary.investments.firstOrNull { it.id == transaction.holdingId }?.name ?: "Investment",
+            onDismiss = { editTransaction = null },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -248,7 +326,7 @@ private fun V081HoldingDetailsSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 34.dp)) {
-            Text("Purchase details", fontSize = 28.sp, fontWeight = FontWeight.Medium)
+            Text("First purchase", fontSize = 28.sp, fontWeight = FontWeight.Medium)
             Text(holding.name, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(18.dp))
             OutlinedTextField(
@@ -277,7 +355,7 @@ private fun V081HoldingDetailsSheet(
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                "Date and time stay as purchase metadata. Exact current valuation uses your owned units only when the resolved market quote is EUR; otherwise Folio labels the value as estimated instead of silently mixing currencies.",
+                "This edits the earliest saved purchase for this holding. Exact current valuation uses your total owned units only when the resolved market quote is EUR.",
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -395,6 +473,98 @@ private fun V081HoldingDetailsSheet(
             ) { Text("Remove investment", color = MaterialTheme.colorScheme.error) }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun V08InvestmentTransactionSheet(
+    vm: V07ViewModel,
+    transaction: InvestmentTransaction,
+    holdingName: String,
+    onDismiss: () -> Unit,
+) {
+    var amountText by remember(transaction.id) { mutableStateOf(transaction.amount.toString()) }
+    var unitsText by remember(transaction.id) {
+        mutableStateOf(if (transaction.units > 0.0) v081Units(transaction.units) else "")
+    }
+    var dateText by remember(transaction.id) { mutableStateOf(transaction.date.toString()) }
+    var timeText by remember(transaction.id) {
+        mutableStateOf(transaction.time.withSecond(0).withNano(0).toString())
+    }
+
+    val amount = amountText.v07Double()
+    val units = unitsText.v07Double()
+    val date = runCatching { LocalDate.parse(dateText) }.getOrNull()
+    val time = runCatching { LocalTime.parse(timeText) }.getOrNull()
+    val purchasedAt = if (date != null && time != null) LocalDateTime.of(date, time) else null
+    val valid = amount > 0.0 && units >= 0.0 && purchasedAt != null && !purchasedAt.isAfter(LocalDateTime.now())
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 34.dp)) {
+            Text("Edit purchase", fontSize = 28.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "${holdingName} · ${v08InvestmentSourceLabel(transaction.source)}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                V07NumberField(amountText, "Amount (€)", Modifier.weight(1f)) { amountText = it }
+                V07NumberField(unitsText, "Units bought", Modifier.weight(1f)) { unitsText = it }
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = dateText,
+                onValueChange = { dateText = it.take(10) },
+                label = { Text("Purchase date · YYYY-MM-DD") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = timeText,
+                onValueChange = { timeText = it.take(5) },
+                label = { Text("Purchase time · HH:mm") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(10.dp))
+            Text(
+                if (transaction.source == InvestmentEntrySource.RECURRING) {
+                    "This edits this month's recorded recurring purchase only. The recurring amount/day for future months stays unchanged."
+                } else {
+                    "This corrects the saved purchase history and cost basis. It does not move Available cash again."
+                },
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(18.dp))
+            Button(
+                onClick = {
+                    vm.updateInvestmentTransaction(
+                        id = transaction.id,
+                        amount = amount,
+                        units = units,
+                        purchasedAt = purchasedAt ?: return@Button,
+                    )
+                    onDismiss()
+                },
+                enabled = valid,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(22.dp),
+            ) { Text("Save purchase") }
+        }
+    }
+}
+
+private fun v08InvestmentSourceLabel(source: InvestmentEntrySource): String = when (source) {
+    InvestmentEntrySource.INITIAL -> "Initial purchase"
+    InvestmentEntrySource.MANUAL -> "Manual purchase"
+    InvestmentEntrySource.RECURRING -> "Recurring purchase"
 }
 
 private fun v081Units(value: Double): String =
