@@ -47,10 +47,12 @@ private enum class V08PortfolioGraphMode(val label: String) { VALUE("VALUE"), RE
 @Composable
 internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val summary = vm.summary
-    val total = vm.v081PortfolioTotal
-    val gain = vm.v081PortfolioGain
-    val gainPct = vm.v081PortfolioGainPct
-    val valueHistory = vm.v081PortfolioHistory
+    val valuations = summary.investments.associateWith(vm::v081Valuation)
+    val total = valuations.values.sumOf { it.value }
+    val invested = summary.portfolioCostBasis
+    val gain = total - invested
+    val valueHistory = vm.v081PortfolioHistory(total)
+    val gainPct = v081TimeWeightedReturnPct(valueHistory, summary.investmentTransactions)
     var graphMode by remember { mutableStateOf(V08PortfolioGraphMode.VALUE) }
     var editHolding by remember { mutableStateOf<InvestmentHolding?>(null) }
     var editTransaction by remember { mutableStateOf<InvestmentTransaction?>(null) }
@@ -61,16 +63,11 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             V08PortfolioGraphMode.VALUE -> valueHistory
             V08PortfolioGraphMode.CONTRIBUTIONS ->
                 v081CumulativeMonthlyContributions(summary.investmentTransactions)
-            V08PortfolioGraphMode.RETURN -> valueHistory.map { (date, value) ->
-                val contributed = summary.investmentTransactions
-                    .filter { !it.date.isAfter(date) }
-                    .sumOf { it.amount }
-                date to (value - contributed)
-            }
+            V08PortfolioGraphMode.RETURN ->
+                v081AbsoluteReturnSeries(valueHistory, summary.investmentTransactions)
         }
     }
 
-    val valuations = summary.investments.associateWith(vm::v081Valuation)
     val hasEstimatedHolding = valuations.values.any { !it.exact }
     val graphSemanticTrend = when (graphMode) {
         V08PortfolioGraphMode.VALUE -> gain
@@ -91,7 +88,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         Spacer(Modifier.height(8.dp))
         Text(v07Euro(total), fontSize = 58.sp, lineHeight = 62.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         Text(
-            "${v07SignedEuro(gain)} · ${String.format(Locale.US, "%+.1f%%", gainPct)} since purchase",
+            "${v07SignedEuro(gain)} total return · ${String.format(Locale.US, "%+.1f%%", gainPct)} time-weighted",
             fontSize = 13.sp,
             color = folioChangeColor(gain),
         )
@@ -124,7 +121,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             Text(
                 when (graphMode) {
                     V08PortfolioGraphMode.VALUE -> "Market value across all holdings. Today's endpoint uses exact unit-based values where available."
-                    V08PortfolioGraphMode.RETURN -> "Market value minus contributions recorded by that date. Zero is shown as a baseline."
+                    V08PortfolioGraphMode.RETURN -> "Absolute return in euros: portfolio value minus invested capital. Deposits do not count as performance."
                     V08PortfolioGraphMode.CONTRIBUTIONS -> "Running contributed total by month. September stays visible, then October adds on top."
                 },
                 fontSize = 10.sp,
@@ -143,7 +140,14 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         }
 
         Spacer(Modifier.height(28.dp))
-        V08PortfolioIntelligence(vm)
+        V08PortfolioIntelligence(
+            vm = vm,
+            valuations = valuations,
+            total = total,
+            invested = invested,
+            absoluteReturn = gain,
+            timeWeightedReturnPct = gainPct,
+        )
 
         Spacer(Modifier.height(34.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
