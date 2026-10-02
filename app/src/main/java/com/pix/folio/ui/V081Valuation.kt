@@ -3,7 +3,9 @@ package com.pix.folio.ui
 import android.app.Application
 import com.pix.folio.data.InvestmentTrackingStore
 import com.pix.folio.model.InvestmentHolding
+import com.pix.folio.model.InvestmentTransaction
 import java.time.LocalDate
+import java.time.YearMonth
 
 internal data class V081HoldingValuation(
     val value: Double,
@@ -19,6 +21,37 @@ internal data class V081ValuationDecision(
     val value: Double,
     val exact: Boolean,
 )
+
+internal fun v081MonthlyContributionTotals(
+    transactions: List<InvestmentTransaction>,
+): List<Pair<LocalDate, Double>> =
+    transactions
+        .groupBy { YearMonth.from(it.date) }
+        .toSortedMap()
+        .map { (month, rows) ->
+            val pointDate = rows.maxOfOrNull { it.date } ?: month.atEndOfMonth()
+            pointDate to rows.sumOf { it.amount }
+        }
+
+internal fun v081PurchaseLotValueAt(
+    amount: Double,
+    purchaseDate: LocalDate,
+    date: LocalDate,
+    purchaseClose: Double?,
+    close: Double?,
+): Double {
+    if (date.isBefore(purchaseDate)) return 0.0
+    if (amount <= 0.0) return 0.0
+    return if (
+        purchaseClose != null && purchaseClose > 0.0 &&
+        close != null && close > 0.0
+    ) {
+        amount * close / purchaseClose
+    } else {
+        amount
+    }
+}
+
 
 /** Pure valuation rule kept separate so CI can protect the broker-matching path. */
 internal fun v081CurrentValue(

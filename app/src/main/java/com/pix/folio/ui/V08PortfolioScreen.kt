@@ -59,11 +59,8 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val graphSeries = remember(valueHistory, summary.investmentTransactions, graphMode) {
         when (graphMode) {
             V08PortfolioGraphMode.VALUE -> valueHistory
-            V08PortfolioGraphMode.CONTRIBUTIONS -> valueHistory.map { (date, _) ->
-                date to summary.investmentTransactions
-                    .filter { !it.date.isAfter(date) }
-                    .sumOf { it.amount }
-            }
+            V08PortfolioGraphMode.CONTRIBUTIONS ->
+                v081MonthlyContributionTotals(summary.investmentTransactions)
             V08PortfolioGraphMode.RETURN -> valueHistory.map { (date, value) ->
                 val contributed = summary.investmentTransactions
                     .filter { !it.date.isAfter(date) }
@@ -128,7 +125,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                 when (graphMode) {
                     V08PortfolioGraphMode.VALUE -> "Market value across all holdings. Today's endpoint uses exact unit-based values where available."
                     V08PortfolioGraphMode.RETURN -> "Market value minus contributions recorded by that date. Zero is shown as a baseline."
-                    V08PortfolioGraphMode.CONTRIBUTIONS -> "How much you contributed over time."
+                    V08PortfolioGraphMode.CONTRIBUTIONS -> "Monthly contribution totals. Each point is the sum invested in that month."
                 },
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -235,11 +232,18 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.weight(1f),
                         )
-                        Text(
-                            v07Euro(rows.sumOf { it.amount }),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                "MONTH TOTAL",
+                                fontSize = 9.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                v07Euro(rows.sumOf { it.amount }),
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
                     }
                     Spacer(Modifier.height(6.dp))
                     rows.forEachIndexed { index, transaction ->
