@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,7 +50,6 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
     var graphMode by remember { mutableStateOf(V08PortfolioGraphMode.VALUE) }
     var editHolding by remember { mutableStateOf<InvestmentHolding?>(null) }
     var showAdd by remember { mutableStateOf(false) }
-    var showFullManager by remember { mutableStateOf(false) }
 
     val graphSeries = remember(valueHistory, summary.investmentTransactions, graphMode) {
         when (graphMode) {
@@ -196,12 +194,6 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                 }
         }
 
-        Spacer(Modifier.height(30.dp))
-        OutlinedButton(
-            onClick = { showFullManager = true },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            shape = RoundedCornerShape(22.dp),
-        ) { Text("Open full portfolio manager") }
         Spacer(Modifier.height(80.dp))
     }
 
@@ -211,39 +203,25 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
 
     editHolding?.let { holding ->
         V081HoldingDetailsSheet(
+            vm = vm,
             holding = holding,
             initialTimestamp = vm.purchaseDateTimeFor(holding.id),
             initialUnits = vm.ownedUnitsFor(holding.id),
             onDismiss = { editHolding = null },
-            onSave = { timestamp, units ->
-                vm.setInvestmentPurchaseDateTime(holding.id, timestamp)
-                vm.setInvestmentOwnedUnits(holding.id, units)
-                editHolding = null
-            },
         )
     }
 
-    if (showFullManager) {
-        ModalBottomSheet(onDismissRequest = { showFullManager = false }) {
-            Column(Modifier.fillMaxWidth().heightIn(max = 760.dp)) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Full portfolio manager", fontSize = 20.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { showFullManager = false }) { Text("Done") }
-                }
-                V07PortfolioScreen(vm)
-            }
-        }
-    }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun V081HoldingDetailsSheet(
+    vm: V07ViewModel,
     holding: InvestmentHolding,
     initialTimestamp: LocalDateTime?,
     initialUnits: Double?,
     onDismiss: () -> Unit,
-    onSave: (LocalDateTime, Double?) -> Unit,
 ) {
     val seed = initialTimestamp ?: LocalDateTime.now()
     var dateText by remember(holding.id, initialTimestamp) { mutableStateOf(seed.toLocalDate().toString()) }
@@ -253,6 +231,13 @@ private fun V081HoldingDetailsSheet(
     val time = runCatching { LocalTime.parse(timeText) }.getOrNull()
     val timestamp = if (date != null && time != null) LocalDateTime.of(date, time) else null
     val units = unitsText.v07Double().takeIf { it > 0.0 }
+    val recurring = vm.summary.recurringInvestments.firstOrNull { it.holdingId == holding.id }
+    var recurringAmount by remember(holding.id, recurring?.id) {
+        mutableStateOf(recurring?.amount?.toString().orEmpty())
+    }
+    var recurringDay by remember(holding.id, recurring?.id) {
+        mutableStateOf(recurring?.dayOfMonth?.toString() ?: "1")
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 34.dp)) {
@@ -292,11 +277,58 @@ private fun V081HoldingDetailsSheet(
             )
             Spacer(Modifier.height(18.dp))
             Button(
-                onClick = { onSave(timestamp ?: return@Button, units) },
+                onClick = {
+                    val value = timestamp ?: return@Button
+                    vm.setInvestmentPurchaseDateTime(holding.id, value)
+                    vm.setInvestmentOwnedUnits(holding.id, units)
+                    onDismiss()
+                },
                 enabled = timestamp != null && !timestamp.isAfter(LocalDateTime.now()),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
             ) { Text("Save details") }
+
+            Spacer(Modifier.height(28.dp))
+            Text("Recurring investment", fontSize = 21.sp, fontWeight = FontWeight.Medium)
+            Text(
+                if (recurring == null) "Optional monthly contribution." else "Runs automatically on its due day when cash is available.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                V07NumberField(recurringAmount, "Amount (€)", Modifier.weight(1f)) { recurringAmount = it }
+                V07NumberField(recurringDay, "Day", Modifier.weight(1f)) {
+                    recurringDay = it.filter(Char::isDigit).take(2)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = {
+                    val amount = recurringAmount.v07Double()
+                    val day = recurringDay.toIntOrNull() ?: 1
+                    if (recurring == null) vm.addRecurringInvestment(holding.id, amount, day)
+                    else vm.updateRecurringInvestment(recurring.id, amount, day)
+                },
+                enabled = recurringAmount.v07Double() > 0.0,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(20.dp),
+            ) { Text(if (recurring == null) "Add recurring investment" else "Save recurring investment") }
+            if (recurring != null) {
+                TextButton(
+                    onClick = { vm.removeRecurringInvestment(recurring.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Remove recurring investment", color = MaterialTheme.colorScheme.error) }
+            }
+
+            Spacer(Modifier.height(22.dp))
+            TextButton(
+                onClick = {
+                    vm.removeInvestment(holding.id)
+                    onDismiss()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Remove investment", color = MaterialTheme.colorScheme.error) }
         }
     }
 }
