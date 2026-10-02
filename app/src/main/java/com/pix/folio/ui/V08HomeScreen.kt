@@ -65,7 +65,7 @@ internal fun V08HomeScreen(
             listOf(
                 "CASH" to v07Euro(summary.cashBalance),
                 "SAVINGS" to v07Euro(summary.totalSavings),
-                "INVESTED" to v07Euro(vm.v081PortfolioTotal),
+                "INVESTED" to v07Euro(summary.portfolioCostBasis),
             )
         )
 
