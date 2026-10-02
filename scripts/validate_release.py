@@ -168,8 +168,8 @@ if "`0.9.0.beta`" not in readme or "Net worth / Investments / Cash left" not in 
 if "## [0.9.0.beta] - 2026-10-02" not in changelog:
     raise SystemExit("CHANGELOG is missing v0.9.0.beta")
 
-build_version_match = re.search(r'versionName = ciVersionName \\?: "(\\d+)\\.(\\d+)\\.(\\d+)"', build)
-changelog_version_match = re.search(r"(?m)^## \\[(\\d+)\\.(\\d+)\\.(\\d+)\\.beta\\]", changelog)
+build_version_match = re.search(r'versionName = ciVersionName \?: "(\d+)\.(\d+)\.(\d+)"', build)
+changelog_version_match = re.search(r"(?m)^## \[(\d+)\.(\d+)\.(\d+)\.beta\]", changelog)
 if not build_version_match or not changelog_version_match:
     raise SystemExit("Could not resolve current beta version for versioning validation")
 
@@ -179,14 +179,14 @@ if build_version != changelog_version:
     raise SystemExit(f"Build/changelog version mismatch: build={build_version}, changelog={changelog_version}")
 
 section_match = re.search(
-    r"(?ms)^## \\[%d\\.%d\\.%d\\.beta\\].*?(?=^## \\[|\\Z)" % changelog_version,
+    r"(?ms)^## \[%d\.%d\.%d\.beta\].*?(?=^## \[|\Z)" % changelog_version,
     changelog,
 )
 if not section_match:
     raise SystemExit("Could not read current changelog section for versioning validation")
 
 current_section = section_match.group(0)
-if changelog_version[2] > 0 and re.search(r"(?m)^### Added\\s*$", current_section):
+if changelog_version[2] > 0 and re.search(r"(?m)^### Added\s*$", current_section):
     raise SystemExit(
         "Patch beta releases are fixes/refinements only. Move user-facing additions to the next minor x.(y+1).0.beta release."
     )
