@@ -425,7 +425,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     fun runRecurringNow() {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
-                RecurringMoneyProcessor.process(getApplication())
+                RecurringMoneyProcessor.process(getApplication(), requireAutomationEnabled = false)
             }
             marketRefreshLabel = if (result.totalApplied == 0) {
                 "Recurring items are up to date, not due yet, or waiting for cash"
