@@ -11,7 +11,6 @@ import com.pix.folio.ui.v081CumulativeMonthlyContributions
 import com.pix.folio.ui.v081CurrentValue
 import com.pix.folio.ui.v081PurchaseLotValueAt
 import com.pix.folio.ui.v081ResolvedOwnedUnits
-import com.pix.folio.ui.v081PurchaseLotValueAt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
