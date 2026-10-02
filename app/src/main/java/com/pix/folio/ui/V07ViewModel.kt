@@ -186,7 +186,10 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
                 it.name.equals(name.trim(), true)
         }
         if (holding != null) {
-            trackingStore.setPurchaseDate(holding.id, purchaseDate.coerceAtMost(LocalDate.now()))
+            summary.transactionsFor(holding.id)
+                .minByOrNull { it.purchasedAt }
+                ?.let { trackingStore.setPurchaseDateTime(holding.id, it.purchasedAt) }
+                ?: trackingStore.setPurchaseDate(holding.id, purchaseDate.coerceAtMost(LocalDate.now()))
             refreshTrackedInvestment(holding.id)
         }
     }
