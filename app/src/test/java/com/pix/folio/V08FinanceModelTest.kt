@@ -9,6 +9,7 @@ import com.pix.folio.model.InvestmentTransaction
 import com.pix.folio.model.RecurringIncome
 import com.pix.folio.ui.v081CurrentValue
 import com.pix.folio.ui.v081MonthlyContributionTotals
+import com.pix.folio.ui.v081PurchaseLotValueAt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -229,6 +230,36 @@ class V08FinanceModelTest {
         assertEquals(400.0, totals[0].second, 0.001)
         assertEquals(LocalDate.of(2026, 10, 15), totals[1].first)
         assertEquals(750.0, totals[1].second, 0.001)
+    }
+
+    @Test
+    fun laterPurchaseDoesNotExistBeforeItsPurchaseDate() {
+        assertEquals(
+            0.0,
+            v081PurchaseLotValueAt(
+                amount = 500.0,
+                purchaseDate = LocalDate.of(2026, 10, 2),
+                date = LocalDate.of(2026, 9, 30),
+                purchaseClose = 100.0,
+                close = 98.0,
+            ),
+            0.001,
+        )
+    }
+
+    @Test
+    fun purchaseLotStartsAtItsOwnCostBasis() {
+        assertEquals(
+            500.0,
+            v081PurchaseLotValueAt(
+                amount = 500.0,
+                purchaseDate = LocalDate.of(2026, 10, 2),
+                date = LocalDate.of(2026, 10, 2),
+                purchaseClose = 100.0,
+                close = 100.0,
+            ),
+            0.001,
+        )
     }
 
 }
