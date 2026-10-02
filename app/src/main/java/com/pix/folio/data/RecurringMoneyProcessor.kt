@@ -8,8 +8,8 @@ import java.time.YearMonth
  * Applies due recurring income, fixed payments, investment contributions and monthly savings.
  *
  * Salary keeps its real receive date while FolioStore attributes it to the configured budget
- * month. Outflows are only allowed against income that is actually assigned to that month, so
- * leftover cash from a previous month can never silently fund the next month's plan.
+ * month. Budget attribution is planning/reporting metadata; due recurring transactions use the
+ * actual available cash balance so a hidden planning envelope cannot block them.
  */
 object RecurringMoneyProcessor {
     data class Result(
@@ -21,10 +21,14 @@ object RecurringMoneyProcessor {
         val totalApplied: Int get() = incomes + payments + investments + savings
     }
 
-    fun process(context: Context, today: LocalDate = LocalDate.now()): Result {
+    fun process(
+        context: Context,
+        today: LocalDate = LocalDate.now(),
+        requireAutomationEnabled: Boolean = true,
+    ): Result {
         val appContext = context.applicationContext
         val store = FolioStore(appContext)
-        if (!store.autoRecurringEnabled()) return Result(0, 0, 0, 0)
+        if (requireAutomationEnabled && !store.autoRecurringEnabled()) return Result(0, 0, 0, 0)
 
         val planStore = MonthlyPlanStore(appContext)
         val month = YearMonth.from(today)
