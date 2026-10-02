@@ -164,6 +164,8 @@ for name in [
     "exactEurUnitsUseLatestMarketPrice",
     "nonEurQuoteDoesNotPretendToBeEuroExact",
     "incompleteUnitsStayEstimated",
+    "recurringInvestmentUsesEurQuoteForUnits",
+    "recurringInvestmentDoesNotTreatUsdAsEur",
 ]:
     if name not in tests:
         raise SystemExit(f"Missing finance regression test: {name}")
