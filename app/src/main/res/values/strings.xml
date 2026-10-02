@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Folio</string>
-    <string name="widget_description">A quiet view of your balance and monthly change.</string>
+    <string name="widget_description">A minimal view of net worth, investments, or cash left.</string>
 </resources>
