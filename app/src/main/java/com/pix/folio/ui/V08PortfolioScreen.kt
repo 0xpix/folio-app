@@ -232,6 +232,12 @@ private fun V081HoldingDetailsSheet(
     val timestamp = if (date != null && time != null) LocalDateTime.of(date, time) else null
     val units = unitsText.v07Double().takeIf { it > 0.0 }
     val recurring = vm.summary.recurringInvestments.firstOrNull { it.holdingId == holding.id }
+    var contributionAmount by remember(holding.id) { mutableStateOf("") }
+    var contributionUnits by remember(holding.id) { mutableStateOf("") }
+    val contributionValue = contributionAmount.v07Double()
+    val contributionUnitsValue = contributionUnits.v07Double()
+    val exactUnitsAlreadyTracked = initialUnits != null && initialUnits > 0.0
+
     var recurringAmount by remember(holding.id, recurring?.id) {
         mutableStateOf(recurring?.amount?.toString().orEmpty())
     }
@@ -287,6 +293,61 @@ private fun V081HoldingDetailsSheet(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
             ) { Text("Save details") }
+
+            Spacer(Modifier.height(28.dp))
+            Text("Add contribution now", fontSize = 21.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "Record money you already invested in this holding. This immediately increases Invested and reduces Available cash.",
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                V07NumberField(contributionAmount, "Amount (€)", Modifier.weight(1f)) { contributionAmount = it }
+                V07NumberField(contributionUnits, "Units bought", Modifier.weight(1f)) { contributionUnits = it }
+            }
+            Text(
+                when {
+                    contributionValue > vm.summary.cashBalance + 0.005 ->
+                        "Not enough available cash. You currently have ${v07Euro(vm.summary.cashBalance)}."
+                    exactUnitsAlreadyTracked && contributionUnitsValue <= 0.0 ->
+                        "Enter the units bought so the ETF market value stays in sync with your exact owned units."
+                    else ->
+                        "Recurring investment below only creates a schedule; it does not record a contribution until it runs."
+                },
+                fontSize = 10.sp,
+                lineHeight = 15.sp,
+                color = if (contributionValue > vm.summary.cashBalance + 0.005) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = {
+                    vm.addInvestmentContribution(
+                        holdingId = holding.id,
+                        amount = contributionValue,
+                        units = contributionUnitsValue,
+                    )
+                    contributionAmount = ""
+                    contributionUnits = ""
+                },
+                enabled = contributionValue > 0.0 &&
+                    contributionValue <= vm.summary.cashBalance + 0.005 &&
+                    (!exactUnitsAlreadyTracked || contributionUnitsValue > 0.0),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(22.dp),
+            ) { Text("Add contribution") }
+            vm.investmentActionLabel?.let {
+                Text(
+                    it,
+                    fontSize = 10.sp,
+                    lineHeight = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
 
             Spacer(Modifier.height(28.dp))
             Text("Recurring investment", fontSize = 21.sp, fontWeight = FontWeight.Medium)
