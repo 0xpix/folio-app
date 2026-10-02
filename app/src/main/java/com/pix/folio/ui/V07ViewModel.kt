@@ -206,9 +206,6 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val previousUnits = trackingStore.ownedUnits(holdingId)
-            ?: summary.unitsFor(holdingId).takeIf { it > 0.0 }
-            ?: 0.0
         val resolvedUnitPrice = when {
             unitPrice > 0.0 -> unitPrice
             units > 0.0 -> amount / units
@@ -222,9 +219,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
             unitPrice = resolvedUnitPrice,
             purchasedAt = purchasedAt,
         )
-        if (units > 0.0) {
-            trackingStore.setOwnedUnits(holdingId, previousUnits + units)
-        }
+        trackingStore.clearBrokerOwnedUnits(holdingId)
         refresh()
         refreshTrackedInvestment(holdingId)
     }
