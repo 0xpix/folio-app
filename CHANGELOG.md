@@ -7,6 +7,24 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.8.4.beta] - 2026-10-02
+
+### Added
+- A clear **Add contribution now** action inside each investment holding.
+- Optional **Units bought** input when recording a contribution so ETF/stock owned units can stay synchronized with the brokerage quantity.
+
+### Changed
+- Home **INVESTED** now means money actually contributed (portfolio cost basis), while the Portfolio headline continues to show live/estimated market value.
+- The holding screen explicitly separates a contribution made now from a recurring monthly investment schedule.
+- When exact units are already tracked, Folio asks for the newly bought units before recording a new contribution so the displayed ETF market value does not silently stay stale.
+- Beta version advanced to `v0.8.4.beta`.
+
+### Fixed
+- Fixed adding money to an ETF without increasing the Home **INVESTED** amount.
+- Fixed direct contributions not updating an existing exact owned-unit quantity.
+- Fixed investment contributions being able to exceed Available cash and silently create an inconsistent balance.
+- Clarified that creating a recurring investment rule does not itself record an immediate investment contribution.
+
 ## [0.8.3.beta] - 2026-10-02
 
 ### Added
