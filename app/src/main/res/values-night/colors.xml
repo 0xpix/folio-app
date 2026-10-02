@@ -1,0 +1,5 @@
+<resources>
+    <color name="folio_widget_background">#171717</color>
+    <color name="folio_widget_foreground">#F5F3EE</color>
+    <color name="folio_widget_muted">#AAA69F</color>
+</resources>
