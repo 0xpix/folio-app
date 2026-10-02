@@ -7,6 +7,8 @@ root = Path(__file__).resolve().parents[1]
 required = [
     "app/build.gradle.kts",
     "app/src/main/AndroidManifest.xml",
+    "app/src/main/res/values/colors.xml",
+    "app/src/main/res/values-night/colors.xml",
     "app/src/main/java/com/pix/folio/MainActivity.kt",
     "app/src/main/java/com/pix/folio/ui/FolioApp.kt",
     "app/src/main/java/com/pix/folio/ui/V07ViewModel.kt",
@@ -61,6 +63,12 @@ manifest = root / "app/src/main/AndroidManifest.xml"
 ET.parse(manifest)
 if "android.permission.INTERNET" not in manifest.read_text():
     raise SystemExit("Base app manifest must include INTERNET")
+
+light_colors = (root / "app/src/main/res/values/colors.xml").read_text()
+dark_colors = (root / "app/src/main/res/values-night/colors.xml").read_text()
+for color_name in ["folio_widget_background", "folio_widget_foreground", "folio_widget_muted"]:
+    if color_name not in light_colors or color_name not in dark_colors:
+        raise SystemExit(f"Widget light/dark palette is incomplete: {color_name}")
 
 updater = (root / "app/src/beta/java/com/pix/folio/updates/BetaUpdater.kt").read_text()
 if "0xpix/folio-app/releases" not in updater:
@@ -119,7 +127,7 @@ feature_groups = {
     "unit valuation": ["v081CurrentValue", "ownedUnits", "Units owned (recommended)", "Current units owned"],
     "direct investment contributions": ["Add contribution now", "Units bought", "portfolioCostBasis"],
     "widget metrics": ["NET WORTH", "INVESTMENTS", "CASH LEFT", "actionRunCallback", "widgetValues"],
-    "adaptive widget theme": ["WidgetBackground", "WidgetForeground", "WidgetMuted", "day = Color", "night = Color"],
+    "adaptive widget theme": ["WidgetBackground", "WidgetForeground", "WidgetMuted", "folio_widget_background", "folio_widget_foreground", "folio_widget_muted"],
     "last-page restore": ["folio_navigation_v1", "root_page"],
     "portable backup": ["folio-backup", "Export Folio", "Restore Folio"],
     "backup validation": ["Unsupported Folio backup version", "Backup data is incomplete"],
