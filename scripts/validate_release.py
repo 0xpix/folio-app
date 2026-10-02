@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -45,8 +46,6 @@ build = (root / "app/build.gradle.kts").read_text()
 root_build = (root / "build.gradle.kts").read_text()
 for label, token in {
     "application id": 'applicationId = "com.pix.folio"',
-    "v0.8.5 version": 'versionName = ciVersionName ?: "0.8.5"',
-    "v0.8.5 version code": 'versionCode = ciVersionCode ?: 805',
     "Room runtime": 'androidx.room:room-runtime',
     "Room compiler": 'androidx.room:room-compiler',
     "JUnit": 'junit:junit:4.13.2',
@@ -84,10 +83,10 @@ for token in [
     "NavigationBarItem",
 ]:
     if token not in app:
-        raise SystemExit(f"Missing v0.8.5 app-shell token: {token}")
+        raise SystemExit(f"Missing app-shell token: {token}")
 for forbidden in ["V07BottomBar", "V08PageIndicator", "pagerState.isScrollInProgress"]:
     if forbidden in app:
-        raise SystemExit(f"v0.8.5 must not restore transient pager navigation chrome: {forbidden}")
+        raise SystemExit(f"Folio must not restore transient pager navigation chrome: {forbidden}")
 
 # The app's root content color must come from the active Material color scheme. This protects every
 # unstyled Text/Icon from becoming black-on-black in system dark mode. Finance change colors must be
@@ -120,6 +119,7 @@ feature_groups = {
     "unit valuation": ["v081CurrentValue", "ownedUnits", "Units owned (recommended)", "Current units owned"],
     "direct investment contributions": ["Add contribution now", "Units bought", "portfolioCostBasis"],
     "widget metrics": ["NET WORTH", "INVESTMENTS", "CASH LEFT", "actionRunCallback", "widgetValues"],
+    "adaptive widget theme": ["WidgetBackground", "WidgetForeground", "WidgetMuted", "day = Color", "night = Color"],
     "last-page restore": ["folio_navigation_v1", "root_page"],
     "portable backup": ["folio-backup", "Export Folio", "Restore Folio"],
     "backup validation": ["Unsupported Folio backup version", "Backup data is incomplete"],
@@ -134,7 +134,7 @@ feature_groups = {
 for label, tokens in feature_groups.items():
     missing_tokens = [t for t in tokens if t not in source]
     if missing_tokens:
-        raise SystemExit(f"Missing v0.8.5 feature {label}: {', '.join(missing_tokens)}")
+        raise SystemExit(f"Missing Folio feature {label}: {', '.join(missing_tokens)}")
 
 market = (root / "app/src/main/java/com/pix/folio/data/MarketPriceService.kt").read_text()
 for forbidden in ["knownYahooSymbols", "LU2903252349", "SCWX.DE", 'Folio/0.7.3 Android']:
@@ -162,9 +162,66 @@ for name in [
 
 readme = (root / "README.md").read_text()
 changelog = (root / "CHANGELOG.md").read_text()
-if "`0.8.5.beta`" not in readme or "Net worth / Investments / Cash left" not in readme or "no transient pager dots" not in readme:
-    raise SystemExit("README v0.8.5 documentation is incomplete")
-if "## [0.8.5.beta] - 2026-10-02" not in changelog:
-    raise SystemExit("CHANGELOG is missing v0.8.5.beta")
 
-print("Folio v0.8.5 static validation passed.")
+version_name_match = re.search(r'versionName = ciVersionName \?: "(\d+)\.(\d+)\.(\d+)"', build)
+version_code_match = re.search(r'versionCode = ciVersionCode \?: (\d+)', build)
+if not version_name_match or not version_code_match:
+    raise SystemExit("Unable to resolve the default Folio version from app/build.gradle.kts")
+
+app_version = tuple(int(part) for part in version_name_match.groups())
+app_version_text = ".".join(str(part) for part in app_version)
+version_code = int(version_code_match.group(1))
+expected_code = app_version[0] * 10_000 + app_version[1] * 100 + app_version[2]
+if version_code != expected_code:
+    raise SystemExit(
+        f"Version code {version_code} does not match {app_version_text}; expected {expected_code}"
+    )
+
+heading_pattern = re.compile(
+    r"^## \[(\d+)\.(\d+)\.(\d+)\.beta\] - \d{4}-\d{2}-\d{2}$",
+    re.MULTILINE,
+)
+headings = list(heading_pattern.finditer(changelog))
+if len(headings) < 2:
+    raise SystemExit("CHANGELOG must contain at least two beta release sections")
+
+current = tuple(int(part) for part in headings[0].groups())
+previous = tuple(int(part) for part in headings[1].groups())
+if current != app_version:
+    raise SystemExit(
+        f"App version {app_version_text} does not match latest CHANGELOG beta "
+        f"{current[0]}.{current[1]}.{current[2]}"
+    )
+
+current_body = changelog[headings[0].end():headings[1].start()]
+is_patch = current[0] == previous[0] and current[1] == previous[1]
+is_minor = current[0] == previous[0] and current[1] == previous[1] + 1
+is_major = current[0] == previous[0] + 1
+
+if is_patch:
+    if current[2] != previous[2] + 1:
+        raise SystemExit("Patch beta versions must increment PATCH by exactly one")
+    if re.search(r"^### Added\s*$", current_body, re.MULTILINE):
+        raise SystemExit(
+            "Patch beta releases are fixes/maintenance only; an Added section requires a MINOR bump"
+        )
+elif is_minor:
+    if current[2] != 0:
+        raise SystemExit("MINOR beta releases must reset PATCH to 0")
+elif is_major:
+    if current[1] != 0 or current[2] != 0:
+        raise SystemExit("MAJOR beta releases must reset MINOR and PATCH to 0")
+else:
+    raise SystemExit(
+        f"Invalid beta version transition: {previous} -> {current}. "
+        "Use sequential PATCH, MINOR, or MAJOR increments."
+    )
+
+if f"`{app_version_text}.beta`" not in readme:
+    raise SystemExit(f"README current beta source is not {app_version_text}.beta")
+if "Net worth / Investments / Cash left" not in readme or "no transient pager dots" not in readme:
+    raise SystemExit("README product documentation is incomplete")
+if "PATCH releases are fixes and maintenance only" not in readme:
+    raise SystemExit("README versioning policy is missing")
+
+print(f"Folio v{app_version_text} static validation passed.")
