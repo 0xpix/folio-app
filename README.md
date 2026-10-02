@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.8.5.beta`
+**Current beta source:** `0.9.0.beta`
 
 ## What Folio tracks
 
@@ -26,7 +26,7 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Transaction timeline, monthly comparison, milestones, annual review, and growth projections
 - Automatic market tracking for supported exchange-traded assets plus Steam Community Market support for CS2 assets
 - Optional biometric / device-credential app lock that restores the last root page after unlocking
-- Minimal 3×1 widget with switchable Net worth / Investments / Cash left metrics
+- Minimal 3×1 widget with switchable Net worth / Investments / Cash left metrics and adaptive system light/dark colors
 - Portable local backup and restore
 
 Fresh installs start empty. Folio does not seed demo money or fake chart data.
@@ -100,6 +100,17 @@ The v0.8 line adds two protection layers:
 2. **Room migration safety mirror** — after finance changes, Folio mirrors a complete local snapshot into a Room database while the existing SharedPreferences model remains the beta source of truth.
 
 This staged migration avoids replacing the existing data store in one risky step. The automatic Room mirror is not shown as a user-exported backup; “Last exported backup” only changes when the user explicitly exports a file.
+
+## Versioning
+
+Folio uses `vMAJOR.MINOR.PATCH.beta` for beta releases.
+
+- **PATCH** releases are fixes and maintenance only.
+- **MINOR** releases add user-facing features or meaningful new capabilities and reset patch to `0`.
+- **MAJOR** releases are reserved for incompatible or fundamental product changes.
+- New functionality belongs under **Added** in the changelog; CI rejects an **Added** section on a patch-only bump.
+
+Previously published beta tags are kept intact so existing installs and update history remain valid. This rule is enforced from `v0.9.0.beta` onward.
 
 ## Stack
 
