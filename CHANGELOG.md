@@ -4,21 +4,32 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 - Beta: `vMAJOR.MINOR.PATCH.beta`
 - Stable: `vMAJOR.MINOR.PATCH`
+- **Feature release:** increment MINOR and reset PATCH to 0, e.g. `0.8.5.beta → 0.9.0.beta`
+- **Bug-fix/refinement release:** increment PATCH only, e.g. `0.9.0.beta → 0.9.1.beta`
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
-## [0.8.5.beta] - 2026-10-02
+## [0.9.0.beta] - 2026-10-02
+
+### Added
+- The home-screen widget can switch between **Net worth**, **Investments**, and **Cash left**.
+- Compact up/down controls cycle the widget metric without opening Folio.
 
 ### Changed
-- Simplified the home-screen widget to show one value at a time instead of a combined balance card with chart and monthly-change text.
-- Widget metrics now cycle between **Net worth**, **Investments**, and **Cash left** with compact up/down controls.
-- Widget investment valuation now prefers broker-owned units with the latest EUR market price when available, matching the app's exact-unit path more closely.
-- Beta version advanced to `v0.8.5.beta`.
+- Simplified the widget to one focused value at a time instead of a combined balance card with chart and monthly-change text.
+- Widget investment valuation prefers broker-owned units with the latest EUR market price when available.
+- Beta version advanced to `v0.9.0.beta`.
 
 ### Fixed
 - Fixed widget net worth using the legacy total-balance path that could make investments appear counted twice.
 - Fixed the widget showing a different investment/net-worth calculation from the main app.
 - Removed the legacy widget sparkline/history path that could disagree with current finance state.
+
+## [0.8.5.beta] - 2026-10-02
+
+### Fixed
+- Corrected the widget net-worth double-counting bug found after `v0.8.4.beta`.
+- This patch line is superseded by `v0.9.0.beta`, where the new switchable widget interaction is versioned as a feature release.
 
 ## [0.8.4.beta] - 2026-10-02
 
