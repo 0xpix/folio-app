@@ -253,7 +253,7 @@ private fun V07HoldingSheet(vm: V07ViewModel, holding: InvestmentHolding, onDism
             V07TextField(purchaseDate, "Purchase date · YYYY-MM-DD") { purchaseDate = it.take(10) }
             if (holding.kind != InvestmentKind.CS2) {
                 Spacer(Modifier.height(8.dp))
-                V07NumberField(unitsText, "Current units owned") { unitsText = it }
+                V07NumberField(unitsText, "Current broker units") { unitsText = it }
             }
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
