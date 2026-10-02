@@ -32,6 +32,46 @@ internal fun v081SelectedMarketDate(
     else historyDate ?: storedDate ?: today
 
 
+internal fun v081AbsoluteReturnSeries(
+    valueHistory: List<Pair<LocalDate, Double>>,
+    transactions: List<InvestmentTransaction>,
+): List<Pair<LocalDate, Double>> {
+    val contributionsByDate = transactions
+        .groupBy { it.date }
+        .mapValues { (_, rows) -> rows.sumOf { it.amount } }
+    var contributed = 0.0
+    return valueHistory
+        .sortedBy { it.first }
+        .map { (date, value) ->
+            contributed += contributionsByDate[date] ?: 0.0
+            date to (value - contributed)
+        }
+}
+
+internal fun v081TimeWeightedReturnPct(
+    valueHistory: List<Pair<LocalDate, Double>>,
+    transactions: List<InvestmentTransaction>,
+): Double {
+    val history = valueHistory.sortedBy { it.first }
+    if (history.isEmpty()) return 0.0
+
+    val contributionsByDate = transactions
+        .groupBy { it.date }
+        .mapValues { (_, rows) -> rows.sumOf { it.amount } }
+
+    var factor = 1.0
+    var previousValue = 0.0
+    history.forEachIndexed { index, (date, value) ->
+        val contribution = contributionsByDate[date] ?: 0.0
+        val capitalBeforeReturn = if (index == 0) contribution else previousValue + contribution
+        if (capitalBeforeReturn > 0.0 && value >= 0.0) {
+            factor *= value / capitalBeforeReturn
+        }
+        previousValue = value
+    }
+    return (factor - 1.0) * 100.0
+}
+
 internal fun v081CumulativeMonthlyContributions(
     transactions: List<InvestmentTransaction>,
 ): List<Pair<LocalDate, Double>> {
@@ -170,11 +210,10 @@ internal val V07ViewModel.v081PortfolioGain: Double
     get() = v081PortfolioTotal - summary.portfolioCostBasis
 
 internal val V07ViewModel.v081PortfolioGainPct: Double
-    get() = if (summary.portfolioCostBasis > 0.0) {
-        v081PortfolioGain / summary.portfolioCostBasis * 100.0
-    } else {
-        0.0
-    }
+    get() = v081TimeWeightedReturnPct(
+        valueHistory = v081PortfolioHistory,
+        transactions = summary.investmentTransactions,
+    )
 
 internal val V07ViewModel.v081NetWorth: Double
     get() = summary.cashBalance + summary.totalSavings + v081PortfolioTotal
