@@ -7,6 +7,28 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+Versioning policy:
+- **PATCH** (`0.8.5 → 0.8.6`) is for bug fixes and maintenance only.
+- **MINOR** (`0.8.x → 0.9.0`) is required for new user-facing features or meaningful new capabilities.
+- **MAJOR** is reserved for incompatible or fundamental product changes.
+- New functionality must be documented under **Added**, which CI uses to prevent feature work from shipping as a patch release.
+- Previously published beta tags remain unchanged so update history stays valid; this policy is enforced from `v0.9.0.beta` onward.
+
+## [0.9.0.beta] - 2026-10-02
+
+### Added
+- Adaptive home-screen widget light/dark theming that follows the Android day/night palette instead of snapshotting one theme at render time.
+
+### Changed
+- Folio now follows an explicit beta versioning policy: patch releases are fixes/maintenance only, while user-facing features require a minor-version bump.
+- Widget colors now use Glance day/night color providers so the simplified Net worth / Investments / Cash left widget stays readable in both themes.
+- Beta version advanced to `v0.9.0.beta` because widget theme support is a user-facing feature.
+
+### Fixed
+- Fixed recurring ETF purchases leaving broker-reported exact owned units stale after the recurring contribution was applied.
+- Fixed recurring ETF unit calculation treating a non-EUR market quote as if it were EUR.
+- Undoing a recurring ETF contribution now also reverses the exact-unit adjustment when Folio had applied one.
+
 ## [0.8.5.beta] - 2026-10-02
 
 ### Changed
