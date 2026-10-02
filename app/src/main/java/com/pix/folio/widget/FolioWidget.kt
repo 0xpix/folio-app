@@ -1,7 +1,6 @@
 package com.pix.folio.widget
 
 import android.content.Context
-import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -41,6 +40,19 @@ private val WidgetMoney = NumberFormat.getNumberInstance(Locale.US).apply {
     minimumFractionDigits = 0
     maximumFractionDigits = 0
 }
+
+private val WidgetBackground = ColorProvider(
+    day = Color(0xFFF5F3EE),
+    night = Color(0xFF171717),
+)
+private val WidgetForeground = ColorProvider(
+    day = Color(0xFF111111),
+    night = Color(0xFFF5F3EE),
+)
+private val WidgetMuted = ColorProvider(
+    day = Color(0xFF77746E),
+    night = Color(0xFFAAA69F),
+)
 
 private enum class WidgetMetric(val label: String) {
     NET_WORTH("NET WORTH"),
@@ -115,19 +127,10 @@ class FolioBalanceWidget : GlanceAppWidget() {
             WidgetMetric.CASH_LEFT -> values.cashLeft
         }
 
-        val dark = context.resources.configuration.uiMode and
-            Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-        val background = if (dark) 0xFF171717.toInt() else 0xFFF5F3EE.toInt()
-        val foreground = if (dark) 0xFFF5F3EE.toInt() else 0xFF111111.toInt()
-        val muted = if (dark) 0xFFAAA69F.toInt() else 0xFF77746E.toInt()
-
         provideContent {
             BalanceWidgetContent(
                 label = metric.label,
                 amount = "€${WidgetMoney.format(amount)}",
-                background = background,
-                foreground = foreground,
-                muted = muted,
             )
         }
     }
@@ -137,19 +140,12 @@ class FolioBalanceWidget : GlanceAppWidget() {
 private fun BalanceWidgetContent(
     label: String,
     amount: String,
-    background: Int,
-    foreground: Int,
-    muted: Int,
 ) {
-    val bg = ColorProvider(Color(background))
-    val fg = ColorProvider(Color(foreground))
-    val sub = ColorProvider(Color(muted))
-
     Row(
         modifier = GlanceModifier
             .fillMaxSize()
             .appWidgetBackground()
-            .background(bg)
+            .background(WidgetBackground)
             .cornerRadius(26.dp)
             .padding(horizontal = 20.dp, vertical = 15.dp),
         verticalAlignment = Alignment.Vertical.CenterVertically,
@@ -159,11 +155,11 @@ private fun BalanceWidgetContent(
                 .defaultWeight()
                 .clickable(actionStartActivity<MainActivity>()),
         ) {
-            Text("Folio", style = TextStyle(color = sub, fontSize = 12.sp, fontWeight = FontWeight.Medium))
+            Text("Folio", style = TextStyle(color = WidgetMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium))
             Spacer(GlanceModifier.height(4.dp))
-            Text(label, style = TextStyle(color = sub, fontSize = 10.sp, fontWeight = FontWeight.Medium))
+            Text(label, style = TextStyle(color = WidgetMuted, fontSize = 10.sp, fontWeight = FontWeight.Medium))
             Spacer(GlanceModifier.height(3.dp))
-            Text(amount, style = TextStyle(color = fg, fontSize = 30.sp, fontWeight = FontWeight.Medium))
+            Text(amount, style = TextStyle(color = WidgetForeground, fontSize = 30.sp, fontWeight = FontWeight.Medium))
         }
 
         Spacer(GlanceModifier.width(12.dp))
@@ -174,7 +170,7 @@ private fun BalanceWidgetContent(
                 modifier = GlanceModifier
                     .clickable(actionRunCallback<PreviousWidgetMetricAction>())
                     .padding(horizontal = 10.dp, vertical = 6.dp),
-                style = TextStyle(color = fg, fontSize = 18.sp, fontWeight = FontWeight.Medium),
+                style = TextStyle(color = WidgetForeground, fontSize = 18.sp, fontWeight = FontWeight.Medium),
             )
             Text(
                 "↓",
