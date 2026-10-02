@@ -32,6 +32,11 @@ internal fun v081SelectedMarketDate(
     else historyDate ?: storedDate ?: today
 
 
+internal fun v081AbsoluteReturn(
+    currentValue: Double,
+    investedCapital: Double,
+): Double = currentValue - investedCapital
+
 internal fun v081AbsoluteReturnSeries(
     valueHistory: List<Pair<LocalDate, Double>>,
     transactions: List<InvestmentTransaction>,
@@ -207,7 +212,7 @@ internal val V07ViewModel.v081PortfolioTotal: Double
     get() = summary.investments.sumOf { v081Valuation(it).value }
 
 internal val V07ViewModel.v081PortfolioGain: Double
-    get() = v081PortfolioTotal - summary.portfolioCostBasis
+    get() = v081AbsoluteReturn(v081PortfolioTotal, summary.portfolioCostBasis)
 
 internal val V07ViewModel.v081PortfolioGainPct: Double
     get() = v081TimeWeightedReturnPct(
