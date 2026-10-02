@@ -98,7 +98,7 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
     val historyPoint = history?.points?.lastOrNull()
     val storedPoint = summary.priceHistoryFor(holding.id).lastOrNull()
     val useStoredPoint = storedPoint != null &&
-        (historyPoint == null || !storedPoint.date.isBefore(historyPoint.date))
+        (historyPoint == null || storedPoint.date.isAfter(historyPoint.date))
     val latest = if (useStoredPoint) storedPoint?.close else historyPoint?.close
     val currency = if (useStoredPoint) {
         storedPoint?.currency?.ifBlank { holding.priceCurrency }
