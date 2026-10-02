@@ -9,18 +9,7 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
-## [0.11.1.beta] - 2026-10-02
-
-### Changed
-- Portfolio **CONTRIBUTIONS** now plots each month’s own invested total instead of cumulative contributions sampled from market-history dates.
-- Investment activity month headers now label the calculated value explicitly as **MONTH TOTAL**.
-
-### Fixed
-- Fixed later ETF purchases being backdated into the first invested month in the Portfolio value history.
-- Fixed multi-month portfolio history treating the full current holding cost basis as if it existed from the earliest purchase date.
-- September and October purchases now contribute to the portfolio curve only from their own purchase dates, while each month keeps its own independent contribution sum.
-
-## [0.11.1.beta] - 2026-10-02
+## [0.11.2.beta] - 2026-10-02
 
 ### Changed
 - Portfolio **Contributions** now shows a running cumulative total by month, while each activity card still shows that month’s own total.
@@ -34,6 +23,17 @@ The GitHub release workflow publishes the matching section of this file as the r
 - Fixed stale holding-level owned units overriding the sum of complete per-purchase units.
 - Fixed per-lot value history using transaction units with non-EUR market history.
 - Added regression coverage for cumulative monthly contributions, summed purchase units, and per-lot valuation.
+
+## [0.11.1.beta] - 2026-10-02
+
+### Changed
+- Portfolio **CONTRIBUTIONS** now plots each month’s own invested total instead of cumulative contributions sampled from market-history dates.
+- Investment activity month headers now label the calculated value explicitly as **MONTH TOTAL**.
+
+### Fixed
+- Fixed later ETF purchases being backdated into the first invested month in the Portfolio value history.
+- Fixed multi-month portfolio history treating the full current holding cost basis as if it existed from the earliest purchase date.
+- September and October purchases now contribute to the portfolio curve only from their own purchase dates, while each month keeps its own independent contribution sum.
 
 ## [0.11.0.beta] - 2026-10-02
 
