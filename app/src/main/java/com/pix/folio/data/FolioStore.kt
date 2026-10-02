@@ -435,7 +435,11 @@ class FolioStore(context: Context) {
     }
 
     fun addInvestmentContribution(holdingId: String, amount: Double, units: Double = 0.0, unitPrice: Double = 0.0) {
-        if (amount <= 0.0 || investments().none { it.id == holdingId }) return
+        if (
+            amount <= 0.0 ||
+            investments().none { it.id == holdingId } ||
+            cashBalance() + 0.005 < amount
+        ) return
         captureUndo()
         writeInvestments(investments().map { if (it.id == holdingId) it.copy(amount = it.amount + amount) else it })
         appendInvestmentTransaction(holdingId, amount, InvestmentEntrySource.MANUAL, units = units, unitPrice = unitPrice)
