@@ -122,7 +122,7 @@ feature_groups = {
     "semantic chart visuals": ["semanticTrend", "showZeroLine", "signedValues", "lineColor.copy(alpha = 0.08f)"],
     "spending share bars": ["V07Progress(share / 100.0)"],
     "portfolio modes": ["VALUE", "RETURN", "CONTRIBUTIONS"],
-    "portfolio intelligence": ["Portfolio intelligence", "Largest position", "Market growth", "val marketGrowth = vm.v081PortfolioGain"],
+    "portfolio performance": ["Portfolio performance", "Portfolio value", "Invested", "Total return", "Time-weighted return", "v081AbsoluteReturnSeries", "v081TimeWeightedReturnPct"],
     "purchase timestamp": ["KEY_PURCHASE_DATETIME", "purchaseDateTimeFor", "Purchase time · HH:mm"],
     "unit valuation": ["v081CurrentValue", "brokerOwnedUnits", "KEY_BROKER_OWNED_UNITS", "Current broker units", "Exact from broker units"],
     "direct investment contributions": ["Add contribution now", "Units bought", "portfolioCostBasis"],
@@ -181,6 +181,9 @@ for name in [
     "laterPurchaseDoesNotExistBeforeItsPurchaseDate",
     "purchaseLotStartsAtItsOwnCostBasis",
     "todaysStoredQuoteKeepsTodaysPurchaseInCurrentValue",
+    "depositAloneDoesNotCreatePerformance",
+    "timeWeightedReturnCompoundsAcrossContributionPeriods",
+    "absoluteReturnSubtractsInvestedCapitalNotDepositsFromPerformance",
 ]:
     if name not in tests:
         raise SystemExit(f"Missing finance regression test: {name}")
