@@ -31,6 +31,8 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 
 Fresh installs start empty. Folio does not seed demo money or fake chart data.
 
+> **0.11.3 migration:** older builds mixed user-entered owned units with automatic transaction updates. After upgrading, open each holding that needs exact broker-style valuation and confirm its current **broker units** once. Inferred/legacy units remain estimated until then.
+
 ## Versioning
 
 Folio uses feature-aware beta versioning:
