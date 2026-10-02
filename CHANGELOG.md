@@ -9,6 +9,17 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.11.4.beta] - 2026-10-02
+
+### Changed
+- Portfolio intelligence now uses the same centralized portfolio gain value as the Portfolio header, so the displayed growth amount and sign cannot drift from the headline calculation.
+
+### Fixed
+- Fixed a current-day valuation bug where Folio could use an Oct 2 quote together with an Oct 1 valuation date when daily history had not caught up yet.
+- Fixed purchases made on the current day being counted in **Contributed** but temporarily valued as zero, which could make a positive portfolio appear negative.
+- Fixed today’s Portfolio VALUE endpoint omitting a same-day purchase when the stored quote was newer than the latest historical close.
+- Added regression coverage for the exact case: yesterday’s last history point + today’s stored quote + today’s purchase.
+
 ## [0.11.3.beta] - 2026-10-02
 
 ### Changed
