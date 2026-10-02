@@ -9,6 +9,20 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.10.0.beta] - 2026-10-02
+
+### Added
+- The home-screen widget now follows Android light/dark appearance with dedicated day/night background, foreground, and muted-text colors.
+
+### Changed
+- Widget colors now come from Android configuration-aware resources instead of being snapshotted from the process theme at render time.
+- Beta version advanced to `v0.10.0.beta` because widget theme support is a new user-facing capability.
+
+### Fixed
+- Fixed recurring ETF purchases leaving an existing exact broker-owned unit override stale after the contribution was applied.
+- Fixed recurring ETF purchases calculating units from non-EUR quotes as though the quote were denominated in euros.
+- Undoing a recurring ETF purchase now reverses the exact-unit adjustment when Folio had applied one.
+
 ## [0.9.0.beta] - 2026-10-02
 
 ### Added
