@@ -274,7 +274,7 @@ internal fun V08PortfolioIntelligence(vm: V07ViewModel) {
     val largestShare = largestValue / total * 100.0
     val bestIndex = holdings.indices.maxByOrNull(::returnPct)
     val worstIndex = holdings.indices.minByOrNull(::returnPct)
-    val marketGrowth = total - summary.portfolioCostBasis
+    val marketGrowth = vm.v081PortfolioGain
 
     Column(
         Modifier
