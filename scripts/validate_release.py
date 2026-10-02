@@ -127,6 +127,7 @@ feature_groups = {
     "unit valuation": ["v081CurrentValue", "ownedUnits", "Units owned (recommended)", "Current units owned"],
     "direct investment contributions": ["Add contribution now", "Units bought", "portfolioCostBasis"],
     "investment purchase history": ["Investment activity", "Edit purchase", "Purchase time · HH:mm", "purchasedAt"],
+    "monthly investment totals": ["MONTH TOTAL", "v081MonthlyContributionTotals", "v081PurchaseLotValueAt"],
     "widget metrics": ["NET WORTH", "INVESTMENTS", "CASH LEFT", "actionRunCallback", "widgetValues"],
     "widget theme": ["folio_widget_background", "folio_widget_foreground", "folio_widget_muted", "WidgetBackground", "WidgetForeground", "WidgetMuted"],
     "last-page restore": ["folio_navigation_v1", "root_page"],
@@ -169,6 +170,9 @@ for name in [
     "recurringInvestmentDoesNotTreatUsdAsEur",
     "investmentPurchasesStayInTheirRealMonths",
     "investmentPurchaseKeepsExactDateAndTime",
+    "monthlyContributionTotalsDoNotAccumulateAcrossMonths",
+    "laterPurchaseDoesNotExistBeforeItsPurchaseDate",
+    "purchaseLotStartsAtItsOwnCostBasis",
 ]:
     if name not in tests:
         raise SystemExit(f"Missing finance regression test: {name}")
