@@ -2,29 +2,25 @@ package com.pix.folio.widget
 
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Path
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.Image
-import androidx.glance.ImageProvider
+import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
-import androidx.glance.layout.Box
 import androidx.glance.layout.Column
-import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
@@ -36,11 +32,9 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.pix.folio.MainActivity
-import com.pix.folio.data.FolioStartMonth
 import com.pix.folio.data.FolioStore
-import com.pix.folio.model.ValueSnapshot
+import com.pix.folio.data.InvestmentTrackingStore
 import java.text.NumberFormat
-import java.time.ZoneId
 import java.util.Locale
 
 private val WidgetMoney = NumberFormat.getNumberInstance(Locale.US).apply {
@@ -48,27 +42,92 @@ private val WidgetMoney = NumberFormat.getNumberInstance(Locale.US).apply {
     maximumFractionDigits = 0
 }
 
+private enum class WidgetMetric(val label: String) {
+    NET_WORTH("NET WORTH"),
+    INVESTMENTS("INVESTMENTS"),
+    CASH_LEFT("CASH LEFT");
+
+    fun next(): WidgetMetric = entries[(ordinal + 1) % entries.size]
+    fun previous(): WidgetMetric = entries[(ordinal - 1 + entries.size) % entries.size]
+}
+
+private object WidgetMetricStore {
+    private const val PREFS = "folio_widget_metric_v2"
+    private const val KEY = "metric"
+
+    fun get(context: Context): WidgetMetric {
+        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY, WidgetMetric.NET_WORTH.name)
+        return runCatching { WidgetMetric.valueOf(raw ?: WidgetMetric.NET_WORTH.name) }
+            .getOrDefault(WidgetMetric.NET_WORTH)
+    }
+
+    fun set(context: Context, metric: WidgetMetric) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY, metric.name)
+            .apply()
+    }
+}
+
+private data class WidgetValues(
+    val netWorth: Double,
+    val investments: Double,
+    val cashLeft: Double,
+)
+
+private fun widgetValues(context: Context): WidgetValues {
+    val summary = FolioStore(context).summary()
+    val tracking = InvestmentTrackingStore(context)
+
+    val investments = summary.investments.sumOf { holding ->
+        val brokerUnits = tracking.ownedUnits(holding.id)
+        val latest = summary.priceHistoryFor(holding.id).lastOrNull()
+        val exactEurValue = if (
+            brokerUnits != null &&
+            brokerUnits > 0.0 &&
+            latest != null &&
+            latest.close > 0.0 &&
+            latest.currency.trim().equals("EUR", ignoreCase = true)
+        ) {
+            brokerUnits * latest.close
+        } else {
+            null
+        }
+
+        exactEurValue ?: summary.marketValueFor(holding)
+    }
+
+    return WidgetValues(
+        netWorth = summary.cashBalance + summary.totalSavings + investments,
+        investments = investments,
+        cashLeft = summary.cashBalance,
+    )
+}
+
 class FolioBalanceWidget : GlanceAppWidget() {
-    override suspend fun provideGlance(context: Context, id: androidx.glance.GlanceId) {
-        val summary = FolioStore(context).summary()
-        val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val metric = WidgetMetricStore.get(context)
+        val values = widgetValues(context)
+        val amount = when (metric) {
+            WidgetMetric.NET_WORTH -> values.netWorth
+            WidgetMetric.INVESTMENTS -> values.investments
+            WidgetMetric.CASH_LEFT -> values.cashLeft
+        }
+
+        val dark = context.resources.configuration.uiMode and
+            Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         val background = if (dark) 0xFF171717.toInt() else 0xFFF5F3EE.toInt()
         val foreground = if (dark) 0xFFF5F3EE.toInt() else 0xFF111111.toInt()
         val muted = if (dark) 0xFFAAA69F.toInt() else 0xFF77746E.toInt()
-        val startMillis = FolioStartMonth.atDay(1)
-            .atStartOfDay(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-        val chart = SparklineBitmap.render(context, dark, summary.balanceHistory.filter { it.atMillis >= startMillis })
 
         provideContent {
             BalanceWidgetContent(
-                total = "€${WidgetMoney.format(summary.totalBalance)}",
-                change = (if (summary.monthlyChange >= 0) "+ €" else "− €") + WidgetMoney.format(kotlin.math.abs(summary.monthlyChange)) + " this month",
+                label = metric.label,
+                amount = "€${WidgetMoney.format(amount)}",
                 background = background,
                 foreground = foreground,
                 muted = muted,
-                chart = chart,
             )
         }
     }
@@ -76,12 +135,11 @@ class FolioBalanceWidget : GlanceAppWidget() {
 
 @Composable
 private fun BalanceWidgetContent(
-    total: String,
-    change: String,
+    label: String,
+    amount: String,
     background: Int,
     foreground: Int,
     muted: Int,
-    chart: Bitmap,
 ) {
     val bg = ColorProvider(Color(background))
     val fg = ColorProvider(Color(foreground))
@@ -93,74 +151,56 @@ private fun BalanceWidgetContent(
             .appWidgetBackground()
             .background(bg)
             .cornerRadius(26.dp)
-            .clickable(actionStartActivity<MainActivity>())
             .padding(horizontal = 20.dp, vertical = 15.dp),
         verticalAlignment = Alignment.Vertical.CenterVertically,
     ) {
-        Column(modifier = GlanceModifier.width(125.dp)) {
-            Text("Folio", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Medium))
-            Spacer(GlanceModifier.height(6.dp))
-            Text(total, style = TextStyle(color = fg, fontSize = 28.sp, fontWeight = FontWeight.Medium))
-            Spacer(GlanceModifier.height(3.dp))
-            Text(change, style = TextStyle(color = sub, fontSize = 11.sp))
-        }
-        Spacer(GlanceModifier.width(10.dp))
-        Box(
-            modifier = GlanceModifier.width(90.dp).height(54.dp),
-            contentAlignment = Alignment.Center,
+        Column(
+            modifier = GlanceModifier
+                .defaultWeight()
+                .clickable(actionStartActivity<MainActivity>()),
         ) {
-            Image(
-                provider = ImageProvider(chart),
-                contentDescription = "Balance trend",
-                modifier = GlanceModifier.width(90.dp).height(54.dp),
-                contentScale = ContentScale.Fit,
+            Text("Folio", style = TextStyle(color = sub, fontSize = 12.sp, fontWeight = FontWeight.Medium))
+            Spacer(GlanceModifier.height(4.dp))
+            Text(label, style = TextStyle(color = sub, fontSize = 10.sp, fontWeight = FontWeight.Medium))
+            Spacer(GlanceModifier.height(3.dp))
+            Text(amount, style = TextStyle(color = fg, fontSize = 30.sp, fontWeight = FontWeight.Medium))
+        }
+
+        Spacer(GlanceModifier.width(12.dp))
+
+        Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
+            Text(
+                "↑",
+                modifier = GlanceModifier
+                    .clickable(actionRunCallback<PreviousWidgetMetricAction>())
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                style = TextStyle(color = fg, fontSize = 18.sp, fontWeight = FontWeight.Medium),
+            )
+            Text(
+                "↓",
+                modifier = GlanceModifier
+                    .clickable(actionRunCallback<NextWidgetMetricAction>())
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                style = TextStyle(color = fg, fontSize = 18.sp, fontWeight = FontWeight.Medium),
             )
         }
     }
 }
 
-class FolioBalanceWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget = FolioBalanceWidget()
+class PreviousWidgetMetricAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        WidgetMetricStore.set(context, WidgetMetricStore.get(context).previous())
+        FolioBalanceWidget().update(context, glanceId)
+    }
 }
 
-private object SparklineBitmap {
-    fun render(context: Context, dark: Boolean, history: List<ValueSnapshot>): Bitmap {
-        val density = context.resources.displayMetrics.density
-        val width = (110 * density).toInt().coerceAtLeast(1)
-        val height = (54 * density).toInt().coerceAtLeast(1)
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        if (history.isEmpty()) return bitmap
-
-        val canvas = Canvas(bitmap)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = if (dark) 0xFFF5F3EE.toInt() else 0xFF111111.toInt()
-            style = Paint.Style.STROKE
-            strokeWidth = 1.6f * density
-            strokeCap = Paint.Cap.ROUND
-            strokeJoin = Paint.Join.ROUND
-        }
-        val source = history.takeLast(40).map { it.value }
-        val min = source.minOrNull() ?: return bitmap
-        val max = source.maxOrNull() ?: return bitmap
-        val values = if (max == min) {
-            List(source.size) { .5f }
-        } else {
-            source.map { (((it - min) / (max - min)).toFloat()).coerceIn(.1f, .9f) }
-        }
-
-        if (values.size == 1) {
-            paint.style = Paint.Style.FILL
-            canvas.drawCircle(width * .82f, height * (1f - values.first()), 2.5f * density, paint)
-            return bitmap
-        }
-
-        val path = Path()
-        values.forEachIndexed { index, value ->
-            val x = width * index.toFloat() / (values.size - 1)
-            val y = height * (1f - value)
-            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
-        canvas.drawPath(path, paint)
-        return bitmap
+class NextWidgetMetricAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        WidgetMetricStore.set(context, WidgetMetricStore.get(context).next())
+        FolioBalanceWidget().update(context, glanceId)
     }
+}
+
+class FolioBalanceWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = FolioBalanceWidget()
 }
