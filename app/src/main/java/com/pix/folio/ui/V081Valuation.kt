@@ -143,7 +143,7 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
 
     return V081HoldingValuation(
         value = decision.value,
-        units = units,
+        units = brokerUnits,
         currency = currency,
         exact = decision.exact,
     )
