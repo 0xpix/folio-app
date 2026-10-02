@@ -60,9 +60,6 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     var recurringStatusLabel by mutableStateOf<String?>(null)
         private set
 
-    var investmentActionLabel by mutableStateOf<String?>(null)
-        private set
-
     var marketRefreshing by mutableStateOf(false)
         private set
 
@@ -189,7 +186,6 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         if (amount <= 0.0) return
         if (summary.cashBalance + 0.005 < amount) {
-            investmentActionLabel = "Not enough available cash for this contribution"
             return
         }
 
@@ -208,7 +204,6 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         }
         refresh()
         refreshTrackedInvestment(holdingId)
-        investmentActionLabel = "Added ${v07Euro(amount)} to this investment"
     }
 
     fun addRecurringInvestment(holdingId: String, amount: Double, dayOfMonth: Int) {
