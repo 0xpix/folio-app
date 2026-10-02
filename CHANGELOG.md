@@ -7,6 +7,30 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.8.3.beta] - 2026-10-02
+
+### Added
+- Clear labeled **Home / Money / Portfolio** bottom navigation while keeping horizontal swipe gestures.
+- Inline recurring status on the Money page with simple states such as due now, upcoming, done this month, or waiting for cash.
+- Recurring investment controls directly inside each holding's focused details sheet.
+
+### Changed
+- Money is now one primary screen instead of an overview that opens a second full money manager inside a bottom sheet.
+- Portfolio no longer opens a second full portfolio manager inside another sheet.
+- The main money language is simplified to **Available cash** and **Left to plan**.
+- Salary, bills, savings rules, recurring investments, spending budgets, and expenses are managed directly from Money.
+- Recurring bills, savings, and investments now use actual available cash instead of being silently blocked by an internal assigned-income envelope.
+- Settings and recurring forms use shorter, clearer language.
+- Market-price refresh status and recurring-money status are now separate so unrelated messages do not appear in the wrong section.
+- Beta version advanced to `v0.8.3.beta`.
+
+### Fixed
+- Fixed recurring bills, savings, and investments appearing broken when enough real cash existed but the monthly planning envelope was short.
+- Fixed recurring processing being skipped when a best-effort market-price refresh failed.
+- Fixed **Run now** doing nothing when automatic recurring was disabled.
+- Removed nested manager-on-manager popup flows that made navigation and editing difficult to understand.
+- Updated release validation to protect labeled primary navigation and the simplified money semantics instead of enforcing the previous hidden-navigation wording.
+
 ## [0.8.2.beta] - 2026-09-11
 
 ### Added

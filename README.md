@@ -2,12 +2,12 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.8.2.beta`
+**Current beta source:** `0.8.3.beta`
 
 ## What Folio tracks
 
-- **Spendable now** — liquid money Folio treats as usable today
-- **Unassigned this month** — expected monthly income that has not yet been assigned to bills, investments, spending budgets, or savings
+- **Available cash** — liquid money Folio treats as usable today
+- **Left to plan** — expected monthly income that has not yet been assigned to bills, investments, spending budgets, or savings
 - Net worth across spendable money, savings, and investments
 - Expenses grouped by month and category, including a “Where did my money go?” breakdown
 - Monthly category budgets
@@ -31,13 +31,13 @@ Fresh installs start empty. Folio does not seed demo money or fake chart data.
 
 ## Money model
 
-Folio deliberately separates two different numbers that older betas called “cash” or “available cash” too loosely:
+Folio keeps current money and planning separate:
 
 ```text
-Spendable now
+Available cash
 = liquid money available today
 
-Unassigned this month
+Left to plan
 = expected income for the selected budget month
   - planned bills
   - planned investments
@@ -45,7 +45,7 @@ Unassigned this month
   - planned savings
 ```
 
-They are allowed to be different. **Spendable now** reflects recorded real money movements. **Unassigned this month** is a planning number and intentionally does not treat old leftover money as new monthly income.
+They are allowed to be different. **Available cash** reflects recorded real money movements. **Left to plan** is a planning number, not a second cash balance.
 
 Savings are not spendable, but they still count toward net worth. Investments are tracked separately and also count toward net worth at their tracked market value when available.
 
@@ -73,8 +73,9 @@ when the complete owned-unit quantity is known. Existing holdings can be updated
 
 ## Navigation and visual direction
 
-- horizontal swipe navigation: **Money ← Home → Portfolio**
-- no permanent bottom navigation bar and no transient pager dots
+- visible labeled bottom navigation: **Home / Money / Portfolio**
+- horizontal swipe navigation still works between the three primary pages
+- no transient pager dots
 - last root page is persisted and restored after app lock / process recreation
 - theme-owned foreground/background colors in both system light and dark mode
 - adaptive semantic finance colors: green for positive performance/change, red for negative performance/change, neutral for balances, spending, and contributions

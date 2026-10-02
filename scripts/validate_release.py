@@ -45,8 +45,8 @@ build = (root / "app/build.gradle.kts").read_text()
 root_build = (root / "build.gradle.kts").read_text()
 for label, token in {
     "application id": 'applicationId = "com.pix.folio"',
-    "v0.8.2 version": 'versionName = ciVersionName ?: "0.8.2"',
-    "v0.8.2 version code": 'versionCode = ciVersionCode ?: 802',
+    "v0.8.3 version": 'versionName = ciVersionName ?: "0.8.3"',
+    "v0.8.3 version code": 'versionCode = ciVersionCode ?: 803',
     "Room runtime": 'androidx.room:room-runtime',
     "Room compiler": 'androidx.room:room-compiler',
     "JUnit": 'junit:junit:4.13.2',
@@ -84,10 +84,10 @@ for token in [
     "NavigationBarItem",
 ]:
     if token not in app:
-        raise SystemExit(f"Missing v0.8.2 app-shell token: {token}")
+        raise SystemExit(f"Missing v0.8.3 app-shell token: {token}")
 for forbidden in ["V07BottomBar", "V08PageIndicator", "pagerState.isScrollInProgress"]:
     if forbidden in app:
-        raise SystemExit(f"v0.8.2 must not restore transient pager navigation chrome: {forbidden}")
+        raise SystemExit(f"v0.8.3 must not restore transient pager navigation chrome: {forbidden}")
 
 # The app's root content color must come from the active Material color scheme. This protects every
 # unstyled Text/Icon from becoming black-on-black in system dark mode. Finance change colors must be
@@ -132,7 +132,7 @@ feature_groups = {
 for label, tokens in feature_groups.items():
     missing_tokens = [t for t in tokens if t not in source]
     if missing_tokens:
-        raise SystemExit(f"Missing v0.8.2 feature {label}: {', '.join(missing_tokens)}")
+        raise SystemExit(f"Missing v0.8.3 feature {label}: {', '.join(missing_tokens)}")
 
 market = (root / "app/src/main/java/com/pix/folio/data/MarketPriceService.kt").read_text()
 for forbidden in ["knownYahooSymbols", "LU2903252349", "SCWX.DE", 'Folio/0.7.3 Android']:
@@ -160,9 +160,9 @@ for name in [
 
 readme = (root / "README.md").read_text()
 changelog = (root / "CHANGELOG.md").read_text()
-if "`0.8.2.beta`" not in readme or "no transient pager dots" not in readme:
-    raise SystemExit("README v0.8.2 documentation is incomplete")
-if "## [0.8.2.beta] - 2026-09-11" not in changelog:
-    raise SystemExit("CHANGELOG is missing v0.8.2.beta")
+if "`0.8.3.beta`" not in readme or "visible labeled bottom navigation" not in readme or "no transient pager dots" not in readme:
+    raise SystemExit("README v0.8.3 documentation is incomplete")
+if "## [0.8.3.beta] - 2026-10-02" not in changelog:
+    raise SystemExit("CHANGELOG is missing v0.8.3.beta")
 
-print("Folio v0.8.2 static validation passed.")
+print("Folio v0.8.3 static validation passed.")
