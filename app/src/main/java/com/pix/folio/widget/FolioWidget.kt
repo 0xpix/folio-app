@@ -1,6 +1,7 @@
 package com.pix.folio.widget
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -38,6 +39,7 @@ import androidx.glance.unit.ColorProvider
 import com.pix.folio.MainActivity
 import com.pix.folio.data.FolioStartMonth
 import com.pix.folio.data.FolioStore
+import com.pix.folio.data.InvestmentTrackingStore
 import com.pix.folio.model.ValueSnapshot
 import java.text.NumberFormat
 import java.time.ZoneId
@@ -48,13 +50,35 @@ private val WidgetMoney = NumberFormat.getNumberInstance(Locale.US).apply {
     maximumFractionDigits = 0
 }
 
+private val WidgetBackground = ColorProvider(
+    day = Color(0xFFF5F3EE),
+    night = Color(0xFF171717),
+)
+private val WidgetForeground = ColorProvider(
+    day = Color(0xFF111111),
+    night = Color(0xFFF5F3EE),
+)
+private val WidgetMuted = ColorProvider(
+    day = Color(0xFF77746E),
+    night = Color(0xFFAAA69F),
+)
+
 class FolioBalanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: androidx.glance.GlanceId) {
         val summary = FolioStore(context).summary()
         val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-        val background = if (dark) 0xFF171717.toInt() else 0xFFF5F3EE.toInt()
-        val foreground = if (dark) 0xFFF5F3EE.toInt() else 0xFF111111.toInt()
-        val muted = if (dark) 0xFFAAA69F.toInt() else 0xFF77746E.toInt()
+        val tracking = InvestmentTrackingStore(context)
+        val portfolioValue = summary.investments.sumOf { holding ->
+            val brokerUnits = tracking.ownedUnits(holding.id)
+            val latestPoint = summary.priceHistoryFor(holding.id).lastOrNull()
+            val canUseExactUnits =
+                brokerUnits != null &&
+                    latestPoint != null &&
+                    latestPoint.close > 0.0 &&
+                    latestPoint.currency.trim().equals("EUR", ignoreCase = true)
+            if (canUseExactUnits) brokerUnits!! * latestPoint!!.close else summary.marketValueFor(holding)
+        }
+        val totalBalance = summary.cashBalance + summary.totalSavings + portfolioValue
         val startMillis = FolioStartMonth.atDay(1)
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant()
@@ -63,11 +87,8 @@ class FolioBalanceWidget : GlanceAppWidget() {
 
         provideContent {
             BalanceWidgetContent(
-                total = "€${WidgetMoney.format(summary.totalBalance)}",
+                total = "€${WidgetMoney.format(totalBalance)}",
                 change = (if (summary.monthlyChange >= 0) "+ €" else "− €") + WidgetMoney.format(kotlin.math.abs(summary.monthlyChange)) + " this month",
-                background = background,
-                foreground = foreground,
-                muted = muted,
                 chart = chart,
             )
         }
@@ -78,31 +99,24 @@ class FolioBalanceWidget : GlanceAppWidget() {
 private fun BalanceWidgetContent(
     total: String,
     change: String,
-    background: Int,
-    foreground: Int,
-    muted: Int,
     chart: Bitmap,
 ) {
-    val bg = ColorProvider(Color(background))
-    val fg = ColorProvider(Color(foreground))
-    val sub = ColorProvider(Color(muted))
-
     Row(
         modifier = GlanceModifier
             .fillMaxSize()
             .appWidgetBackground()
-            .background(bg)
+.background(WidgetBackground)
             .cornerRadius(26.dp)
             .clickable(actionStartActivity<MainActivity>())
             .padding(horizontal = 20.dp, vertical = 15.dp),
         verticalAlignment = Alignment.Vertical.CenterVertically,
     ) {
         Column(modifier = GlanceModifier.width(125.dp)) {
-            Text("Folio", style = TextStyle(color = fg, fontSize = 14.sp, fontWeight = FontWeight.Medium))
+            Text("Folio", style = TextStyle(color = WidgetForeground, fontSize = 14.sp, fontWeight = FontWeight.Medium))
             Spacer(GlanceModifier.height(6.dp))
-            Text(total, style = TextStyle(color = fg, fontSize = 28.sp, fontWeight = FontWeight.Medium))
+            Text(total, style = TextStyle(color = WidgetForeground, fontSize = 28.sp, fontWeight = FontWeight.Medium))
             Spacer(GlanceModifier.height(3.dp))
-            Text(change, style = TextStyle(color = sub, fontSize = 11.sp))
+            Text(change, style = TextStyle(color = WidgetMuted, fontSize = 11.sp))
         }
         Spacer(GlanceModifier.width(10.dp))
         Box(
@@ -121,6 +135,13 @@ private fun BalanceWidgetContent(
 
 class FolioBalanceWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = FolioBalanceWidget()
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == Intent.ACTION_CONFIGURATION_CHANGED) {
+            FolioWidgetUpdater.request(context)
+        }
+    }
 }
 
 private object SparklineBitmap {
