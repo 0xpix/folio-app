@@ -60,6 +60,9 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     var recurringStatusLabel by mutableStateOf<String?>(null)
         private set
 
+    var investmentActionLabel by mutableStateOf<String?>(null)
+        private set
+
     var marketRefreshing by mutableStateOf(false)
         private set
 
@@ -184,9 +187,28 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         units: Double = 0.0,
         unitPrice: Double = 0.0,
     ) {
-        store.addInvestmentContribution(holdingId, amount, units, unitPrice)
+        if (amount <= 0.0) return
+        if (summary.cashBalance + 0.005 < amount) {
+            investmentActionLabel = "Not enough available cash for this contribution"
+            return
+        }
+
+        val previousUnits = trackingStore.ownedUnits(holdingId)
+            ?: summary.unitsFor(holdingId).takeIf { it > 0.0 }
+            ?: 0.0
+        val resolvedUnitPrice = when {
+            unitPrice > 0.0 -> unitPrice
+            units > 0.0 -> amount / units
+            else -> 0.0
+        }
+
+        store.addInvestmentContribution(holdingId, amount, units, resolvedUnitPrice)
+        if (units > 0.0) {
+            trackingStore.setOwnedUnits(holdingId, previousUnits + units)
+        }
         refresh()
         refreshTrackedInvestment(holdingId)
+        investmentActionLabel = "Added ${v07Euro(amount)} to this investment"
     }
 
     fun addRecurringInvestment(holdingId: String, amount: Double, dayOfMonth: Int) {
