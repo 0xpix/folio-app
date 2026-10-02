@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -45,8 +46,8 @@ build = (root / "app/build.gradle.kts").read_text()
 root_build = (root / "build.gradle.kts").read_text()
 for label, token in {
     "application id": 'applicationId = "com.pix.folio"',
-    "v0.8.5 version": 'versionName = ciVersionName ?: "0.8.5"',
-    "v0.8.5 version code": 'versionCode = ciVersionCode ?: 805',
+    "v0.9.0 version": 'versionName = ciVersionName ?: "0.9.0"',
+    "v0.9.0 version code": 'versionCode = ciVersionCode ?: 900',
     "Room runtime": 'androidx.room:room-runtime',
     "Room compiler": 'androidx.room:room-compiler',
     "JUnit": 'junit:junit:4.13.2',
@@ -84,10 +85,10 @@ for token in [
     "NavigationBarItem",
 ]:
     if token not in app:
-        raise SystemExit(f"Missing v0.8.5 app-shell token: {token}")
+        raise SystemExit(f"Missing v0.9.0 app-shell token: {token}")
 for forbidden in ["V07BottomBar", "V08PageIndicator", "pagerState.isScrollInProgress"]:
     if forbidden in app:
-        raise SystemExit(f"v0.8.5 must not restore transient pager navigation chrome: {forbidden}")
+        raise SystemExit(f"v0.9.0 must not restore transient pager navigation chrome: {forbidden}")
 
 # The app's root content color must come from the active Material color scheme. This protects every
 # unstyled Text/Icon from becoming black-on-black in system dark mode. Finance change colors must be
@@ -134,7 +135,7 @@ feature_groups = {
 for label, tokens in feature_groups.items():
     missing_tokens = [t for t in tokens if t not in source]
     if missing_tokens:
-        raise SystemExit(f"Missing v0.8.5 feature {label}: {', '.join(missing_tokens)}")
+        raise SystemExit(f"Missing v0.9.0 feature {label}: {', '.join(missing_tokens)}")
 
 market = (root / "app/src/main/java/com/pix/folio/data/MarketPriceService.kt").read_text()
 for forbidden in ["knownYahooSymbols", "LU2903252349", "SCWX.DE", 'Folio/0.7.3 Android']:
@@ -162,9 +163,32 @@ for name in [
 
 readme = (root / "README.md").read_text()
 changelog = (root / "CHANGELOG.md").read_text()
-if "`0.8.5.beta`" not in readme or "Net worth / Investments / Cash left" not in readme or "no transient pager dots" not in readme:
-    raise SystemExit("README v0.8.5 documentation is incomplete")
-if "## [0.8.5.beta] - 2026-10-02" not in changelog:
-    raise SystemExit("CHANGELOG is missing v0.8.5.beta")
+if "`0.9.0.beta`" not in readme or "Net worth / Investments / Cash left" not in readme or "no transient pager dots" not in readme:
+    raise SystemExit("README v0.9.0 documentation is incomplete")
+if "## [0.9.0.beta] - 2026-10-02" not in changelog:
+    raise SystemExit("CHANGELOG is missing v0.9.0.beta")
 
-print("Folio v0.8.5 static validation passed.")
+build_version_match = re.search(r'versionName = ciVersionName \\?: "(\\d+)\\.(\\d+)\\.(\\d+)"', build)
+changelog_version_match = re.search(r"(?m)^## \\[(\\d+)\\.(\\d+)\\.(\\d+)\\.beta\\]", changelog)
+if not build_version_match or not changelog_version_match:
+    raise SystemExit("Could not resolve current beta version for versioning validation")
+
+build_version = tuple(map(int, build_version_match.groups()))
+changelog_version = tuple(map(int, changelog_version_match.groups()))
+if build_version != changelog_version:
+    raise SystemExit(f"Build/changelog version mismatch: build={build_version}, changelog={changelog_version}")
+
+section_match = re.search(
+    r"(?ms)^## \\[%d\\.%d\\.%d\\.beta\\].*?(?=^## \\[|\\Z)" % changelog_version,
+    changelog,
+)
+if not section_match:
+    raise SystemExit("Could not read current changelog section for versioning validation")
+
+current_section = section_match.group(0)
+if changelog_version[2] > 0 and re.search(r"(?m)^### Added\\s*$", current_section):
+    raise SystemExit(
+        "Patch beta releases are fixes/refinements only. Move user-facing additions to the next minor x.(y+1).0.beta release."
+    )
+
+print("Folio v0.9.0 static validation passed.")
