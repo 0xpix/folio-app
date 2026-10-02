@@ -22,6 +22,16 @@ internal data class V081ValuationDecision(
     val exact: Boolean,
 )
 
+internal fun v081SelectedMarketDate(
+    useStoredPoint: Boolean,
+    historyDate: LocalDate?,
+    storedDate: LocalDate?,
+    today: LocalDate = LocalDate.now(),
+): LocalDate =
+    if (useStoredPoint) storedDate ?: historyDate ?: today
+    else historyDate ?: storedDate ?: today
+
+
 internal fun v081CumulativeMonthlyContributions(
     transactions: List<InvestmentTransaction>,
 ): List<Pair<LocalDate, Double>> {
@@ -111,7 +121,11 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
     val transactions = summary.transactionsFor(holding.id)
     val units = v081ResolvedOwnedUnits(brokerUnits, transactions)
 
-    val latestDate = historyPoint?.date ?: storedPoint?.date ?: LocalDate.now()
+    val latestDate = v081SelectedMarketDate(
+        useStoredPoint = useStoredPoint,
+        historyDate = historyPoint?.date,
+        storedDate = storedPoint?.date,
+    )
     val useUnitsForLots = currency == "EUR"
     val lotBasedFallback = if (transactions.isNotEmpty() && latest != null && latest > 0.0) {
         transactions.sumOf { transaction ->
