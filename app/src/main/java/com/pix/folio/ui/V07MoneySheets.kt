@@ -101,12 +101,12 @@ internal fun V07AddIncomeSheet(
     var name by remember(existing?.id) { mutableStateOf(existing?.name ?: "Salary") }
     var amount by remember(existing?.id) { mutableStateOf(existing?.amount?.toString() ?: "2404") }
     var day by remember(existing?.id) { mutableStateOf(existing?.dayOfMonth?.toString() ?: "30") }
-    var nextMonth by remember(existing?.id) { mutableStateOf(existing?.budgetMonthOffset == 1 || existing == null) }
+    var nextMonth by remember(existing?.id) { mutableStateOf(existing?.budgetMonthOffset == 1) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        V07SheetBody(if (existing == null) "Monthly salary" else "Edit monthly salary") {
+        V07SheetBody(if (existing == null) "Recurring income" else "Edit recurring income") {
             Text(
-                "Salary is a recurring funding rule. A late-month salary can belong to the following budget month.",
+                "Folio can record this automatically each month on the day you choose.",
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -119,19 +119,19 @@ internal fun V07AddIncomeSheet(
                 V07NumberField(day, "Pay day", Modifier.weight(1f)) { day = it.filter(Char::isDigit).take(2) }
             }
             Spacer(Modifier.height(16.dp))
-            Text("Which budget month should it fund?", fontSize = 13.sp)
+            Text("Use this income in:", fontSize = 13.sp)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { nextMonth = false }, shape = RoundedCornerShape(20.dp)) {
-                    Text(if (!nextMonth) "• Same month" else "Same month")
+                    Text(if (!nextMonth) "• This month's plan" else "This month's plan")
                 }
                 OutlinedButton(onClick = { nextMonth = true }, shape = RoundedCornerShape(20.dp)) {
-                    Text(if (nextMonth) "• Next month" else "Next month")
+                    Text(if (nextMonth) "• Next month's plan" else "Next month's plan")
                 }
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                if (nextMonth) "Example: salary received September 28–30 funds October." else "Salary funds the month it is received.",
+                if (nextMonth) "Useful when late-month income pays for the following month." else "Use the income in the month it arrives.",
                 fontSize = 11.sp,
                 lineHeight = 17.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -148,16 +148,16 @@ internal fun V07AddIncomeSheet(
                 enabled = name.isNotBlank() && amount.v07Double() > 0.0,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
-            ) { Text(if (existing == null) "Save monthly salary" else "Save changes") }
+            ) { Text(if (existing == null) "Save income" else "Save changes") }
 
             if (existing != null) {
                 Spacer(Modifier.height(8.dp))
                 TextButton(
                     onClick = { vm.removeIncome(existing.id); onDismiss() },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Delete salary rule", color = MaterialTheme.colorScheme.error) }
+                ) { Text("Delete recurring income", color = MaterialTheme.colorScheme.error) }
                 Text(
-                    "Past salary entries remain in history.",
+                    "Past entries remain in history.",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -179,7 +179,7 @@ internal fun V07AddPaymentSheet(
     var day by remember(existing?.id) { mutableStateOf(existing?.dayOfMonth?.toString() ?: "1") }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        V07SheetBody(if (existing == null) "Recurring payment" else "Edit recurring payment") {
+        V07SheetBody(if (existing == null) "Recurring bill" else "Edit recurring bill") {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(PaymentCategory.entries) { item ->
                     OutlinedButton(onClick = { category = item }, shape = RoundedCornerShape(20.dp)) {
@@ -206,7 +206,7 @@ internal fun V07AddPaymentSheet(
                 enabled = name.isNotBlank() && amount.v07Double() > 0.0,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(22.dp),
-            ) { Text(if (existing == null) "Save payment" else "Save changes") }
+            ) { Text(if (existing == null) "Save bill" else "Save changes") }
 
             if (existing != null) {
                 Spacer(Modifier.height(8.dp))
@@ -288,7 +288,7 @@ internal fun V07RecurringSavingSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         V07SheetBody(if (existing == null) "Monthly savings" else "Edit monthly savings") {
             Text(
-                "This is moved from the salary-funded monthly envelope into savings on its due day.",
+                "Folio moves this from available cash into savings on its due day when enough cash is available.",
                 fontSize = 12.sp,
                 lineHeight = 18.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
