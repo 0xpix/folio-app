@@ -28,8 +28,15 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
 
+internal fun recurringInvestmentUnits(amount: Double, latestPoint: InvestmentPricePoint?): Double {
+    if (amount <= 0.0 || latestPoint == null || latestPoint.close <= 0.0) return 0.0
+    if (!latestPoint.currency.trim().equals("EUR", ignoreCase = true)) return 0.0
+    return amount / latestPoint.close
+}
+
 class FolioStore(context: Context) {
-    private val prefs = context.getSharedPreferences("folio_store_v2", Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences("folio_store_v2", Context.MODE_PRIVATE)
 
     private val undoKeys = listOf(
         "cash_balance",
@@ -466,8 +473,12 @@ class FolioStore(context: Context) {
         val tx = investmentTransactions().toMutableList()
         writeRecurringInvestments(current.map { if (it.id == id) it.copy(lastAppliedMonth = if (nextApplied) month else null) else it })
         if (nextApplied) {
-            val latest = investmentPrices().filter { it.holdingId == holding.id }.maxByOrNull { it.date }?.close ?: 0.0
-            val units = if (latest > 0.0) row.amount / latest else 0.0
+            val latestPoint = investmentPrices()
+                .filter { it.holdingId == holding.id }
+                .maxByOrNull { it.date }
+            val latest = latestPoint?.close ?: 0.0
+            val units = recurringInvestmentUnits(row.amount, latestPoint)
+
             writeInvestments(investments().map { if (it.id == holding.id) it.copy(amount = it.amount + row.amount) else it })
             if (tx.none { it.referenceId == marker }) {
                 tx += InvestmentTransaction(
@@ -475,9 +486,23 @@ class FolioStore(context: Context) {
                     InvestmentEntrySource.RECURRING, marker, units, latest
                 )
             }
+
+            if (units > 0.0) {
+                val tracking = InvestmentTrackingStore(appContext)
+                tracking.ownedUnits(holding.id)?.let { currentUnits ->
+                    tracking.setOwnedUnits(holding.id, currentUnits + units)
+                }
+            }
             setCashBalanceInternal((cashBalance() - row.amount).coerceAtLeast(0.0))
         } else {
             writeInvestments(investments().map { if (it.id == holding.id) it.copy(amount = (it.amount - row.amount).coerceAtLeast(0.0)) else it })
+            val applied = tx.firstOrNull { it.referenceId == marker }
+            if (applied != null && applied.units > 0.0) {
+                val tracking = InvestmentTrackingStore(appContext)
+                tracking.ownedUnits(holding.id)?.let { currentUnits ->
+                    tracking.setOwnedUnits(holding.id, (currentUnits - applied.units).takeIf { it > 0.0 })
+                }
+            }
             tx.removeAll { it.referenceId == marker }
             setCashBalanceInternal(cashBalance() + row.amount)
         }
