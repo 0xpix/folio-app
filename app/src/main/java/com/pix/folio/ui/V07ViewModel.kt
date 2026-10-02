@@ -418,11 +418,13 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
                                 !it.date.isAfter(transaction.date) && it.close > 0.0
                             }
 
-                            if (point != null && purchasePoint != null && purchasePoint.close > 0.0) {
-                                transaction.amount * point.close / purchasePoint.close
-                            } else {
-                                transaction.amount
-                            }
+                            v081PurchaseLotValueAt(
+                                amount = transaction.amount,
+                                purchaseDate = transaction.date,
+                                date = date,
+                                purchaseClose = purchasePoint?.close,
+                                close = point?.close,
+                            )
                         }
                     }
                 }
