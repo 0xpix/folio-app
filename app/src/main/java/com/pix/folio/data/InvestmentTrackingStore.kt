@@ -38,29 +38,43 @@ class InvestmentTrackingStore(context: Context) {
     }
 
     /**
-     * Optional current total units copied from the brokerage. This is used only when positive and
-     * lets Folio calculate an exact current value for EUR-denominated quotes.
+     * Explicit current total units copied from the brokerage by the user.
+     *
+     * Older Folio builds reused KEY_OWNED_UNITS for both user-entered totals and automatic
+     * transaction updates, so that legacy value is intentionally not trusted as an exact broker
+     * snapshot. v2 uses a separate key that only the "Current units owned" editor writes.
      */
-    fun ownedUnits(holdingId: String): Double? =
-        prefs.getString(key(KEY_OWNED_UNITS, holdingId), null)
+    fun brokerOwnedUnits(holdingId: String): Double? =
+        prefs.getString(key(KEY_BROKER_OWNED_UNITS, holdingId), null)
             ?.toDoubleOrNull()
             ?.takeIf { it > 0.0 && it.isFinite() }
 
-    fun setOwnedUnits(holdingId: String, units: Double?) {
+    fun setBrokerOwnedUnits(holdingId: String, units: Double?) {
         val editor = prefs.edit()
         if (units != null && units > 0.0 && units.isFinite()) {
-            editor.putString(key(KEY_OWNED_UNITS, holdingId), units.toString())
+            editor.putString(key(KEY_BROKER_OWNED_UNITS, holdingId), units.toString())
         } else {
-            editor.remove(key(KEY_OWNED_UNITS, holdingId))
+            editor.remove(key(KEY_BROKER_OWNED_UNITS, holdingId))
         }
         editor.apply()
     }
+
+    fun clearBrokerOwnedUnits(holdingId: String) {
+        prefs.edit().remove(key(KEY_BROKER_OWNED_UNITS, holdingId)).apply()
+    }
+
+    /** Legacy pre-v2 value kept only for migration/debug visibility; never treat it as exact. */
+    fun legacyOwnedUnits(holdingId: String): Double? =
+        prefs.getString(key(KEY_OWNED_UNITS, holdingId), null)
+            ?.toDoubleOrNull()
+            ?.takeIf { it > 0.0 && it.isFinite() }
 
     fun clearPurchaseDate(holdingId: String) {
         prefs.edit()
             .remove(key(KEY_PURCHASE_DATE, holdingId))
             .remove(key(KEY_PURCHASE_DATETIME, holdingId))
             .remove(key(KEY_OWNED_UNITS, holdingId))
+            .remove(key(KEY_BROKER_OWNED_UNITS, holdingId))
             .apply()
     }
 
@@ -71,5 +85,6 @@ class InvestmentTrackingStore(context: Context) {
         const val KEY_PURCHASE_DATE = "purchase_date"
         const val KEY_PURCHASE_DATETIME = "purchase_datetime"
         const val KEY_OWNED_UNITS = "owned_units"
+        const val KEY_BROKER_OWNED_UNITS = "broker_owned_units_v2"
     }
 }
