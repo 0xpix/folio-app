@@ -112,7 +112,29 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
     val transactions = summary.transactionsFor(holding.id)
     val completeTransactionUnits = transactions.isNotEmpty() && transactions.all { it.units > 0.0 }
     val units = v081ResolvedOwnedUnits(brokerUnits, transactions)
-    val fallbackValue = trackedMarketValue(holding)
+
+    val latestDate = historyPoint?.date ?: storedPoint?.date ?: LocalDate.now()
+    val useUnitsForLots = currency == "EUR"
+    val lotBasedFallback = if (transactions.isNotEmpty() && latest != null && latest > 0.0) {
+        transactions.sumOf { transaction ->
+            val purchasePoint = history?.points?.firstOrNull {
+                !it.date.isBefore(transaction.date) && it.close > 0.0
+            } ?: history?.points?.lastOrNull {
+                !it.date.isAfter(transaction.date) && it.close > 0.0
+            }
+            v081PurchaseLotValueAt(
+                amount = transaction.amount,
+                units = if (useUnitsForLots) transaction.units else 0.0,
+                purchaseDate = transaction.date,
+                date = latestDate,
+                purchaseClose = purchasePoint?.close,
+                close = latest,
+            )
+        }
+    } else {
+        null
+    }
+    val fallbackValue = lotBasedFallback ?: trackedMarketValue(holding)
     val decision = v081CurrentValue(
         fallbackValue = fallbackValue,
         units = units,
