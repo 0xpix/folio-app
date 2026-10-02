@@ -7,9 +7,10 @@ import com.pix.folio.model.InvestmentEntrySource
 import com.pix.folio.model.InvestmentPricePoint
 import com.pix.folio.model.InvestmentTransaction
 import com.pix.folio.model.RecurringIncome
+import com.pix.folio.ui.v081CumulativeMonthlyContributions
 import com.pix.folio.ui.v081CurrentValue
-import com.pix.folio.ui.v081MonthlyContributionTotals
 import com.pix.folio.ui.v081PurchaseLotValueAt
+import com.pix.folio.ui.v081ResolvedOwnedUnits
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -198,46 +199,12 @@ class V08FinanceModelTest {
     }
 
     @Test
-    fun monthlyContributionTotalsDoNotAccumulateAcrossMonths() {
-        val transactions = listOf(
-            InvestmentTransaction(
-                id = "sep",
-                holdingId = "etf",
-                amount = 400.0,
-                date = LocalDate.of(2026, 9, 18),
-                time = LocalTime.of(9, 35),
-            ),
-            InvestmentTransaction(
-                id = "oct-a",
-                holdingId = "etf",
-                amount = 500.0,
-                date = LocalDate.of(2026, 10, 2),
-                time = LocalTime.of(16, 42),
-            ),
-            InvestmentTransaction(
-                id = "oct-b",
-                holdingId = "etf",
-                amount = 250.0,
-                date = LocalDate.of(2026, 10, 15),
-                time = LocalTime.of(10, 5),
-            ),
-        )
-
-        val totals = v081MonthlyContributionTotals(transactions)
-
-        assertEquals(2, totals.size)
-        assertEquals(LocalDate.of(2026, 9, 18), totals[0].first)
-        assertEquals(400.0, totals[0].second, 0.001)
-        assertEquals(LocalDate.of(2026, 10, 15), totals[1].first)
-        assertEquals(750.0, totals[1].second, 0.001)
-    }
-
-    @Test
     fun laterPurchaseDoesNotExistBeforeItsPurchaseDate() {
         assertEquals(
             0.0,
             v081PurchaseLotValueAt(
                 amount = 500.0,
+                units = 0.0,
                 purchaseDate = LocalDate.of(2026, 10, 2),
                 date = LocalDate.of(2026, 9, 30),
                 purchaseClose = 100.0,
@@ -253,10 +220,75 @@ class V08FinanceModelTest {
             500.0,
             v081PurchaseLotValueAt(
                 amount = 500.0,
+                units = 0.0,
                 purchaseDate = LocalDate.of(2026, 10, 2),
                 date = LocalDate.of(2026, 10, 2),
                 purchaseClose = 100.0,
                 close = 100.0,
+            ),
+            0.001,
+        )
+    }
+
+    @Test
+    fun cumulativeContributionsAddEachMonthOnTop() {
+        val september = InvestmentTransaction(
+            id = "sep",
+            holdingId = "etf",
+            amount = 1_000.0,
+            date = LocalDate.of(2026, 9, 18),
+            units = 8.0,
+        )
+        val october = InvestmentTransaction(
+            id = "oct",
+            holdingId = "etf",
+            amount = 1_200.0,
+            date = LocalDate.of(2026, 10, 1),
+            units = 10.0,
+        )
+
+        val series = v081CumulativeMonthlyContributions(listOf(september, october))
+
+        assertEquals(2, series.size)
+        assertEquals(1_000.0, series[0].second, 0.001)
+        assertEquals(2_200.0, series[1].second, 0.001)
+    }
+
+    @Test
+    fun completePurchaseUnitsBeatStaleBrokerOverride() {
+        val september = InvestmentTransaction(
+            id = "sep",
+            holdingId = "etf",
+            amount = 1_000.0,
+            date = LocalDate.of(2026, 9, 18),
+            units = 8.0,
+        )
+        val october = InvestmentTransaction(
+            id = "oct",
+            holdingId = "etf",
+            amount = 1_200.0,
+            date = LocalDate.of(2026, 10, 1),
+            units = 10.0,
+        )
+
+        assertEquals(
+            18.0,
+            v081ResolvedOwnedUnits(10.0, listOf(september, october)) ?: 0.0,
+            0.001,
+        )
+    }
+
+    @Test
+    fun purchaseLotUsesItsOwnUnitsAtMarketPrice() {
+        assertEquals(
+            1_172.8,
+            v081PurchaseLotValueAt(
+                amount = 1_100.0,
+                units = 10.0,
+                purchaseDate = LocalDate.of(2026, 9, 18),
+                date = LocalDate.of(2026, 10, 2),
+                purchaseClose = 110.0,
+                close = 117.28,
             ),
             0.001,
         )

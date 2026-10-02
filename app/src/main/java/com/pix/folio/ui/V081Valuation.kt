@@ -22,25 +22,30 @@ internal data class V081ValuationDecision(
     val exact: Boolean,
 )
 
-internal fun v081MonthlyContributionTotals(
+internal fun v081CumulativeMonthlyContributions(
     transactions: List<InvestmentTransaction>,
-): List<Pair<LocalDate, Double>> =
-    transactions
+): List<Pair<LocalDate, Double>> {
+    var cumulative = 0.0
+    return transactions
         .groupBy { YearMonth.from(it.date) }
         .toSortedMap()
         .map { (month, rows) ->
+            cumulative += rows.sumOf { it.amount }
             val pointDate = rows.maxOfOrNull { it.date } ?: month.atEndOfMonth()
-            pointDate to rows.sumOf { it.amount }
+            pointDate to cumulative
         }
+}
 
 internal fun v081PurchaseLotValueAt(
     amount: Double,
+    units: Double,
     purchaseDate: LocalDate,
     date: LocalDate,
     purchaseClose: Double?,
     close: Double?,
 ): Double {
     if (date.isBefore(purchaseDate)) return 0.0
+    if (units > 0.0 && close != null && close > 0.0) return units * close
     if (amount <= 0.0) return 0.0
     return if (
         purchaseClose != null && purchaseClose > 0.0 &&
@@ -50,6 +55,15 @@ internal fun v081PurchaseLotValueAt(
     } else {
         amount
     }
+}
+
+internal fun v081ResolvedOwnedUnits(
+    brokerUnits: Double?,
+    transactions: List<InvestmentTransaction>,
+): Double? {
+    val completeTransactions = transactions.isNotEmpty() && transactions.all { it.units > 0.0 }
+    val transactionUnits = transactions.sumOf { it.units.coerceAtLeast(0.0) }.takeIf { it > 0.0 }
+    return if (completeTransactions) transactionUnits else brokerUnits ?: transactionUnits
 }
 
 
@@ -96,16 +110,37 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
     val tracking = InvestmentTrackingStore(getApplication<Application>())
     val brokerUnits = tracking.ownedUnits(holding.id)
     val transactions = summary.transactionsFor(holding.id)
-    val transactionUnits = transactions.sumOf { it.units.coerceAtLeast(0.0) }.takeIf { it > 0.0 }
     val completeTransactionUnits = transactions.isNotEmpty() && transactions.all { it.units > 0.0 }
-    val units = brokerUnits ?: transactionUnits
-    val fallbackValue = trackedMarketValue(holding)
+    val units = v081ResolvedOwnedUnits(brokerUnits, transactions)
+
+    val latestDate = historyPoint?.date ?: storedPoint?.date ?: LocalDate.now()
+    val useUnitsForLots = currency == "EUR"
+    val lotBasedFallback = if (transactions.isNotEmpty() && latest != null && latest > 0.0) {
+        transactions.sumOf { transaction ->
+            val purchasePoint = history?.points?.firstOrNull {
+                !it.date.isBefore(transaction.date) && it.close > 0.0
+            } ?: history?.points?.lastOrNull {
+                !it.date.isAfter(transaction.date) && it.close > 0.0
+            }
+            v081PurchaseLotValueAt(
+                amount = transaction.amount,
+                units = if (useUnitsForLots) transaction.units else 0.0,
+                purchaseDate = transaction.date,
+                date = latestDate,
+                purchaseClose = purchasePoint?.close,
+                close = latest,
+            )
+        }
+    } else {
+        null
+    }
+    val fallbackValue = lotBasedFallback ?: trackedMarketValue(holding)
     val decision = v081CurrentValue(
         fallbackValue = fallbackValue,
         units = units,
         latestPrice = latest,
         quoteCurrency = currency,
-        unitsAreComplete = brokerUnits != null || completeTransactionUnits,
+        unitsAreComplete = completeTransactionUnits || (brokerUnits != null && brokerUnits > 0.0),
     )
 
     return V081HoldingValuation(

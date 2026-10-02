@@ -60,7 +60,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         when (graphMode) {
             V08PortfolioGraphMode.VALUE -> valueHistory
             V08PortfolioGraphMode.CONTRIBUTIONS ->
-                v081MonthlyContributionTotals(summary.investmentTransactions)
+                v081CumulativeMonthlyContributions(summary.investmentTransactions)
             V08PortfolioGraphMode.RETURN -> valueHistory.map { (date, value) ->
                 val contributed = summary.investmentTransactions
                     .filter { !it.date.isAfter(date) }
@@ -125,7 +125,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                 when (graphMode) {
                     V08PortfolioGraphMode.VALUE -> "Market value across all holdings. Today's endpoint uses exact unit-based values where available."
                     V08PortfolioGraphMode.RETURN -> "Market value minus contributions recorded by that date. Zero is shown as a baseline."
-                    V08PortfolioGraphMode.CONTRIBUTIONS -> "Monthly contribution totals. Each point is the sum invested in that month."
+                    V08PortfolioGraphMode.CONTRIBUTIONS -> "Running contributed total by month. September stays visible, then October adds on top."
                 },
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -212,6 +212,16 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             .groupBy { YearMonth.from(it.date) }
             .toList()
             .sortedByDescending { it.first }
+        val cumulativeByMonth = buildMap<YearMonth, Double> {
+            var running = 0.0
+            summary.investmentTransactions
+                .groupBy { YearMonth.from(it.date) }
+                .toSortedMap()
+                .forEach { (month, rows) ->
+                    running += rows.sumOf { it.amount }
+                    put(month, running)
+                }
+        }
 
         if (activityByMonth.isEmpty()) {
             V07Panel {
@@ -242,6 +252,11 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                                 v07Euro(rows.sumOf { it.amount }),
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                "Cumulative ${v07Euro(cumulativeByMonth[month] ?: 0.0)}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

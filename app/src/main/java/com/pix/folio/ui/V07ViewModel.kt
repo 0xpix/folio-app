@@ -420,6 +420,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
 
                             v081PurchaseLotValueAt(
                                 amount = transaction.amount,
+                                units = if (history?.currency.equals("EUR", ignoreCase = true)) transaction.units else 0.0,
                                 purchaseDate = transaction.date,
                                 date = date,
                                 purchaseClose = purchasePoint?.close,
