@@ -142,7 +142,7 @@ internal fun V08MoneyScreen(vm: V07ViewModel) {
             }
             TextButton(onClick = vm::runRecurringNow) { Text("Run now") }
         }
-        vm.marketRefreshLabel?.let {
+        vm.recurringStatusLabel?.let {
             Text(it, fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
