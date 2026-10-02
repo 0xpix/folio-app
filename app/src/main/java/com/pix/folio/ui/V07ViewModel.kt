@@ -315,7 +315,19 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setInvestmentPurchaseDate(id: String, date: LocalDate) {
-        trackingStore.setPurchaseDate(id, date.coerceAtMost(LocalDate.now()))
+        val safeDate = date.coerceAtMost(LocalDate.now())
+        val firstPurchase = summary.transactionsFor(id).minByOrNull { it.purchasedAt }
+        if (firstPurchase != null) {
+            store.updateInvestmentTransaction(
+                id = firstPurchase.id,
+                amount = firstPurchase.amount,
+                units = firstPurchase.units,
+                purchasedAt = LocalDateTime.of(safeDate, firstPurchase.time),
+            )
+            refresh()
+        } else {
+            trackingStore.setPurchaseDate(id, safeDate)
+        }
         refreshTrackedInvestment(id)
     }
 
