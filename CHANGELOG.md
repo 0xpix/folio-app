@@ -20,6 +20,21 @@ The GitHub release workflow publishes the matching section of this file as the r
 - Fixed multi-month portfolio history treating the full current holding cost basis as if it existed from the earliest purchase date.
 - September and October purchases now contribute to the portfolio curve only from their own purchase dates, while each month keeps its own independent contribution sum.
 
+## [0.11.1.beta] - 2026-10-02
+
+### Changed
+- Portfolio **Contributions** now shows a running cumulative total by month, while each activity card still shows that month’s own total.
+- Investment activity month headers now show both **MONTH TOTAL** and the cumulative contributed amount through that month.
+- Portfolio value history is reconstructed from individual purchase lots instead of treating the full holding cost basis as if it existed from the first purchase date.
+
+### Fixed
+- Fixed September + October purchases collapsing into one incorrect portfolio curve.
+- Fixed later-month contributions being backdated into the first invested month on the VALUE graph.
+- Fixed estimated portfolio value applying the first purchase’s price ratio to the entire multi-month cost basis.
+- Fixed stale holding-level owned units overriding the sum of complete per-purchase units.
+- Fixed per-lot value history using transaction units with non-EUR market history.
+- Added regression coverage for cumulative monthly contributions, summed purchase units, and per-lot valuation.
+
 ## [0.11.0.beta] - 2026-10-02
 
 ### Added
