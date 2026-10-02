@@ -33,6 +33,25 @@ internal fun v081MonthlyContributionTotals(
             pointDate to rows.sumOf { it.amount }
         }
 
+internal fun v081PurchaseLotValueAt(
+    amount: Double,
+    purchaseDate: LocalDate,
+    date: LocalDate,
+    purchaseClose: Double?,
+    close: Double?,
+): Double {
+    if (date.isBefore(purchaseDate)) return 0.0
+    if (amount <= 0.0) return 0.0
+    return if (
+        purchaseClose != null && purchaseClose > 0.0 &&
+        close != null && close > 0.0
+    ) {
+        amount * close / purchaseClose
+    } else {
+        amount
+    }
+}
+
 
 /** Pure valuation rule kept separate so CI can protect the broker-matching path. */
 internal fun v081CurrentValue(
