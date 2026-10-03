@@ -280,6 +280,8 @@ for name in [
     "timeWeightedReturnCompoundsAcrossContributionPeriods",
     "absoluteReturnSubtractsInvestedCapitalNotDepositsFromPerformance",
     "brokerStyleAbsoluteReturnUsesCurrentValueMinusInvestedCapital",
+    "scalableInvestmentValueExcludesBrokerCash",
+    "scalablePrimaryReturnPrefersAllTimeStyleFrame",
 ]:
     if name not in tests:
         raise SystemExit(f"Missing finance regression test: {name}")
