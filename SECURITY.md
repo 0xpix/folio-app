@@ -33,18 +33,19 @@ sc login --local-read-only
 
 Scalable documents `--local-read-only` as a **local CLI write guard**; it does not reduce the
 backend token's permissions. Folio therefore does not rely on that flag alone: the included helper
-has no generic command interface and can execute only the two fixed read commands listed below.
+has no generic command interface and can execute only the three fixed read commands listed below.
 
 The helper in `tools/scalable_snapshot.py` executes only these fixed read commands:
 
 ```text
 sc broker overview --json
 sc broker holdings --json
+sc broker cash-breakdown --json
 ```
 
 It uses `subprocess.run([...], shell=False)`. It never executes `sc login`, trade commands, savings-plan mutations, watchlist mutations, or arbitrary user-supplied broker commands.
 
-The helper removes account/portfolio identifiers and writes only the minimum fields Folio needs: broker valuation, read-only performance values, ISIN/name, quantity, holding valuation and quote metadata.
+The helper removes account/portfolio identifiers and writes only the minimum fields Folio needs: broker valuation, broker cash balance, read-only performance values, ISIN/name, quantity, holding valuation and quote metadata.
 
 ## Scalable snapshot handling
 
@@ -72,7 +73,7 @@ Folio still uses network access for existing non-Scalable features such as marke
 
 ## Scalable source of truth
 
-When a valid Scalable snapshot is active, Scalable's broker-reported portfolio and holding valuations are authoritative in the Portfolio screen and investment widget. Folio's Yahoo/OpenFIGI estimates are used only when no Scalable snapshot is active.
+When a valid Scalable snapshot is active, the Portfolio screen is Scalable-only: it uses only broker-returned holdings, broker cash, broker return and broker timestamps. Folio's local holdings, Yahoo/OpenFIGI estimates, local cost basis and purchase history do not participate in the connected Portfolio value.
 
 ## Public repository safety
 
