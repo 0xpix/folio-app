@@ -256,12 +256,12 @@ internal fun V07MoneyScreen(vm: V07ViewModel) {
             }
             TextButton(onClick = { showBudget = true }) { Text("+ Add") }
         }
-        val budgetRows = ExpenseCategory.entries.filter { summary.budgetFor(it) != null }
+        val budgetRows = ExpenseCategory.selectableEntries.filter { summary.budgetFor(it) != null }
         if (budgetRows.isEmpty()) {
             V07Panel(onClick = { showBudget = true }) {
                 Text("Add a spending budget", fontSize = 17.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(5.dp))
-                Text("For your plan, Food can be €300/month.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("For your plan, Groceries can be €300/month.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             budgetRows.forEachIndexed { index, category ->
