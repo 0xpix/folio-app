@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.12.0.beta`
+**Current beta source:** `0.13.0.beta`
 
 ## What Folio tracks
 
@@ -28,6 +28,7 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Optional biometric / device-credential app lock that restores the last root page after unlocking
 - Minimal 3×1 widget with switchable Net worth / Investments / Cash left metrics that follows Android light/dark appearance
 - Portable local backup and restore
+- Optional **Scalable Capital read-only snapshot** source using the official Scalable CLI, sanitized before encrypted Android Keystore storage
 
 Fresh installs start empty. Folio does not seed demo money or fake chart data.
 
