@@ -44,8 +44,11 @@ data class ScalableSnapshot(
     /** Non-cash residual inside the portfolio valuation, if Scalable reports one. */
     val portfolioResidualValue: Double get() = portfolioValue - investmentValue
 
-    /** Sum of broker-reported holding valuations, useful for reconciliation/debugging. */
+    /** Sum of broker-reported holding valuations. */
     val holdingsValue: Double get() = holdings.sumOf { it.valuation }
+
+    /** Connected Portfolio value: only Scalable-returned holdings plus Scalable broker cash. */
+    val brokerAccountValue: Double get() = holdingsValue + cashBalance
 
     /**
      * Broker-style invested capital derived entirely from the same Scalable snapshot.
