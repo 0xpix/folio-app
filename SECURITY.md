@@ -33,7 +33,7 @@ sc login --local-read-only
 
 Scalable documents `--local-read-only` as a **local CLI write guard**; it does not reduce the
 backend token's permissions. Folio therefore does not rely on that flag alone: the included helper
-has no generic command interface and can execute only the three fixed read commands listed below.
+has no generic command interface and can execute only the four fixed read commands listed below.
 
 The helper in `tools/scalable_snapshot.py` executes only these fixed read commands:
 
@@ -41,11 +41,12 @@ The helper in `tools/scalable_snapshot.py` executes only these fixed read comman
 sc broker overview --json
 sc broker holdings --json
 sc broker cash-breakdown --json
+sc broker portfolio-groups --json
 ```
 
 It uses `subprocess.run([...], shell=False)`. It never executes `sc login`, trade commands, savings-plan mutations, watchlist mutations, or arbitrary user-supplied broker commands.
 
-The helper removes account/portfolio identifiers and writes only the minimum fields Folio needs: broker valuation, broker cash balance, read-only performance values, ISIN/name, quantity, holding valuation and quote metadata.
+The helper removes account/portfolio identifiers and writes only the minimum fields Folio needs: broker valuation, broker cash balance, read-only performance values, portfolio-group valuation needed to recover omitted grouped positions, ISIN/name, quantity, holding valuation and quote metadata.
 
 ## Scalable snapshot handling
 
