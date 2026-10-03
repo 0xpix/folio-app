@@ -8,13 +8,10 @@ import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
@@ -48,40 +45,11 @@ private val WidgetBackground = ColorProvider(R.color.folio_widget_background)
 private val WidgetForeground = ColorProvider(R.color.folio_widget_foreground)
 private val WidgetMuted = ColorProvider(R.color.folio_widget_muted)
 
-private enum class WidgetMetric(val label: String) {
-    NET_WORTH("NET WORTH"),
-    INVESTMENTS("INVESTMENTS"),
-    CASH_LEFT("CASH LEFT");
-
-    fun next(): WidgetMetric = entries[(ordinal + 1) % entries.size]
-    fun previous(): WidgetMetric = entries[(ordinal - 1 + entries.size) % entries.size]
-}
-
-private object WidgetMetricStore {
-    private const val PREFS = "folio_widget_metric_v2"
-    private const val KEY = "metric"
-
-    fun get(context: Context): WidgetMetric {
-        val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString(KEY, WidgetMetric.NET_WORTH.name)
-        return runCatching { WidgetMetric.valueOf(raw ?: WidgetMetric.NET_WORTH.name) }
-            .getOrDefault(WidgetMetric.NET_WORTH)
-    }
-
-    fun set(context: Context, metric: WidgetMetric) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY, metric.name)
-            .apply()
-    }
-}
-
 private data class WidgetValues(
     val netWorth: Double,
     val investments: Double,
-    val cashLeft: Double,
+    val cash: Double,
     val savings: Double,
-    val scalableConnected: Boolean,
 )
 
 private fun widgetValues(context: Context): WidgetValues {
@@ -112,96 +80,10 @@ private fun widgetValues(context: Context): WidgetValues {
     return WidgetValues(
         netWorth = summary.cashBalance + summary.totalSavings + investments,
         investments = investments,
-        cashLeft = summary.cashBalance,
+        cash = summary.cashBalance,
         savings = summary.totalSavings,
-        scalableConnected = scalable != null,
     )
 }
-
-class FolioBalanceWidget : GlanceAppWidget() {
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val metric = WidgetMetricStore.get(context)
-        val values = widgetValues(context)
-        val amount = when (metric) {
-            WidgetMetric.NET_WORTH -> values.netWorth
-            WidgetMetric.INVESTMENTS -> values.investments
-            WidgetMetric.CASH_LEFT -> values.cashLeft
-        }
-
-        provideContent {
-            BalanceWidgetContent(
-                label = metric.label,
-                amount = "€${WidgetMoney.format(amount)}",
-            )
-        }
-    }
-}
-
-@Composable
-private fun BalanceWidgetContent(
-    label: String,
-    amount: String,
-) {
-    Row(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .appWidgetBackground()
-            .background(WidgetBackground)
-            .cornerRadius(26.dp)
-            .padding(horizontal = 20.dp, vertical = 15.dp),
-        verticalAlignment = Alignment.Vertical.CenterVertically,
-    ) {
-        Column(
-            modifier = GlanceModifier
-                .defaultWeight()
-                .clickable(actionStartActivity<MainActivity>()),
-        ) {
-            Text("Folio", style = TextStyle(color = WidgetMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium))
-            Spacer(GlanceModifier.height(4.dp))
-            Text(label, style = TextStyle(color = WidgetMuted, fontSize = 10.sp, fontWeight = FontWeight.Medium))
-            Spacer(GlanceModifier.height(3.dp))
-            Text(amount, style = TextStyle(color = WidgetForeground, fontSize = 30.sp, fontWeight = FontWeight.Medium))
-        }
-
-        Spacer(GlanceModifier.width(12.dp))
-
-        Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
-            Text(
-                "↑",
-                modifier = GlanceModifier
-                    .clickable(actionRunCallback<PreviousWidgetMetricAction>())
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                style = TextStyle(color = WidgetForeground, fontSize = 18.sp, fontWeight = FontWeight.Medium),
-            )
-            Text(
-                "↓",
-                modifier = GlanceModifier
-                    .clickable(actionRunCallback<NextWidgetMetricAction>())
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                style = TextStyle(color = WidgetForeground, fontSize = 18.sp, fontWeight = FontWeight.Medium),
-            )
-        }
-    }
-}
-
-class PreviousWidgetMetricAction : ActionCallback {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        WidgetMetricStore.set(context, WidgetMetricStore.get(context).previous())
-        FolioBalanceWidget().update(context, glanceId)
-    }
-}
-
-class NextWidgetMetricAction : ActionCallback {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        WidgetMetricStore.set(context, WidgetMetricStore.get(context).next())
-        FolioBalanceWidget().update(context, glanceId)
-    }
-}
-
-class FolioBalanceWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget = FolioBalanceWidget()
-}
-
 
 class FolioOverviewWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -223,9 +105,7 @@ private fun OverviewWidgetContent(values: WidgetValues) {
             .clickable(actionStartActivity<MainActivity>())
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
-        Row(
-            verticalAlignment = Alignment.Vertical.CenterVertically,
-        ) {
+        Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
             Image(
                 provider = ImageProvider(R.drawable.folio_widget_logo),
                 contentDescription = "Folio",
@@ -270,7 +150,7 @@ private fun OverviewWidgetContent(values: WidgetValues) {
             Spacer(GlanceModifier.width(8.dp))
             OverviewWidgetMetric(
                 label = "CASH",
-                amount = values.cashLeft,
+                amount = values.cash,
                 modifier = GlanceModifier.defaultWeight(),
             )
         }
@@ -298,7 +178,6 @@ private fun OverviewWidgetMetric(
                 fontWeight = FontWeight.Medium,
             ),
         )
-        Spacer(GlanceModifier.height(2.dp))
         Text(
             "€" + WidgetMoney.format(amount),
             style = TextStyle(
