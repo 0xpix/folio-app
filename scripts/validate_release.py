@@ -34,8 +34,6 @@ required = [
     "app/src/main/java/com/pix/folio/data/InvestmentTrackingStore.kt",
     "app/src/main/java/com/pix/folio/data/ScalableSnapshot.kt",
     "app/src/main/java/com/pix/folio/data/SecureScalableStore.kt",
-    "app/src/main/java/com/pix/folio/data/SparkasseSnapshot.kt",
-    "app/src/main/java/com/pix/folio/data/SecureSparkasseStore.kt",
     "app/src/main/java/com/pix/folio/data/FolioNavigationStore.kt",
     "app/src/main/java/com/pix/folio/data/FolioBackup.kt",
     "app/src/main/java/com/pix/folio/data/FolioRoomMirror.kt",
@@ -49,7 +47,6 @@ required = [
     "app/src/test/java/com/pix/folio/V08FinanceModelTest.kt",
     ".github/workflows/build-apk.yml",
     "tools/scalable_snapshot.py",
-    "tools/sparkasse_snapshot.py",
     "SECURITY.md",
     "CHANGELOG.md",
     "README.md",
@@ -174,8 +171,6 @@ feature_groups = {
     "2x2 overview widget": ["FolioOverviewWidget", "FolioOverviewWidgetReceiver", "R.drawable.folio_widget_logo"],
     "widget theme": ["folio_widget_background", "folio_widget_foreground", "folio_widget_muted", "WidgetBackground", "WidgetForeground", "WidgetMuted"],
     "Scalable read-only source": ["ScalableSnapshot", "SecureScalableStore", "SCALABLE CAPITAL", "brokerAccountValue", "cashBalance", "V141ScalablePortfolioScreen"],
-    "Sparkasse read-only source": ["SparkasseSnapshot", "SecureSparkasseStore", "SparkasseTransactionCategorizer", "availableCash", "Bank spending"],
-    "refined spending categories": ["GROCERIES", "DINING", "UTILITIES", "ENTERTAINMENT", "SUBSCRIPTIONS", "TRAVEL", "FEES"],
     "last-page restore": ["folio_navigation_v1", "root_page"],
     "portable backup": ["folio-backup", "Export Folio", "Restore Folio"],
     "backup validation": ["Unsupported Folio backup version", "Backup data is incomplete"],
@@ -369,112 +364,6 @@ if (
 if "sc login --local-read-only" not in security_doc or "AES-256-GCM" not in security_doc:
     raise SystemExit("SECURITY.md is missing the Scalable trust boundary")
 
-# Sparkasse / FinTS read-only integration security contract.
-sparkasse_codec = (root / "app/src/main/java/com/pix/folio/data/SparkasseSnapshot.kt").read_text()
-sparkasse_store = (root / "app/src/main/java/com/pix/folio/data/SecureSparkasseStore.kt").read_text()
-sparkasse_helper_path = root / "tools/sparkasse_snapshot.py"
-sparkasse_helper = sparkasse_helper_path.read_text()
-
-for token in ["AndroidKeyStore", "AES/GCM/NoPadding", "KeyGenParameterSpec", "setRandomizedEncryptionRequired(true)", "setUnlockedDeviceRequired(true)"]:
-    if token not in sparkasse_store:
-        raise SystemExit(f"Sparkasse encrypted storage safeguard is missing: {token}")
-
-for forbidden in ["HttpURLConnection", "URL(", "Socket(", "access_token", "refresh_token", "client_secret", "FinTS3PinTanClient", "getpass"]:
-    if forbidden in sparkasse_codec or forbidden in sparkasse_store:
-        raise SystemExit(f"Sparkasse Android snapshot path must not own bank auth/network material: {forbidden}")
-
-if "sparkasse_snapshot_v1.enc" in backup_source or "folio_sparkasse" in backup_source:
-    raise SystemExit("Portable Folio backup must not include the encrypted Sparkasse snapshot")
-
-for pattern in ["folio-sparkasse*.json", "*.folio-sparkasse.json", "sparkasse-snapshot*.json"]:
-    if pattern not in gitignore:
-        raise SystemExit(f"Missing Sparkasse privacy gitignore pattern: {pattern}")
-
-try:
-    ast.parse(sparkasse_helper)
-except SyntaxError as error:
-    raise SystemExit(f"Sparkasse helper syntax error: {error}") from error
-
-for token in [
-    "client.get_sepa_accounts()",
-    "client.get_balance(account)",
-    "client.get_transactions(",
-    "getpass.getpass",
-    "product_id=product_id",
-    "0o600",
-]:
-    if token not in sparkasse_helper:
-        raise SystemExit(f"Sparkasse helper read-only safeguard is missing: {token}")
-
-if "FOLIO_SPARKASSE_PIN" in sparkasse_helper:
-    raise SystemExit("Sparkasse PIN must never be accepted from environment or persisted configuration")
-
-for token in [
-    '.put("booking_date"',
-    '.put("amount"',
-    '.put("currency"',
-    '.put("merchant"',
-    '.put("purpose"',
-]:
-    if token not in sparkasse_codec:
-        raise SystemExit(f"Sparkasse sanitized codec field is missing: {token}")
-for forbidden_codec_field in ['.put("iban"', '.put("bic"', '.put("account_id"', '.put("user_id"', '.put("pin"', '.put("tan"']:
-    if forbidden_codec_field in sparkasse_codec.lower():
-        raise SystemExit(f"Sparkasse codec must not persist sensitive bank field: {forbidden_codec_field}")
-
-for forbidden in [
-    "client.simple_sepa_transfer(",
-    "client.sepa_transfer(",
-    "client.sepa_debit(",
-    "client.get_scheduled_debits(",
-    "client.get_scheduled_debits_single(",
-    "client.get_scheduled_debits_multiple(",
-]:
-    if forbidden in sparkasse_helper:
-        raise SystemExit(f"Unsafe Sparkasse helper behavior detected: {forbidden}")
-
-sparkasse_spec = importlib.util.spec_from_file_location(
-    "folio_sparkasse_snapshot_helper", sparkasse_helper_path
-)
-if sparkasse_spec is None or sparkasse_spec.loader is None:
-    raise SystemExit("Could not load Sparkasse snapshot helper")
-sparkasse_module = importlib.util.module_from_spec(sparkasse_spec)
-sparkasse_spec.loader.exec_module(sparkasse_module)
-
-class _SyntheticMoney:
-    def __init__(self, amount, currency):
-        self.amount = amount
-        self.currency = currency
-
-class _SyntheticBalance:
-    amount = _SyntheticMoney("812.34", "EUR")
-
-class _SyntheticTransaction:
-    data = {
-        "date": __import__("datetime").date(2026, 10, 2),
-        "amount": _SyntheticMoney("-42.50", "EUR"),
-        "applicant_name": "REWE",
-        "purpose": "Groceries",
-        "applicant_iban": "DE00MUSTNOTLEAK",
-    }
-
-sparkasse_synthetic = sparkasse_module.build_snapshot(
-    _SyntheticBalance(),
-    [_SyntheticTransaction()],
-)
-sparkasse_json = json.dumps(sparkasse_synthetic)
-if "DE00MUSTNOTLEAK" in sparkasse_json or "applicant_iban" in sparkasse_json:
-    raise SystemExit("Sparkasse helper leaked account identifiers")
-if (
-    sparkasse_synthetic["balance"] != 812.34
-    or len(sparkasse_synthetic["transactions"]) != 1
-    or sparkasse_synthetic["transactions"][0]["amount"] != -42.5
-):
-    raise SystemExit("Sparkasse helper failed sanitized balance/transaction snapshot")
-
-if "registered product ID" not in security_doc or "Sparkasse read-only integration" not in security_doc:
-    raise SystemExit("SECURITY.md is missing the Sparkasse trust boundary")
-
 workflow = (root / ".github/workflows/build-apk.yml").read_text()
 for task in [":app:testBetaDebugUnitTest", ":app:testPlayDebugUnitTest", ":app:assembleBetaDebug", ":app:assemblePlayDebug"]:
     if task not in workflow:
@@ -506,8 +395,6 @@ for name in [
     "scalableInvestmentValueExcludesBrokerCash",
     "scalableAccountTotalAddsBrokerCash",
     "scalablePrimaryReturnPrefersAllTimeStyleFrame",
-    "sparkasseMerchantRulesSeparateGroceriesAndSubscriptions",
-    "sparkasseSnapshotKeepsOnlySanitizedBankFields",
 ]:
     if name not in tests:
         raise SystemExit(f"Missing finance regression test: {name}")

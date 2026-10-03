@@ -4,9 +4,7 @@ import com.pix.folio.data.BudgetEnvelope
 import com.pix.folio.data.ScalableHoldingSnapshot
 import com.pix.folio.data.ScalablePerformanceSnapshot
 import com.pix.folio.data.ScalableSnapshot
-import com.pix.folio.data.SparkasseTransactionCategorizer
 import com.pix.folio.data.recurringInvestmentUnits
-import com.pix.folio.model.ExpenseCategory
 import com.pix.folio.model.FolioSummary
 import com.pix.folio.model.InvestmentEntrySource
 import com.pix.folio.model.InvestmentPricePoint
@@ -93,44 +91,6 @@ class V08FinanceModelTest {
         )
         assertEquals(500.0, envelope.savingsCommitment, 0.001)
         assertEquals(204.0, envelope.availableCash, 0.001)
-    }
-
-    @Test
-    fun sparkasseMerchantRulesSeparateGroceriesAndSubscriptions() {
-        assertEquals(
-            ExpenseCategory.GROCERIES,
-            SparkasseTransactionCategorizer.categoryFor("REWE Markt", "Kartenzahlung"),
-        )
-        assertEquals(
-            ExpenseCategory.SUBSCRIPTIONS,
-            SparkasseTransactionCategorizer.categoryFor("Netflix.com", "Monthly subscription"),
-        )
-        assertEquals(
-            ExpenseCategory.DINING,
-            SparkasseTransactionCategorizer.categoryFor("Cafe Heidelberg", "Kartenzahlung"),
-        )
-    }
-
-    @Test
-    fun sparkasseSnapshotKeepsOnlySanitizedBankFields() {
-        val transaction = com.pix.folio.data.SparkasseTransactionSnapshot(
-            bookingDate = LocalDate.of(2026, 10, 2),
-            amount = -42.50,
-            currency = "EUR",
-            merchant = "REWE",
-            purpose = "Groceries",
-        )
-        val snapshot = com.pix.folio.data.SparkasseSnapshot(
-            createdAtUtc = Instant.parse("2026-10-03T12:00:00Z"),
-            balance = 812.34,
-            availableBalance = 812.34,
-            currency = "EUR",
-            transactions = listOf(transaction),
-        )
-
-        assertEquals(812.34, snapshot.availableBalance, 0.001)
-        assertEquals(ExpenseCategory.GROCERIES, snapshot.transactions.single().category)
-        assertEquals(42.50, snapshot.transactions.single().expenseAmount, 0.001)
     }
 
     @Test

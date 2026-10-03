@@ -69,10 +69,7 @@ internal fun V08MoneyScreen(vm: V07ViewModel) {
     val expenses = summary.expenses
         .filter { YearMonth.from(it.date) == currentMonth }
         .sortedByDescending { it.date }
-    val sparkasseExpenses = vm.sparkasseSnapshot
-        ?.expensesForMonth(currentMonth)
-        ?.sortedByDescending { it.bookingDate }
-    val budgetRows = ExpenseCategory.selectableEntries.filter { summary.budgetFor(it) != null }
+    val budgetRows = ExpenseCategory.entries.filter { summary.budgetFor(it) != null }
 
     Column(
         Modifier
@@ -91,28 +88,19 @@ internal fun V08MoneyScreen(vm: V07ViewModel) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
                 Text("AVAILABLE CASH", fontSize = 11.sp, letterSpacing = 1.3.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(v07Euro(vm.availableCash), fontSize = 58.sp, lineHeight = 62.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                Text(v07Euro(summary.cashBalance), fontSize = 58.sp, lineHeight = 62.sp, fontWeight = FontWeight.Medium, maxLines = 1)
             }
-            if (vm.sparkasseSnapshot == null) {
-                TextButton(onClick = { editSpendable = true }) { Text("Edit") }
-            }
+            TextButton(onClick = { editSpendable = true }) { Text("Edit") }
         }
-        Text(
-            if (vm.sparkasseSnapshot != null) "Sparkasse balance · read-only snapshot"
-            else "Money you can use right now.",
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Text("Money you can use right now.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         Spacer(Modifier.height(18.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (vm.sparkasseSnapshot == null) {
-                OutlinedButton(
-                    onClick = { showExpense = true },
-                    modifier = Modifier.weight(1f).height(50.dp),
-                    shape = RoundedCornerShape(20.dp),
-                ) { Text("+ Expense") }
-            }
+            OutlinedButton(
+                onClick = { showExpense = true },
+                modifier = Modifier.weight(1f).height(50.dp),
+                shape = RoundedCornerShape(20.dp),
+            ) { Text("+ Expense") }
             OutlinedButton(
                 onClick = { showIncome = true },
                 modifier = Modifier.weight(1f).height(50.dp),
@@ -269,10 +257,7 @@ internal fun V08MoneyScreen(vm: V07ViewModel) {
         } else {
             budgetRows.forEachIndexed { index, category ->
                 val budget = summary.budgetFor(category)?.monthlyLimit ?: 0.0
-                val spent = sparkasseExpenses
-                    ?.filter { it.category == category }
-                    ?.sumOf { it.expenseAmount }
-                    ?: summary.spentFor(category, currentMonth)
+                val spent = summary.spentFor(category, currentMonth)
                 V07Metric(
                     category.label,
                     "${v07Euro(spent)} / ${v07Euro(budget)}",
@@ -285,33 +270,10 @@ internal fun V08MoneyScreen(vm: V07ViewModel) {
 
         Spacer(Modifier.height(34.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                if (sparkasseExpenses != null) "Bank spending" else "Expenses",
-                fontSize = 27.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f),
-            )
-            if (sparkasseExpenses == null) {
-                TextButton(onClick = { showExpense = true }) { Text("+ Add") }
-            }
+            Text("Expenses", fontSize = 27.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            TextButton(onClick = { showExpense = true }) { Text("+ Add") }
         }
-        if (sparkasseExpenses != null) {
-            if (sparkasseExpenses.isEmpty()) {
-                V08EmptyRow("No booked Sparkasse spending this month")
-            } else {
-                sparkasseExpenses.take(20).forEachIndexed { index, transaction ->
-                    val title = transaction.merchant.ifBlank {
-                        transaction.purpose.ifBlank { transaction.category.label }
-                    }
-                    V07Metric(
-                        title,
-                        "−${v07Euro(transaction.expenseAmount)}",
-                        "${transaction.bookingDate.format(V07ShortDateFormat)} · ${transaction.category.label}",
-                    )
-                    if (index != sparkasseExpenses.take(20).lastIndex) V07Divider()
-                }
-            }
-        } else if (expenses.isEmpty()) {
+        if (expenses.isEmpty()) {
             V08EmptyRow("No expenses this month")
         } else {
             expenses.take(12).forEachIndexed { index, expense ->

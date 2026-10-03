@@ -29,10 +29,3 @@ folio-scalable*.json
 *.folio-scalable.json
 scalable-snapshot*.json
 private-scalable/
-
-
-# Local Sparkasse snapshots — contain private bank balance and transaction data
-folio-sparkasse*.json
-*.folio-sparkasse.json
-sparkasse-snapshot*.json
-private-sparkasse/

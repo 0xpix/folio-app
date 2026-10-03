@@ -9,39 +9,15 @@ import java.time.YearMonth
 import java.time.ZoneId
 import kotlin.math.max
 
-enum class ExpenseCategory(
-    val label: String,
-    val glyph: String,
-    val selectable: Boolean = true,
-) {
-    GROCERIES("Groceries", "🛒"),
-    DINING("Dining", "🍽️"),
+enum class ExpenseCategory(val label: String, val glyph: String) {
+    FOOD("Food", "🍴"),
     HOME("Home", "🏠"),
-    UTILITIES("Utilities", "💡"),
-    TRANSPORT("Transport", "🚆"),
+    TRANSPORT("Transport", "🚗"),
     SHOPPING("Shopping", "🛍️"),
-    HEALTH("Health", "💊"),
-    ENTERTAINMENT("Entertainment", "🎮"),
-    SUBSCRIPTIONS("Subscriptions", "↻"),
-    TRAVEL("Travel", "✈️"),
-    FEES("Fees", "€"),
+    HEALTH("Health", "💪"),
+    LEISURE("Leisure", "🎮"),
+    SUBSCRIPTIONS("Subscriptions", "🎬"),
     OTHER("Other", "•••"),
-
-    // Kept only so existing Folio data remains readable.
-    FOOD("Food", "🍴", false),
-    LEISURE("Leisure", "🎮", false);
-
-    val canonical: ExpenseCategory
-        get() = when (this) {
-            FOOD -> GROCERIES
-            LEISURE -> ENTERTAINMENT
-            else -> this
-        }
-
-    companion object {
-        val selectableEntries: List<ExpenseCategory>
-            get() = entries.filter { it.selectable }
-    }
 }
 
 data class Expense(

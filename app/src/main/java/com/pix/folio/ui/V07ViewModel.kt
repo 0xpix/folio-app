@@ -16,8 +16,6 @@ import com.pix.folio.data.RecurringMoneyProcessor
 import com.pix.folio.data.RecurringSavingsRule
 import com.pix.folio.data.ScalableSnapshot
 import com.pix.folio.data.SecureScalableStore
-import com.pix.folio.data.SparkasseSnapshot
-import com.pix.folio.data.SecureSparkasseStore
 import com.pix.folio.model.AppFontChoice
 import com.pix.folio.model.Cs2AssetType
 import com.pix.folio.model.ExpenseCategory
@@ -42,7 +40,6 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     private val planStore = MonthlyPlanStore(application)
     private val editor = FinanceEditor(application)
     private val scalableStore = SecureScalableStore(application)
-    private val sparkasseStore = SecureSparkasseStore(application)
 
     var summary by mutableStateOf(store.summary())
         private set
@@ -74,12 +71,6 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     var scalableSnapshot by mutableStateOf<ScalableSnapshot?>(scalableStore.load().getOrNull())
         private set
 
-    var sparkasseSnapshot by mutableStateOf<SparkasseSnapshot?>(sparkasseStore.load().getOrNull())
-        private set
-
-    val availableCash: Double
-        get() = sparkasseSnapshot?.availableBalance ?: summary.cashBalance
-
     var trackedHistories by mutableStateOf<Map<String, MarketPriceService.MarketHistory>>(emptyMap())
         private set
 
@@ -104,20 +95,6 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     fun disconnectScalable() {
         scalableStore.clear()
         scalableSnapshot = null
-        FolioWidgetUpdater.request(getApplication())
-    }
-
-    fun importSparkasseSnapshot(raw: String): Result<Unit> =
-        sparkasseStore.import(raw).mapCatching {
-            val storedSnapshot = sparkasseStore.load().getOrThrow()
-                ?: error("Sparkasse snapshot was not persisted")
-            sparkasseSnapshot = storedSnapshot
-            FolioWidgetUpdater.request(getApplication())
-        }
-
-    fun disconnectSparkasse() {
-        sparkasseStore.clear()
-        sparkasseSnapshot = null
         FolioWidgetUpdater.request(getApplication())
     }
 
@@ -594,8 +571,6 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         trackingErrors = emptyMap()
         scalableStore.clear()
         scalableSnapshot = null
-        sparkasseStore.clear()
-        sparkasseSnapshot = null
         planStore.clearAll()
         store.clearAll()
         refresh()

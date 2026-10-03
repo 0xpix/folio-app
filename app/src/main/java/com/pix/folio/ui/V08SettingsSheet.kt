@@ -59,8 +59,6 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
     var backupRefresh by remember { mutableStateOf(0) }
     var scalableImportStatus by remember { mutableStateOf<String?>(null) }
     var scalableImportFailed by remember { mutableStateOf(false) }
-    var sparkasseImportStatus by remember { mutableStateOf<String?>(null) }
-    var sparkasseImportFailed by remember { mutableStateOf(false) }
 
     val scalableImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -92,37 +90,6 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                     scalableImportFailed = true
                     scalableImportStatus = it.message ?: "Could not read snapshot"
                     Toast.makeText(context, scalableImportStatus, Toast.LENGTH_LONG).show()
-                },
-            )
-        }
-    }
-
-    val sparkasseImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
-            }.fold(
-                onSuccess = { raw ->
-                    vm.importSparkasseSnapshot(raw).fold(
-                        onSuccess = {
-                            val snapshot = vm.sparkasseSnapshot
-                            sparkasseImportFailed = false
-                            sparkasseImportStatus = snapshot?.let {
-                                "Imported ${it.transactions.size} transactions · balance ${v07Euro(it.availableBalance)}"
-                            } ?: "Sparkasse snapshot imported securely"
-                            Toast.makeText(context, sparkasseImportStatus, Toast.LENGTH_LONG).show()
-                        },
-                        onFailure = {
-                            sparkasseImportFailed = true
-                            sparkasseImportStatus = it.message ?: "Invalid Sparkasse snapshot"
-                            Toast.makeText(context, sparkasseImportStatus, Toast.LENGTH_LONG).show()
-                        },
-                    )
-                },
-                onFailure = {
-                    sparkasseImportFailed = true
-                    sparkasseImportStatus = it.message ?: "Could not read Sparkasse snapshot"
-                    Toast.makeText(context, sparkasseImportStatus, Toast.LENGTH_LONG).show()
                 },
             )
         }
@@ -247,65 +214,6 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                     fontSize = 11.sp,
                     lineHeight = 16.sp,
                     color = if (scalableImportFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-            V07Divider()
-            Spacer(Modifier.height(16.dp))
-            val sparkasse = vm.sparkasseSnapshot
-            if (sparkasse == null) {
-                V07Metric(
-                    "Sparkasse",
-                    "Import",
-                    "Read-only FinTS snapshot with bank balance and booked transactions. PIN and TAN stay on your computer.",
-                    onClick = {
-                        sparkasseImportLauncher.launch(arrayOf("application/json", "text/plain"))
-                    },
-                )
-            } else {
-                val importedAt = sparkasse.createdAtUtc
-                    .atZone(ZoneId.systemDefault())
-                    .format(V08BackupTimeFormat)
-                V07Metric(
-                    "Sparkasse",
-                    "Imported",
-                    "${v07Euro(sparkasse.availableBalance)} available · ${sparkasse.transactions.size} transactions · encrypted locally · $importedAt",
-                    onClick = {
-                        sparkasseImportLauncher.launch(arrayOf("application/json", "text/plain"))
-                    },
-                )
-                V07Divider()
-                V07Metric(
-                    "Replace Sparkasse snapshot",
-                    "Import",
-                    "Import a newer read-only balance and transaction snapshot.",
-                    onClick = {
-                        sparkasseImportLauncher.launch(arrayOf("application/json", "text/plain"))
-                    },
-                )
-                V07Divider()
-                V07Metric(
-                    "Disconnect Sparkasse",
-                    "Delete",
-                    "Deletes Folio's encrypted bank snapshot and its Keystore key. No bank credentials are stored.",
-                    onClick = vm::disconnectSparkasse,
-                )
-            }
-            Text(
-                "Create the snapshot on your own computer with tools/sparkasse_snapshot.py. Folio stores no online-banking login, PIN, TAN, IBAN or FinTS session.",
-                fontSize = 10.sp,
-                lineHeight = 15.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            sparkasseImportStatus?.let { status ->
-                Text(
-                    status,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
-                    color = if (sparkasseImportFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }

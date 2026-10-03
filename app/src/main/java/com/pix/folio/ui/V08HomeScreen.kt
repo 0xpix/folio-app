@@ -63,14 +63,14 @@ internal fun V08HomeScreen(
         Spacer(Modifier.height(30.dp))
         V07TinyStats(
             listOf(
-                "CASH" to v07Euro(vm.availableCash),
+                "CASH" to v07Euro(summary.cashBalance),
                 "SAVINGS" to v07Euro(summary.totalSavings),
                 "INVESTED" to v07Euro(summary.portfolioCostBasis),
             )
         )
 
         Spacer(Modifier.height(30.dp))
-        V08SpendingBreakdown(vm, month)
+        V08SpendingBreakdown(summary, month)
 
         Spacer(Modifier.height(34.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

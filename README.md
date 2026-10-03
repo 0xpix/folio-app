@@ -2,14 +2,14 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.16.0.beta`
+**Current beta source:** `0.15.0.beta`
 
 ## What Folio tracks
 
 - **Available cash** — liquid money Folio treats as usable today
 - **Invested** — money actually contributed to holdings; current market value is shown separately in Portfolio
 - Net worth across spendable money, savings, and investments
-- Expenses grouped into **Groceries, Dining, Home, Utilities, Transport, Shopping, Health, Entertainment, Subscriptions, Travel, Fees, and Other**, including a “Where did my money go?” breakdown
+- Expenses grouped by month and category, including a “Where did my money go?” breakdown
 - Monthly category budgets
 - Recurring salary / income, bills, savings, and investments
 - Salary attribution to the same or following budget month
@@ -28,7 +28,6 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Fixed **2×2 Folio overview widget** with the Folio mark, Net worth, Savings, Cash, and Investments; everything is visible at the default widget size and follows Android light/dark appearance
 - Portable local backup and restore
 - Optional **Scalable Capital read-only snapshot** source using the official Scalable CLI, sanitized before encrypted Android Keystore storage
-- Optional **Sparkasse read-only FinTS snapshot** source for current bank balance and booked transactions, sanitized before encrypted Android Keystore storage
 
 Fresh installs start empty. Folio does not seed demo money or fake chart data.
 
@@ -118,61 +117,6 @@ broker positions. Local Folio investment tracking is used only when no Scalable 
 This snapshot flow is intentionally read-only and does not place trades, modify savings plans, or
 touch the Scalable CLI session. See [SECURITY.md](SECURITY.md) for the full trust boundary.
 
-## Sparkasse read-only sync
-
-Folio can use a Sparkasse account balance and booked transactions without putting online-banking
-credentials inside the Android app.
-
-The connection uses a local helper on your own computer. Modern FinTS client software requires a
-registered FinTS product ID, and your Sparkasse can require TAN confirmation even for read access.
-Folio therefore keeps the authentication step outside the APK.
-
-1. Create a small Python environment and install the maintained FinTS client:
-
-```bash
-python3 -m venv .venv-sparkasse
-.venv-sparkasse/bin/pip install fints
-```
-
-2. Obtain/use your registered FinTS product ID and your Sparkasse's FinTS endpoint.
-3. Run the helper from the Folio repository:
-
-```bash
-.venv-sparkasse/bin/python tools/sparkasse_snapshot.py --force
-```
-
-The helper asks locally for the Sparkasse BLZ, login ID, FinTS endpoint, product ID and PIN. If the
-bank requires TAN/pushTAN confirmation, that also happens only in the terminal. You can instead pass
-non-secret connection metadata through `FOLIO_SPARKASSE_BLZ`, `FOLIO_SPARKASSE_USER`,
-`FOLIO_SPARKASSE_ENDPOINT`, and `FOLIO_FINTS_PRODUCT_ID`.
-
-The helper calls only:
-
-```text
-get_sepa_accounts()
-get_balance(account)
-get_transactions(account, ...)
-```
-
-It writes `folio-sparkasse.snapshot.json` with only the selected account's EUR balance plus
-sanitized booked transaction date/amount/merchant/purpose fields. IBAN/account numbers, PIN, TAN and
-FinTS session state are not written.
-
-4. Transfer the snapshot to the phone.
-5. Open **Folio → Settings → Connections → Sparkasse → Import**.
-6. Delete the plaintext snapshot from the computer/transfer location after import.
-
-When connected:
-
-- Sparkasse balance becomes the displayed **Available cash**.
-- Net worth and the 2×2 widget use that same bank cash balance.
-- Home spending analytics use booked Sparkasse debits.
-- Money shows a read-only **Bank spending** list instead of duplicate editable expenses.
-- Transaction grouping is performed locally inside Folio; bank transaction text is not sent to a
-  Folio server.
-
-Disconnecting Sparkasse deletes the encrypted snapshot and its separate Android Keystore key.
-
 ## Money model
 
 Folio now keeps one visible current-cash concept:
@@ -244,7 +188,6 @@ This staged migration avoids replacing the existing data store in one risky step
 - AndroidX Biometric + device credential fallback
 - AndroidX Room migration/safety snapshot layer
 - AndroidX WorkManager recurring processing
-- Optional local `python-fints` helper for Sparkasse read-only snapshots
 - Glance app widgets
 - SharedPreferences JSON source of truth during the v0.8 beta migration
 - GitHub Actions for unit tests, CI builds, signed beta releases, APK signature verification, and checksums

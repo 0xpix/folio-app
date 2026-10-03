@@ -125,7 +125,7 @@ class MonthlyPlanStore(context: Context) {
     fun envelope(summary: FolioSummary, month: YearMonth): BudgetEnvelope {
         val base = summary.moneyPlan(month)
         val overview = summary.monthOverview(month)
-        val variablePlan = ExpenseCategory.selectableEntries.sumOf { category ->
+        val variablePlan = ExpenseCategory.entries.sumOf { category ->
             max(summary.budgetFor(category)?.monthlyLimit ?: 0.0, summary.spentFor(category, month))
         }
         val plannedSavings = recurringSavings().filter { it.enabled }.sumOf { it.amount }
