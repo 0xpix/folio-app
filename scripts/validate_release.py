@@ -223,13 +223,16 @@ for token in [
     'run_sc(sc, "broker", "overview")',
     'run_sc(sc, "broker", "holdings")',
     'run_sc(sc, "broker", "cash-breakdown")',
+    'run_sc(sc, "broker", "portfolio-groups")',
     "shell=False",
     "0o600",
 ]:
     if token not in scalable_helper:
         raise SystemExit(f"Scalable helper read-only safeguard is missing: {token}")
-if scalable_helper.count('run_sc(sc, "broker",') != 3:
-    raise SystemExit("Scalable helper may execute only overview, holdings, and cash-breakdown reads")
+if scalable_helper.count('run_sc(sc, "broker",') != 4:
+    raise SystemExit(
+        "Scalable helper may execute only overview, holdings, cash-breakdown, and portfolio-groups reads"
+    )
 for forbidden in ['run_sc(sc, "broker", "trade"', 'run_sc(sc, "broker", "savings-plans"', "shell=True"]:
     if forbidden in scalable_helper:
         raise SystemExit(f"Unsafe Scalable helper behavior detected: {forbidden}")
@@ -291,11 +294,44 @@ synthetic = helper_module.build_snapshot(
             "result": {
                 "account_id": "inner-must-not-leak",
                 "portfolio_id": "inner-must-not-leak",
-                "cash_balance": "37.44",
-                "buying_power": "37.44",
-                "buying_power_without_credit": "37.44",
+                "cash_balance": "5.00",
+                "buying_power": "5.00",
+                "buying_power_without_credit": "5.00",
                 "available_credit_line": "0",
                 "loaned": "0",
+            },
+        },
+    },
+    {
+        "ok": True,
+        "command": "broker.portfolio-groups",
+        "data": {
+            "account_id": "outer-must-not-leak",
+            "portfolio_id": "outer-must-not-leak",
+            "resolution": {"account": "auto_resolve", "portfolio": "auto_resolve"},
+            "result": {
+                "portfolio_groups": [{
+                    "group_id": "must-not-leak",
+                    "name": "Private Equity",
+                    "performance": {
+                        "valuation": "1275.56",
+                        "currency": "EUR",
+                        "since_buy": None,
+                    },
+                    "items": [
+                        {
+                            "isin": "IE00B4L5Y983",
+                            "name": "Synthetic ETF",
+                            "security_type": "ETF",
+                        },
+                        {
+                            "isin": "US74766Q1013",
+                            "name": "Synthetic Private Equity",
+                            "security_type": "ELTIF",
+                        },
+                    ],
+                }],
+                "ungrouped_items": [],
             },
         },
     },
@@ -310,11 +346,12 @@ if (
 ):
     raise SystemExit("Scalable snapshot helper leaked account/portfolio identifiers")
 if (
-    synthetic["valuation"]["portfolio"] != 1234.56
-    or synthetic["valuation"]["cash"] != 37.44
-    or synthetic["holdings"][0]["valuation"] != 1234.56
+    synthetic["valuation"]["portfolio"] != 1275.56
+    or synthetic["valuation"]["cash"] != 5.0
+    or len(synthetic["holdings"]) != 2
+    or synthetic["holdings"][1]["valuation"] != 41.0
 ):
-    raise SystemExit("Scalable snapshot helper changed broker-reported valuation/cash")
+    raise SystemExit("Scalable snapshot helper failed broker-only grouped-position reconciliation")
 if "sc login --local-read-only" not in security_doc or "AES-256-GCM" not in security_doc:
     raise SystemExit("SECURITY.md is missing the Scalable trust boundary")
 
