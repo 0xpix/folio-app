@@ -225,7 +225,7 @@ def main() -> int:
     user_id = resolve(args.user_id, "FOLIO_SPARKASSE_USER", "Online-banking login ID: ")
     endpoint = resolve(args.endpoint, "FOLIO_SPARKASSE_ENDPOINT", "FinTS endpoint URL: ")
     product_id = resolve(args.product_id, "FOLIO_FINTS_PRODUCT_ID", "Registered FinTS product ID: ")
-    pin = resolve(None, "FOLIO_SPARKASSE_PIN", "Online-banking PIN: ", secret=True)
+    pin = getpass.getpass("Online-banking PIN: ").strip()
 
     if not all((blz, user_id, endpoint, product_id, pin)):
         raise RuntimeError("BLZ, login ID, FinTS endpoint, product ID and PIN are required")
