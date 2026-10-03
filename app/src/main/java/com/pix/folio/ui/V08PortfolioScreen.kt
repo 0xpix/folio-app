@@ -47,12 +47,19 @@ private enum class V08PortfolioGraphMode(val label: String) { VALUE("VALUE"), RE
 @Composable
 internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val summary = vm.summary
+    val scalable = vm.scalableSnapshot
     val valuations = summary.investments.associateWith(vm::v081Valuation)
-    val total = valuations.values.sumOf { it.value }
+    val total = scalable?.investmentValue ?: valuations.values.sumOf { it.value }
     val invested = summary.portfolioCostBasis
-    val gain = v081AbsoluteReturn(total, invested)
+    val localGain = v081AbsoluteReturn(total, invested)
+    val brokerReturn = scalable?.primaryAbsoluteReturn
+    val gain = brokerReturn?.absoluteReturn ?: localGain
     val valueHistory = vm.v081PortfolioHistory(total)
-    val gainPct = v081TimeWeightedReturnPct(valueHistory, summary.investmentTransactions)
+    val gainPct = if (scalable == null) {
+        v081TimeWeightedReturnPct(valueHistory, summary.investmentTransactions)
+    } else {
+        0.0
+    }
     var graphMode by remember { mutableStateOf(V08PortfolioGraphMode.VALUE) }
     var editHolding by remember { mutableStateOf<InvestmentHolding?>(null) }
     var editTransaction by remember { mutableStateOf<InvestmentTransaction?>(null) }
@@ -68,7 +75,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         }
     }
 
-    val hasEstimatedHolding = valuations.values.any { !it.exact }
+    val hasEstimatedHolding = scalable == null && valuations.values.any { !it.exact }
     val graphSemanticTrend = when (graphMode) {
         V08PortfolioGraphMode.VALUE -> gain
         V08PortfolioGraphMode.RETURN -> graphSeries.lastOrNull()?.second
@@ -88,10 +95,29 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         Spacer(Modifier.height(8.dp))
         Text(v07Euro(total), fontSize = 58.sp, lineHeight = 62.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         Text(
-            "${v07SignedEuro(gain)} total return · ${String.format(Locale.US, "%+.1f%%", gainPct)} time-weighted",
+            if (scalable != null) {
+                brokerReturn?.let {
+                    "Scalable ${it.timeframe} return · ${v07SignedEuro(it.absoluteReturn)}"
+                } ?: "Exact broker value from Scalable Capital"
+            } else {
+                "${v07SignedEuro(gain)} total return · ${String.format(Locale.US, "%+.1f%%", gainPct)} time-weighted"
+            },
             fontSize = 13.sp,
-            color = folioChangeColor(gain),
+            color = if (scalable != null && brokerReturn == null) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                folioChangeColor(gain)
+            },
         )
+        if (scalable != null) {
+            Text(
+                "Source: Scalable Capital · encrypted read-only snapshot · ${scalable.createdAtUtc}",
+                fontSize = 10.sp,
+                lineHeight = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 5.dp),
+            )
+        }
         if (hasEstimatedHolding) {
             Text(
                 "Some holdings are estimated. Tap one and enter the exact units from your brokerage for broker-style valuation when the market quote is in EUR.",
@@ -120,8 +146,16 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             )
             Text(
                 when (graphMode) {
-                    V08PortfolioGraphMode.VALUE -> "Market value across all holdings. Today's endpoint uses exact unit-based values where available."
-                    V08PortfolioGraphMode.RETURN -> "Absolute return in euros: portfolio value minus invested capital. Deposits do not count as performance."
+                    V08PortfolioGraphMode.VALUE -> if (scalable != null) {
+                        "Historical curve uses Folio purchase history; today's endpoint is the exact Scalable broker valuation."
+                    } else {
+                        "Market value across all holdings. Today's endpoint uses exact unit-based values where available."
+                    }
+                    V08PortfolioGraphMode.RETURN -> if (scalable != null) {
+                        "Historical return uses Folio purchase history; today's portfolio value comes from Scalable Capital."
+                    } else {
+                        "Absolute return in euros: portfolio value minus invested capital. Deposits do not count as performance."
+                    }
                     V08PortfolioGraphMode.CONTRIBUTIONS -> "Running contributed total by month. September stays visible, then October adds on top."
                 },
                 fontSize = 10.sp,
@@ -140,35 +174,104 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         }
 
         Spacer(Modifier.height(28.dp))
-        V08PortfolioIntelligence(
-            vm = vm,
-            valuations = valuations,
-            total = total,
-            invested = invested,
-            absoluteReturn = gain,
-            timeWeightedReturnPct = gainPct,
-        )
+        if (scalable != null) {
+            V07Panel {
+                Text("Scalable Capital", fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    "Broker-reported values are authoritative while this snapshot is active.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                V07Metric("Investments", v07Euro(scalable.investmentValue), "Securities + crypto reported by Scalable")
+                V07Divider()
+                V07Metric("Broker total", v07Euro(scalable.totalValue), "May include broker cash / credit")
+                V07Divider()
+                V07Metric("Securities", v07Euro(scalable.securitiesValue))
+                if (scalable.cryptoValue > 0.0) {
+                    V07Divider()
+                    V07Metric("Crypto", v07Euro(scalable.cryptoValue))
+                }
+                brokerReturn?.let {
+                    V07Divider()
+                    V07Metric(
+                        "Scalable return · ${it.timeframe}",
+                        v07SignedEuro(it.absoluteReturn),
+                        valueColor = folioChangeColor(it.absoluteReturn),
+                    )
+                }
+            }
+        } else {
+            V08PortfolioIntelligence(
+                vm = vm,
+                valuations = valuations,
+                total = total,
+                invested = invested,
+                absoluteReturn = gain,
+                timeWeightedReturnPct = gainPct,
+            )
+        }
 
         Spacer(Modifier.height(34.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Holdings", fontSize = 27.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-            TextButton(
-                onClick = {
-                    vm.refreshMarketPrices()
-                    vm.refreshTrackedInvestments()
-                },
-                enabled = !vm.marketRefreshing && !vm.trackingRefreshing,
-            ) { Text(if (vm.marketRefreshing || vm.trackingRefreshing) "Updating…" else "Refresh") }
+            if (scalable == null) {
+                TextButton(
+                    onClick = {
+                        vm.refreshMarketPrices()
+                        vm.refreshTrackedInvestments()
+                    },
+                    enabled = !vm.marketRefreshing && !vm.trackingRefreshing,
+                ) { Text(if (vm.marketRefreshing || vm.trackingRefreshing) "Updating…" else "Refresh") }
+            } else {
+                Text("Scalable snapshot", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         Text(
-            "Tap a holding to edit its purchase date, time, and exact owned units.",
+            if (scalable != null) {
+                "Exact broker holdings from the imported snapshot. Import a newer snapshot in Settings → Connections to refresh them."
+            } else {
+                "Tap a holding to edit its purchase date, time, and exact owned units."
+            },
             fontSize = 11.sp,
             lineHeight = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(10.dp))
 
-        if (summary.investments.isEmpty()) {
+        if (scalable != null) {
+            if (scalable.holdings.isEmpty()) {
+                V07Panel {
+                    Text("No Scalable holdings", fontSize = 19.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        "The imported broker snapshot contains no security holdings.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                scalable.holdings
+                    .sortedByDescending { it.valuation }
+                    .forEachIndexed { index, brokerHolding ->
+                        val localHolding = summary.investments.firstOrNull {
+                            it.isin.isNotBlank() && it.isin.equals(brokerHolding.isin, ignoreCase = true)
+                        }
+                        val allocation = if (total > 0.0) brokerHolding.valuation / total * 100.0 else 0.0
+                        V07Metric(
+                            label = brokerHolding.name,
+                            value = v07Euro(brokerHolding.valuation),
+                            detail = buildString {
+                                append("${String.format(Locale.US, "%.1f", allocation)}% · Scalable Capital · exact")
+                                brokerHolding.quantity?.let { append(" · ${v081Units(it)} units") }
+                                if (brokerHolding.quoteOutdated) append(" · quote flagged outdated")
+                                append(" · ${brokerHolding.isin}")
+                            },
+                            onClick = localHolding?.let { holding -> ({ editHolding = holding }) },
+                        )
+                        if (index != scalable.holdings.lastIndex) V07Divider()
+                    }
+            }
+        } else if (summary.investments.isEmpty()) {
             V07Panel(onClick = { showAdd = true }) {
                 Text("Add your first investment", fontSize = 19.sp, fontWeight = FontWeight.Medium)
                 Text("Add exact units, purchase date and time, or resolve an ETF/stock by ISIN.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

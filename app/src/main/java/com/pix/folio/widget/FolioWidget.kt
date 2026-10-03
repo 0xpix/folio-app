@@ -33,6 +33,7 @@ import com.pix.folio.MainActivity
 import com.pix.folio.R
 import com.pix.folio.data.FolioStore
 import com.pix.folio.data.InvestmentTrackingStore
+import com.pix.folio.data.SecureScalableStore
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -81,9 +82,10 @@ private data class WidgetValues(
 
 private fun widgetValues(context: Context): WidgetValues {
     val summary = FolioStore(context).summary()
+    val scalable = SecureScalableStore(context).load().getOrNull()
     val tracking = InvestmentTrackingStore(context)
 
-    val investments = summary.investments.sumOf { holding ->
+    val localInvestments = summary.investments.sumOf { holding ->
         val brokerUnits = tracking.brokerOwnedUnits(holding.id)
         val latest = summary.priceHistoryFor(holding.id).lastOrNull()
         val exactEurValue = if (
@@ -100,6 +102,8 @@ private fun widgetValues(context: Context): WidgetValues {
 
         exactEurValue ?: summary.marketValueFor(holding)
     }
+
+    val investments = scalable?.investmentValue ?: localInvestments
 
     return WidgetValues(
         netWorth = summary.cashBalance + summary.totalSavings + investments,

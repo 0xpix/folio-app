@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.12.0.beta`
+**Current beta source:** `0.13.0.beta`
 
 ## What Folio tracks
 
@@ -28,6 +28,7 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Optional biometric / device-credential app lock that restores the last root page after unlocking
 - Minimal 3×1 widget with switchable Net worth / Investments / Cash left metrics that follows Android light/dark appearance
 - Portable local backup and restore
+- Optional **Scalable Capital read-only snapshot** source using the official Scalable CLI, sanitized before encrypted Android Keystore storage
 
 Fresh installs start empty. Folio does not seed demo money or fake chart data.
 
@@ -66,7 +67,54 @@ A new contribution changes **Invested** and **Portfolio value**, but does not cr
 
 Folio currently models price performance from recorded purchases and market quotes. It does not yet model distributions, taxes, tax refunds, or order fees as separate investment-performance cash flows, so those cases may differ from a brokerage statement.
 
+## Scalable Capital read-only sync
+
+Folio can use broker-reported Scalable Capital valuations without storing Scalable credentials or
+reverse-engineering the broker login flow.
+
+The security boundary is intentionally simple:
+
+1. Enable Scalable Agentic Investing / CLI access in the Scalable web app.
+2. Install Scalable Capital's **official** `sc` CLI on your own computer.
+3. Authenticate yourself directly with Scalable in local read-only mode:
+
+```bash
+sc login --local-read-only
+```
+
+   Scalable documents this as a local CLI write guard, not reduced backend token permissions.
+   Folio's helper therefore also hard-limits itself to two fixed read commands.
+
+4. From the Folio repository, create a minimal sanitized snapshot:
+
+```bash
+python3 tools/scalable_snapshot.py --output folio-scalable.snapshot.json
+```
+
+5. Transfer that file to the phone, open **Folio → Settings → Connections → Scalable Capital**,
+   and import it.
+6. Delete the plaintext snapshot file after import.
+
+The helper executes only:
+
+```text
+sc broker overview --json
+sc broker holdings --json
+```
+
+It strips account/portfolio identifiers. Folio stores only the allowlisted broker valuation,
+performance and holding fields, encrypted with AES-256-GCM using a non-exportable Android Keystore
+key. The encrypted snapshot is not included in Folio backups and Android backup is disabled.
+
+While a Scalable snapshot is active, Scalable's broker-reported portfolio value and per-holding
+valuation are the source of truth for the Portfolio screen and investment widget. Yahoo/OpenFIGI
+valuation is used only when no Scalable snapshot is active.
+
+This snapshot flow is intentionally read-only and does not place trades, modify savings plans, or
+touch the Scalable CLI session. See [SECURITY.md](SECURITY.md) for the full trust boundary.
+
 ## Money model
+
 
 Folio keeps current money and planning separate:
 

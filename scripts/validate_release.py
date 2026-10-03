@@ -1,4 +1,7 @@
 from pathlib import Path
+import ast
+import importlib.util
+import json
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -27,6 +30,8 @@ required = [
     "app/src/main/java/com/pix/folio/data/FolioStore.kt",
     "app/src/main/java/com/pix/folio/data/MonthlyPlanStore.kt",
     "app/src/main/java/com/pix/folio/data/InvestmentTrackingStore.kt",
+    "app/src/main/java/com/pix/folio/data/ScalableSnapshot.kt",
+    "app/src/main/java/com/pix/folio/data/SecureScalableStore.kt",
     "app/src/main/java/com/pix/folio/data/FolioNavigationStore.kt",
     "app/src/main/java/com/pix/folio/data/FolioBackup.kt",
     "app/src/main/java/com/pix/folio/data/FolioRoomMirror.kt",
@@ -37,6 +42,8 @@ required = [
     "app/src/beta/java/com/pix/folio/updates/BetaUpdater.kt",
     "app/src/test/java/com/pix/folio/V08FinanceModelTest.kt",
     ".github/workflows/build-apk.yml",
+    "tools/scalable_snapshot.py",
+    "SECURITY.md",
     "CHANGELOG.md",
     "README.md",
 ]
@@ -61,8 +68,13 @@ if "com.android.legacy-kapt" not in root_build or "com.android.legacy-kapt" not 
 
 manifest = root / "app/src/main/AndroidManifest.xml"
 ET.parse(manifest)
-if "android.permission.INTERNET" not in manifest.read_text():
+manifest_text = manifest.read_text()
+if "android.permission.INTERNET" not in manifest_text:
     raise SystemExit("Base app manifest must include INTERNET")
+if 'android:allowBackup="false"' not in manifest_text:
+    raise SystemExit("Android backup must stay disabled")
+if 'android:usesCleartextTraffic="false"' not in manifest_text:
+    raise SystemExit("Cleartext Android traffic must stay disabled")
 
 light_colors = (root / "app/src/main/res/values/colors.xml").read_text()
 dark_colors = (root / "app/src/main/res/values-night/colors.xml").read_text()
@@ -130,6 +142,7 @@ feature_groups = {
     "monthly investment totals": ["MONTH TOTAL", "Cumulative", "v081CumulativeMonthlyContributions", "v081PurchaseLotValueAt", "v081ResolvedOwnedUnits"],
     "widget metrics": ["NET WORTH", "INVESTMENTS", "CASH LEFT", "actionRunCallback", "widgetValues"],
     "widget theme": ["folio_widget_background", "folio_widget_foreground", "folio_widget_muted", "WidgetBackground", "WidgetForeground", "WidgetMuted"],
+    "Scalable read-only source": ["ScalableSnapshot", "SecureScalableStore", "Scalable Capital", "Broker-reported values", "encrypted read-only snapshot"],
     "last-page restore": ["folio_navigation_v1", "root_page"],
     "portable backup": ["folio-backup", "Export Folio", "Restore Folio"],
     "backup validation": ["Unsupported Folio backup version", "Backup data is incomplete"],
@@ -156,6 +169,88 @@ isin_first = market.find("if (isin.isNotBlank() && isFundLike)")
 cached_symbols = market.find("listOf(holding.priceSymbol, holding.symbol)")
 if isin_first < 0 or cached_symbols < 0 or isin_first > cached_symbols:
     raise SystemExit("Fund-like Yahoo resolution must try ISIN candidates before cached symbols")
+
+# Scalable integration security contract.
+scalable_codec = (root / "app/src/main/java/com/pix/folio/data/ScalableSnapshot.kt").read_text()
+scalable_store = (root / "app/src/main/java/com/pix/folio/data/SecureScalableStore.kt").read_text()
+scalable_helper_path = root / "tools/scalable_snapshot.py"
+scalable_helper = scalable_helper_path.read_text()
+security_doc = (root / "SECURITY.md").read_text()
+backup_source = (root / "app/src/main/java/com/pix/folio/data/FolioBackup.kt").read_text()
+gitignore = (root / ".gitignore").read_text()
+
+for token in ["AndroidKeyStore", "AES/GCM/NoPadding", "KeyGenParameterSpec", "setRandomizedEncryptionRequired(true)", "setUnlockedDeviceRequired(true)"]:
+    if token not in scalable_store:
+        raise SystemExit(f"Scalable encrypted storage safeguard is missing: {token}")
+
+for forbidden in ["HttpURLConnection", "URL(", "Socket(", "access_token", "refresh_token", "client_secret"]:
+    if forbidden in scalable_codec or forbidden in scalable_store:
+        raise SystemExit(f"Scalable snapshot path must not own network/auth material: {forbidden}")
+
+if "scalable_snapshot_v1.enc" in backup_source or "folio_scalable" in backup_source:
+    raise SystemExit("Portable Folio backup must not include the encrypted Scalable snapshot")
+
+for pattern in ["folio-scalable*.json", "*.folio-scalable.json", "scalable-snapshot*.json"]:
+    if pattern not in gitignore:
+        raise SystemExit(f"Missing Scalable privacy gitignore pattern: {pattern}")
+
+try:
+    ast.parse(scalable_helper)
+except SyntaxError as error:
+    raise SystemExit(f"Scalable helper syntax error: {error}") from error
+
+for token in [
+    'run_sc(sc, "broker", "overview")',
+    'run_sc(sc, "broker", "holdings")',
+    "shell=False",
+    "0o600",
+]:
+    if token not in scalable_helper:
+        raise SystemExit(f"Scalable helper read-only safeguard is missing: {token}")
+if scalable_helper.count('run_sc(sc, "broker",') != 2:
+    raise SystemExit("Scalable helper may execute only overview and holdings broker reads")
+for forbidden in ['run_sc(sc, "broker", "trade"', 'run_sc(sc, "broker", "savings-plans"', "shell=True"]:
+    if forbidden in scalable_helper:
+        raise SystemExit(f"Unsafe Scalable helper behavior detected: {forbidden}")
+
+spec = importlib.util.spec_from_file_location("folio_scalable_snapshot_helper", scalable_helper_path)
+if spec is None or spec.loader is None:
+    raise SystemExit("Could not load Scalable snapshot helper")
+helper_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(helper_module)
+synthetic = helper_module.build_snapshot(
+    {
+        "account_id": "must-not-leak",
+        "portfolio_id": "must-not-leak",
+        "valuation": {"total": "1234.56", "securities": "1234.56", "crypto": "0"},
+        "timestamps": {"valuation_timestamp_utc": "2026-10-03T07:00:00Z"},
+        "performance": [{"timeframe": "MAX", "simpleAbsoluteReturn": "12.34"}],
+    },
+    {
+        "account_id": "must-not-leak",
+        "portfolio_id": "must-not-leak",
+        "items": [{
+            "isin": "IE00B4L5Y983",
+            "name": "Synthetic ETF",
+            "security_type": "ETF",
+            "quantity": "10",
+            "valuation": "1234.56",
+            "valuation_currency": "EUR",
+            "quote_mid_price": "123.45",
+            "quote_currency": "EUR",
+            "quote_timestamp_utc": "2026-10-03T07:00:00Z",
+            "quote_is_outdated": False,
+        }],
+    },
+    "sc 1.1.0",
+)
+synthetic_json = json.dumps(synthetic)
+if "account_id" in synthetic_json or "portfolio_id" in synthetic_json or "must-not-leak" in synthetic_json:
+    raise SystemExit("Scalable snapshot helper leaked account/portfolio identifiers")
+if synthetic["valuation"]["total"] != 1234.56 or synthetic["holdings"][0]["valuation"] != 1234.56:
+    raise SystemExit("Scalable snapshot helper changed broker-reported valuation")
+if "sc login --local-read-only" not in security_doc or "AES-256-GCM" not in security_doc:
+    raise SystemExit("SECURITY.md is missing the Scalable trust boundary")
 
 workflow = (root / ".github/workflows/build-apk.yml").read_text()
 for task in [":app:testBetaDebugUnitTest", ":app:testPlayDebugUnitTest", ":app:assembleBetaDebug", ":app:assemblePlayDebug"]:
@@ -185,6 +280,8 @@ for name in [
     "timeWeightedReturnCompoundsAcrossContributionPeriods",
     "absoluteReturnSubtractsInvestedCapitalNotDepositsFromPerformance",
     "brokerStyleAbsoluteReturnUsesCurrentValueMinusInvestedCapital",
+    "scalableInvestmentValueExcludesBrokerCash",
+    "scalablePrimaryReturnPrefersAllTimeStyleFrame",
 ]:
     if name not in tests:
         raise SystemExit(f"Missing finance regression test: {name}")

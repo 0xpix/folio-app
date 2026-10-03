@@ -9,6 +9,30 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.13.0.beta] - 2026-10-03
+
+### Added
+- Secure **Scalable Capital read-only snapshots** using Scalable's official CLI as the broker data source.
+- Settings → Connections → Scalable Capital import/replace/disconnect controls with no username, password, 2FA, OAuth-token, account-ID, or portfolio-ID fields in Folio.
+- A local helper, `tools/scalable_snapshot.py`, that executes only `sc broker overview --json` and `sc broker holdings --json`, strips account/portfolio identifiers, and writes a minimal owner-only snapshot.
+- AES-256-GCM encrypted Scalable snapshot storage backed by a non-exportable Android Keystore key.
+- Scalable broker-reported portfolio/holding values in Portfolio and the investment widget when a snapshot is active.
+
+### Changed
+- While a Scalable snapshot is active, Scalable's **securities + crypto valuation** is authoritative for Folio Investments; Scalable broker cash/credit stays separate so Folio does not double-count cash.
+- Home net worth and the widget use the same Scalable investment value as Portfolio.
+- Scalable mode removes the misleading Yahoo **Refresh** action; a newer exact broker snapshot is imported from Settings instead.
+- Android cleartext network traffic is disabled.
+- Full local-data reset also deletes the encrypted Scalable snapshot and its Keystore key.
+- README and SECURITY.md now document the read-only trust boundary and the temporary plaintext-snapshot deletion step.
+
+### Security
+- The Scalable helper uses `subprocess.run([...], shell=False)` and exposes no generic broker-command interface.
+- The helper never runs login or write commands and CI fails if additional broker commands are added.
+- The imported snapshot is allowlisted/sanitized before encryption and is intentionally excluded from Folio portable backups.
+- Scalable snapshot filename patterns are ignored by Git to reduce accidental publication risk.
+- CI uses only fabricated fixtures and verifies that account/portfolio identifiers cannot enter the sanitized snapshot.
+
 ## [0.12.0.beta] - 2026-10-02
 
 ### Added

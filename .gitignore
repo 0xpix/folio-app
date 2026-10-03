@@ -22,3 +22,10 @@ secrets.properties
 folio-beta-base64.txt
 *keystore*.base64
 *keystore*.b64
+
+
+# Local Scalable Capital snapshots — contain private portfolio data
+folio-scalable*.json
+*.folio-scalable.json
+scalable-snapshot*.json
+private-scalable/

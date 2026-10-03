@@ -58,6 +58,32 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
     var pendingExport by remember { mutableStateOf<String?>(null) }
     var backupRefresh by remember { mutableStateOf(0) }
 
+    val scalableImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
+            }.fold(
+                onSuccess = { raw ->
+                    vm.importScalableSnapshot(raw).fold(
+                        onSuccess = {
+                            Toast.makeText(context, "Scalable snapshot imported securely", Toast.LENGTH_SHORT).show()
+                        },
+                        onFailure = {
+                            Toast.makeText(
+                                context,
+                                it.message ?: "Invalid Scalable snapshot",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        },
+                    )
+                },
+                onFailure = {
+                    Toast.makeText(context, it.message ?: "Could not read snapshot", Toast.LENGTH_LONG).show()
+                },
+            )
+        }
+    }
+
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -122,6 +148,55 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                 }
             }
             Text("Pixify is the default Folio typeface.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Spacer(Modifier.height(26.dp))
+            V07SectionLabel("Connections")
+            val scalable = vm.scalableSnapshot
+            if (scalable == null) {
+                V07Metric(
+                    "Scalable Capital",
+                    "Import",
+                    "Read-only snapshot from the official Scalable CLI. Folio never receives your password, 2FA or CLI session.",
+                    onClick = {
+                        scalableImportLauncher.launch(arrayOf("application/json", "text/plain"))
+                    },
+                )
+            } else {
+                val importedAt = scalable.createdAtUtc
+                    .atZone(ZoneId.systemDefault())
+                    .format(V08BackupTimeFormat)
+                V07Metric(
+                    "Scalable Capital",
+                    "Imported",
+                    "Encrypted locally with Android Keystore · $importedAt",
+                    onClick = {
+                        scalableImportLauncher.launch(arrayOf("application/json", "text/plain"))
+                    },
+                )
+                V07Divider()
+                V07Metric(
+                    "Replace Scalable snapshot",
+                    "Import",
+                    "Import a newer read-only snapshot. The previous encrypted snapshot is replaced.",
+                    onClick = {
+                        scalableImportLauncher.launch(arrayOf("application/json", "text/plain"))
+                    },
+                )
+                V07Divider()
+                V07Metric(
+                    "Disconnect Scalable",
+                    "Delete",
+                    "Deletes Folio's encrypted broker snapshot and its Keystore key. Your Scalable CLI session is untouched.",
+                    onClick = vm::disconnectScalable,
+                )
+            }
+            Text(
+                "Create the snapshot on your own computer with Scalable's official CLI in local read-only mode. Snapshot files are excluded from Git and are never included in Folio backups.",
+                fontSize = 10.sp,
+                lineHeight = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
 
             Spacer(Modifier.height(26.dp))
             V07SectionLabel("Recurring")
