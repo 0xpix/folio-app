@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Folio</string>
     <string name="widget_description">A minimal view of net worth, investments, or cash left.</string>
+    <string name="widget_overview_description">A 2×2 Folio overview with net worth, investments, cash, and savings.</string>
 </resources>
