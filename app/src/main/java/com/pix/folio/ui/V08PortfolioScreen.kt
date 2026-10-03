@@ -215,16 +215,24 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         Spacer(Modifier.height(34.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Holdings", fontSize = 27.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-            TextButton(
-                onClick = {
-                    vm.refreshMarketPrices()
-                    vm.refreshTrackedInvestments()
-                },
-                enabled = !vm.marketRefreshing && !vm.trackingRefreshing,
-            ) { Text(if (vm.marketRefreshing || vm.trackingRefreshing) "Updating…" else "Refresh") }
+            if (scalable == null) {
+                TextButton(
+                    onClick = {
+                        vm.refreshMarketPrices()
+                        vm.refreshTrackedInvestments()
+                    },
+                    enabled = !vm.marketRefreshing && !vm.trackingRefreshing,
+                ) { Text(if (vm.marketRefreshing || vm.trackingRefreshing) "Updating…" else "Refresh") }
+            } else {
+                Text("Scalable snapshot", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         Text(
-            "Tap a holding to edit its purchase date, time, and exact owned units.",
+            if (scalable != null) {
+                "Exact broker holdings from the imported snapshot. Import a newer snapshot in Settings → Connections to refresh them."
+            } else {
+                "Tap a holding to edit its purchase date, time, and exact owned units."
+            },
             fontSize = 11.sp,
             lineHeight = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
