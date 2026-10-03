@@ -594,6 +594,8 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         trackingErrors = emptyMap()
         scalableStore.clear()
         scalableSnapshot = null
+        sparkasseStore.clear()
+        sparkasseSnapshot = null
         planStore.clearAll()
         store.clearAll()
         refresh()
