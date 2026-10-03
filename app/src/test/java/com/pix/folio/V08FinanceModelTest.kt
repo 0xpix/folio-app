@@ -456,25 +456,61 @@ class V08FinanceModelTest {
     }
 
     @Test
-    fun scalableBrokerTotalReconcilesCashOrCredit() {
+    fun scalableAccountTotalAddsBrokerCash() {
         val snapshot = ScalableSnapshot(
             createdAtUtc = Instant.parse("2026-01-01T00:00:00Z"),
             valuationTimestampUtc = null,
             cliVersion = "synthetic",
             currency = "EUR",
-            totalValue = 1_500.0,
-            securitiesValue = 1_200.0,
-            cryptoValue = 50.0,
+            totalValue = 2_203.0,
+            securitiesValue = 2_203.0,
+            cryptoValue = 0.0,
             performance = emptyList(),
-            holdings = emptyList(),
+            holdings = listOf(
+                ScalableHoldingSnapshot(
+                    isin = "IE00B4L5Y983",
+                    name = "Investment A",
+                    securityType = "ETF",
+                    quantity = 1.0,
+                    valuation = 1_100.0,
+                    valuationCurrency = "EUR",
+                    quoteMidPrice = 1_100.0,
+                    quoteCurrency = "EUR",
+                    quoteTimestampUtc = null,
+                    quoteOutdated = false,
+                ),
+                ScalableHoldingSnapshot(
+                    isin = "US0378331005",
+                    name = "Investment B",
+                    securityType = "STOCK",
+                    quantity = 1.0,
+                    valuation = 1_094.0,
+                    valuationCurrency = "EUR",
+                    quoteMidPrice = 1_094.0,
+                    quoteCurrency = "EUR",
+                    quoteTimestampUtc = null,
+                    quoteOutdated = false,
+                ),
+                ScalableHoldingSnapshot(
+                    isin = "US74766Q1013",
+                    name = "Quantinuum",
+                    securityType = "STOCK",
+                    quantity = 1.0,
+                    valuation = 41.0,
+                    valuationCurrency = "EUR",
+                    quoteMidPrice = 41.0,
+                    quoteCurrency = "EUR",
+                    quoteTimestampUtc = null,
+                    quoteOutdated = false,
+                ),
+            ),
+            portfolioValue = 2_203.0,
+            cashBalance = 5.0,
         )
 
-        assertEquals(250.0, snapshot.brokerCashOrCreditValue, 0.001)
-        assertEquals(
-            snapshot.totalValue,
-            snapshot.investmentValue + snapshot.brokerCashOrCreditValue,
-            0.001,
-        )
+        assertEquals(2_235.0, snapshot.holdingsValue, 0.001)
+        assertEquals(5.0, snapshot.brokerCashOrCreditValue, 0.001)
+        assertEquals(2_240.0, snapshot.brokerAccountValue, 0.001)
     }
 
     @Test
