@@ -13,7 +13,7 @@ import com.pix.folio.model.FolioSummary
 import com.pix.folio.model.InvestmentKind
 import com.pix.folio.model.InvestmentTag
 import com.pix.folio.model.PaymentCategory
-import com.pix.folio.widget.FolioBalanceWidget
+import com.pix.folio.widget.FolioOverviewWidget
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -147,7 +147,7 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         appLockEnabled = store.isAppLockEnabled()
         canUndo = store.canUndo()
         viewModelScope.launch {
-            FolioBalanceWidget().updateAll(getApplication())
+            FolioOverviewWidget().updateAll(getApplication())
         }
     }
 }
