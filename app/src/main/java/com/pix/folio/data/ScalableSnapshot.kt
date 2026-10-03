@@ -39,6 +39,21 @@ data class ScalableSnapshot(
     /** Residual needed to reconcile securities + crypto to Scalable's exact broker total. */
     val brokerCashOrCreditValue: Double get() = totalValue - investmentValue
 
+    /** Sum of broker-reported holding valuations, useful for reconciliation/debugging. */
+    val holdingsValue: Double get() = holdings.sumOf { it.valuation }
+
+    /**
+     * Broker-style invested capital derived entirely from the same Scalable snapshot.
+     *
+     * Scalable's overview exposes an absolute return for all-time-like frames. When available,
+     * current broker total - broker absolute return gives the corresponding invested capital
+     * without mixing Folio's manual purchase history into broker mode.
+     */
+    val brokerInvestedCapital: Double?
+        get() = primaryAbsoluteReturn
+            ?.let { totalValue - it.absoluteReturn }
+            ?.takeIf { it.isFinite() && it >= 0.0 }
+
     val primaryAbsoluteReturn: ScalablePerformanceSnapshot?
         get() {
             val priority = listOf(
