@@ -209,7 +209,7 @@ internal fun V07ViewModel.v081Valuation(holding: InvestmentHolding): V081Holding
 }
 
 internal val V07ViewModel.v081PortfolioTotal: Double
-    get() = scalableSnapshot?.totalValue
+    get() = scalableSnapshot?.brokerAccountValue
         ?: summary.investments.sumOf { v081Valuation(it).value }
 
 internal val V07ViewModel.v081PortfolioGain: Double
