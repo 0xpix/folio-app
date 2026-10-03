@@ -71,7 +71,7 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                             val snapshot = vm.scalableSnapshot
                             scalableImportFailed = false
                             scalableImportStatus = snapshot?.let {
-                                "Imported ${it.holdings.size} holdings · broker total ${v07Euro(it.totalValue)}"
+                                "Imported ${it.holdings.size} holdings · broker total ${v07Euro(it.brokerAccountValue)}"
                             } ?: "Scalable snapshot imported securely"
                             Toast.makeText(context, scalableImportStatus, Toast.LENGTH_LONG).show()
                         },
@@ -179,7 +179,7 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                 V07Metric(
                     "Scalable Capital",
                     "Imported",
-                    "${scalable.holdings.size} holdings · ${v07Euro(scalable.totalValue)} broker total · encrypted locally · $importedAt",
+                    "${scalable.holdings.size} holdings · ${v07Euro(scalable.brokerAccountValue)} broker total · encrypted locally · $importedAt",
                     onClick = {
                         scalableImportLauncher.launch(arrayOf("application/json", "text/plain"))
                     },
