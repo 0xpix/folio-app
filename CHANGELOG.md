@@ -9,6 +9,21 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.15.0.beta] - 2026-10-03
+
+### Added
+- Added an interactive broker Portfolio performance graph to the Scalable-connected view, derived only from Scalable's broker absolute-return timeframes and current broker total.
+- Added a dedicated Folio mark inside the home-screen widget.
+
+### Changed
+- Replaced the old switchable/resizable widget setup with one fixed **2×2 Folio overview widget** showing the Folio mark, Net worth, Savings, Cash, and Investments without resizing.
+- Tightened the Home header spacing so the Folio mark/settings row sits closer to the top system inset.
+- Simplified cash presentation by removing the separate **Left to plan** figure from Home and Money; **Available cash** is now the single visible cash balance.
+
+### Fixed
+- Fixed the Scalable Portfolio view having timeframe controls without a visible graph.
+- Fixed the 2×2 overview widget needing extra resizing to expose all metrics.
+
 ## [0.14.3.beta] - 2026-10-03
 
 ### Fixed
