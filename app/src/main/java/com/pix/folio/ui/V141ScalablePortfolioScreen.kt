@@ -1,5 +1,6 @@
 package com.pix.folio.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,171 +12,192 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pix.folio.data.ScalablePerformanceSnapshot
 import com.pix.folio.data.ScalableSnapshot
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-private val V141BrokerTime = DateTimeFormatter.ofPattern("MMM d, yyyy · HH:mm", Locale.ENGLISH)
 
 @Composable
 internal fun V141ScalablePortfolioScreen(snapshot: ScalableSnapshot) {
-    val brokerHoldingsValue = snapshot.holdingsValue
-    val brokerAccountValue = snapshot.brokerAccountValue
-    val brokerReturn = snapshot.primaryAbsoluteReturn
-    val importedAt = snapshot.createdAtUtc
-        .atZone(ZoneId.systemDefault())
-        .format(V141BrokerTime)
+    val frames = snapshot.performance.sortedBy { scalableFrameOrder(it.timeframe) }
+    val initialFrame = snapshot.primaryAbsoluteReturn ?: frames.lastOrNull()
+    var selectedFrame by remember(snapshot.createdAtUtc) { mutableStateOf(initialFrame) }
 
     Column(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 20.dp, vertical = 18.dp),
     ) {
         Text(
             "Portfolio",
-            fontSize = 36.sp,
-            lineHeight = 40.sp,
+            fontSize = 28.sp,
+            lineHeight = 34.sp,
             fontWeight = FontWeight.Medium,
         )
+
+        Spacer(Modifier.height(26.dp))
+
         Text(
-            "SCALABLE CAPITAL",
-            fontSize = 10.sp,
-            letterSpacing = 1.2.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            v07Euro(snapshot.brokerAccountValue),
+            fontSize = 52.sp,
+            lineHeight = 58.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
         )
 
-        Spacer(Modifier.height(18.dp))
-
-        V07Panel {
+        selectedFrame?.let { frame ->
+            Spacer(Modifier.height(4.dp))
             Text(
-                "BROKER ACCOUNT VALUE",
-                fontSize = 10.sp,
-                letterSpacing = 1.1.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(5.dp))
-            Text(
-                v07Euro(brokerAccountValue),
-                fontSize = 52.sp,
-                lineHeight = 56.sp,
+                v07SignedEuro(frame.absoluteReturn),
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                maxLines = 1,
+                color = folioChangeColor(frame.absoluteReturn),
             )
-            brokerReturn?.let {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    v07SignedEuro(it.absoluteReturn) + " · " + it.timeframe + " broker return",
-                    fontSize = 12.sp,
-                    color = folioChangeColor(it.absoluteReturn),
-                )
-            }
+        }
 
+        if (frames.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
-            V07Divider()
-            Spacer(Modifier.height(10.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                frames.forEach { frame ->
+                    TextButton(
+                        onClick = { selectedFrame = frame },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 4.dp,
+                            vertical = 2.dp,
+                        ),
+                    ) {
+                        Text(
+                            text = scalableFrameLabel(frame.timeframe),
+                            fontSize = 11.sp,
+                            fontWeight = if (selectedFrame?.timeframe == frame.timeframe) {
+                                FontWeight.SemiBold
+                            } else {
+                                FontWeight.Normal
+                            },
+                            color = if (selectedFrame?.timeframe == frame.timeframe) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                }
+            }
+        }
 
-            V07Metric(
-                "Holdings",
-                v07Euro(brokerHoldingsValue),
-                snapshot.holdings.size.toString() + " positions returned by Scalable",
-            )
+        if (snapshot.cashBalance > 0.005) {
+            Spacer(Modifier.height(18.dp))
             V07Divider()
-            V07Metric(
-                "Broker cash",
-                v07Euro(snapshot.cashBalance),
-                "Scalable cash-breakdown",
-            )
-            if (kotlin.math.abs(snapshot.portfolioValue - brokerHoldingsValue) >= 0.005) {
-                V07Divider()
-                V07Metric(
-                    "Overview valuation",
-                    v07Euro(snapshot.portfolioValue),
-                    "Scalable overview value; not used for the headline",
+            Spacer(Modifier.height(14.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Cash",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    v07Euro(snapshot.cashBalance),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }
 
-        Spacer(Modifier.height(30.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Spacer(Modifier.height(34.dp))
+        Text(
+            "Portfolio",
+            fontSize = 22.sp,
+            lineHeight = 28.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.height(8.dp))
+
+        if (snapshot.holdings.isEmpty()) {
             Text(
-                "Broker holdings",
-                fontSize = 27.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                snapshot.holdings.size.toString(),
+                "No positions returned by Scalable in this snapshot.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 14.dp),
             )
-        }
-        Text(
-            "Only positions returned by Scalable CLI are shown here. Folio does not recalculate their values.",
-            fontSize = 11.sp,
-            lineHeight = 16.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(Modifier.height(12.dp))
-        if (snapshot.holdings.isEmpty()) {
-            V07Panel {
-                Text("No broker holdings returned", fontSize = 18.sp, fontWeight = FontWeight.Medium)
-            }
         } else {
             snapshot.holdings
                 .sortedByDescending { it.valuation }
                 .forEachIndexed { index, holding ->
-                    V07Metric(
-                        label = holding.name,
-                        value = v07Euro(holding.valuation),
-                        detail = buildString {
-                            if (brokerHoldingsValue > 0.0) {
-                                append(String.format(Locale.US, "%.1f%%", holding.valuation / brokerHoldingsValue * 100.0))
-                                append(" · ")
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                holding.name,
+                                fontSize = 16.sp,
+                                lineHeight = 21.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 2,
+                            )
+                            if (holding.securityType.isNotBlank()) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    holding.securityType,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
-                            append("Scalable")
-                            holding.quantity?.let {
-                                append(" · " + String.format(Locale.US, "%.6f", it).trimEnd('0').trimEnd('.') + " units")
-                            }
-                            if (holding.securityType.isNotBlank()) append(" · " + holding.securityType)
-                            append(" · " + holding.isin)
-                        },
-                    )
+                        }
+                        Text(
+                            v07Euro(holding.valuation),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
                     if (index != snapshot.holdings.lastIndex) V07Divider()
                 }
         }
 
-        Spacer(Modifier.height(28.dp))
-        V07Panel {
-            Text("Snapshot", fontSize = 18.sp, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(8.dp))
-            V07Metric("Imported", importedAt)
-            V07Divider()
-            V07Metric("CLI", snapshot.cliVersion ?: "Scalable CLI")
-            snapshot.valuationTimestampUtc?.let {
-                V07Divider()
-                V07Metric("Broker timestamp", it)
-            }
-        }
-
-        Spacer(Modifier.height(30.dp))
-        Text(
-            "To refresh Portfolio, generate and import a new Scalable snapshot. Folio does not use Yahoo prices, local holdings, local cost basis, or Folio purchase history while this broker snapshot is connected.",
-            fontSize = 10.sp,
-            lineHeight = 15.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         Spacer(Modifier.height(24.dp))
     }
+}
+
+private fun scalableFrameOrder(value: String): Int = when (value.uppercase()) {
+    "ONE_DAY", "1D", "DAY" -> 0
+    "ONE_WEEK", "1W", "WEEK" -> 1
+    "ONE_MONTH", "1M", "MONTH" -> 2
+    "THREE_MONTHS", "3M" -> 3
+    "SIX_MONTHS", "6M" -> 4
+    "YEAR_TO_DATE", "YTD" -> 5
+    "ONE_YEAR", "1Y", "YEAR" -> 6
+    "MAX", "ALL", "ALL_TIME", "SINCE_INCEPTION", "SINCE_BUY", "SINCE_BUYING" -> 7
+    else -> 8
+}
+
+private fun scalableFrameLabel(value: String): String = when (value.uppercase()) {
+    "ONE_DAY", "1D", "DAY" -> "1D"
+    "ONE_WEEK", "1W", "WEEK" -> "1W"
+    "ONE_MONTH", "1M", "MONTH" -> "1M"
+    "THREE_MONTHS", "3M" -> "3M"
+    "SIX_MONTHS", "6M" -> "6M"
+    "YEAR_TO_DATE", "YTD" -> "YTD"
+    "ONE_YEAR", "1Y", "YEAR" -> "1Y"
+    "MAX", "ALL", "ALL_TIME", "SINCE_INCEPTION", "SINCE_BUY", "SINCE_BUYING" -> "MAX"
+    else -> value
 }
