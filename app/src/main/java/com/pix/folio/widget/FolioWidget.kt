@@ -78,6 +78,8 @@ private data class WidgetValues(
     val netWorth: Double,
     val investments: Double,
     val cashLeft: Double,
+    val savings: Double,
+    val scalableConnected: Boolean,
 )
 
 private fun widgetValues(context: Context): WidgetValues {
@@ -109,6 +111,8 @@ private fun widgetValues(context: Context): WidgetValues {
         netWorth = summary.cashBalance + summary.totalSavings + investments,
         investments = investments,
         cashLeft = summary.cashBalance,
+        savings = summary.totalSavings,
+        scalableConnected = scalable != null,
     )
 }
 
@@ -194,4 +198,120 @@ class NextWidgetMetricAction : ActionCallback {
 
 class FolioBalanceWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = FolioBalanceWidget()
+}
+
+
+class FolioOverviewWidget : GlanceAppWidget() {
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val values = widgetValues(context)
+        provideContent {
+            OverviewWidgetContent(values)
+        }
+    }
+}
+
+@Composable
+private fun OverviewWidgetContent(values: WidgetValues) {
+    Column(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .appWidgetBackground()
+            .background(WidgetBackground)
+            .cornerRadius(26.dp)
+            .clickable(actionStartActivity<MainActivity>())
+            .padding(18.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.Vertical.CenterVertically,
+        ) {
+            Text(
+                "Folio",
+                modifier = GlanceModifier.defaultWeight(),
+                style = TextStyle(
+                    color = WidgetForeground,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
+            )
+            Text(
+                if (values.scalableConnected) "SCALABLE" else "LOCAL",
+                style = TextStyle(
+                    color = WidgetMuted,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
+            )
+        }
+
+        Spacer(GlanceModifier.height(12.dp))
+        Text(
+            "NET WORTH",
+            style = TextStyle(
+                color = WidgetMuted,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Medium,
+            ),
+        )
+        Spacer(GlanceModifier.height(2.dp))
+        Text(
+            "€" + WidgetMoney.format(values.netWorth),
+            style = TextStyle(
+                color = WidgetForeground,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Medium,
+            ),
+        )
+
+        Spacer(GlanceModifier.height(15.dp))
+        Row {
+            OverviewWidgetMetric(
+                label = "INVESTMENTS",
+                amount = values.investments,
+                modifier = GlanceModifier.defaultWeight(),
+            )
+            Spacer(GlanceModifier.width(12.dp))
+            OverviewWidgetMetric(
+                label = "CASH",
+                amount = values.cashLeft,
+                modifier = GlanceModifier.defaultWeight(),
+            )
+        }
+
+        Spacer(GlanceModifier.height(10.dp))
+        OverviewWidgetMetric(
+            label = "SAVINGS",
+            amount = values.savings,
+        )
+    }
+}
+
+@Composable
+private fun OverviewWidgetMetric(
+    label: String,
+    amount: Double,
+    modifier: GlanceModifier = GlanceModifier,
+) {
+    Column(modifier = modifier) {
+        Text(
+            label,
+            style = TextStyle(
+                color = WidgetMuted,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Medium,
+            ),
+        )
+        Spacer(GlanceModifier.height(2.dp))
+        Text(
+            "€" + WidgetMoney.format(amount),
+            style = TextStyle(
+                color = WidgetForeground,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+            ),
+        )
+    }
+}
+
+class FolioOverviewWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = FolioOverviewWidget()
 }
