@@ -462,7 +462,7 @@ class V08FinanceModelTest {
             valuationTimestampUtc = null,
             cliVersion = "synthetic",
             currency = "EUR",
-            totalValue = 2_203.0,
+            totalValue = 2_240.0,
             securitiesValue = 2_203.0,
             cryptoValue = 0.0,
             performance = emptyList(),
@@ -504,12 +504,32 @@ class V08FinanceModelTest {
                     quoteOutdated = false,
                 ),
             ),
-            portfolioValue = 2_203.0,
+            portfolioValue = 2_235.0,
             cashBalance = 5.0,
         )
 
         assertEquals(2_235.0, snapshot.holdingsValue, 0.001)
         assertEquals(5.0, snapshot.brokerCashOrCreditValue, 0.001)
+        assertEquals(2_240.0, snapshot.brokerAccountValue, 0.001)
+    }
+
+    @Test
+    fun scalableConnectedValueDoesNotCollapseWhenHoldingsAreEmpty() {
+        val snapshot = ScalableSnapshot(
+            createdAtUtc = Instant.parse("2026-01-01T00:00:00Z"),
+            valuationTimestampUtc = null,
+            cliVersion = "synthetic",
+            currency = "EUR",
+            totalValue = 2_240.0,
+            securitiesValue = 2_203.0,
+            cryptoValue = 0.0,
+            performance = emptyList(),
+            holdings = emptyList(),
+            portfolioValue = 2_235.0,
+            cashBalance = 5.0,
+        )
+
+        assertEquals(0.0, snapshot.holdingsValue, 0.001)
         assertEquals(2_240.0, snapshot.brokerAccountValue, 0.001)
     }
 
