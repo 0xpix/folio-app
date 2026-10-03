@@ -213,13 +213,18 @@ internal val V07ViewModel.v081PortfolioTotal: Double
         ?: summary.investments.sumOf { v081Valuation(it).value }
 
 internal val V07ViewModel.v081PortfolioGain: Double
-    get() = v081AbsoluteReturn(v081PortfolioTotal, summary.portfolioCostBasis)
+    get() = scalableSnapshot?.primaryAbsoluteReturn?.absoluteReturn
+        ?: v081AbsoluteReturn(v081PortfolioTotal, summary.portfolioCostBasis)
 
 internal val V07ViewModel.v081PortfolioGainPct: Double
-    get() = v081TimeWeightedReturnPct(
-        valueHistory = v081PortfolioHistory,
-        transactions = summary.investmentTransactions,
-    )
+    get() = if (scalableSnapshot != null) {
+        0.0
+    } else {
+        v081TimeWeightedReturnPct(
+            valueHistory = v081PortfolioHistory,
+            transactions = summary.investmentTransactions,
+        )
+    }
 
 internal val V07ViewModel.v081NetWorth: Double
     get() = summary.cashBalance + summary.totalSavings + v081PortfolioTotal
