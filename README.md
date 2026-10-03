@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.14.2.beta`
+**Current beta source:** `0.14.3.beta`
 
 ## What Folio tracks
 
@@ -109,8 +109,8 @@ performance and holding fields, encrypted with AES-256-GCM using a non-exportabl
 key. The encrypted snapshot is not included in Folio backups and Android backup is disabled.
 
 While a Scalable snapshot is active, the connected Portfolio is **Scalable-only**. The headline uses
-the canonical broker value from the imported Scalable snapshot and never falls back to Folio's local
-investment calculation. The helper also reads Scalable portfolio groups so a grouped position omitted
+Scalable's authoritative `overview.valuation.total` directly and never falls back to Folio's local
+investment calculation or adds broker cash on top a second time. The helper also reads Scalable portfolio groups so a grouped position omitted
 from the normal holdings response can be recovered from Scalable's own group valuation. The connected
 screen is intentionally minimal: portfolio value, broker absolute return/timeframe, broker cash, and
 broker positions. Local Folio investment tracking is used only when no Scalable snapshot is active.
