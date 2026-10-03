@@ -2,13 +2,12 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.14.3.beta`
+**Current beta source:** `0.15.0.beta`
 
 ## What Folio tracks
 
 - **Available cash** — liquid money Folio treats as usable today
 - **Invested** — money actually contributed to holdings; current market value is shown separately in Portfolio
-- **Left to plan** — expected monthly income that has not yet been assigned to bills, investments, spending budgets, or savings
 - Net worth across spendable money, savings, and investments
 - Expenses grouped by month and category, including a “Where did my money go?” breakdown
 - Monthly category budgets
@@ -20,13 +19,13 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Confirmed current **broker units** for exact unit-based valuation when a EUR market quote is available; inferred transaction units stay estimated
 - Month-grouped investment purchase history with editable amount, units, date, and time for every entry, plus explicit monthly and cumulative contribution totals
 - Direct per-holding **Add contribution now** flow with optional units bought
-- Portfolio **Value / Return / Contributions** graph modes: Value shows current securities value, Return shows absolute investment return in euros, and Contributions shows cumulative invested capital
+- Portfolio **Value / Return / Contributions** graph modes for local tracking, plus an interactive Scalable-connected broker performance graph when a broker snapshot is active
 - Scalable-style portfolio performance summary with Portfolio value, Invested, Total return (€), and Time-weighted return (%)
 - Interactive net-worth history with **1M / 3M / 1Y / ALL** ranges
 - Transaction timeline, monthly comparison, milestones, annual review, and growth projections
 - Automatic market tracking for supported exchange-traded assets plus Steam Community Market support for CS2 assets
 - Optional biometric / device-credential app lock that restores the last root page after unlocking
-- Compact switchable widget for Net worth / Investments / Cash left, plus a separate **2×2 overview widget** with Net worth, Investments, Cash, and Savings; both follow Android light/dark appearance
+- Fixed **2×2 Folio overview widget** with the Folio mark, Net worth, Savings, Cash, and Investments; everything is visible at the default widget size and follows Android light/dark appearance
 - Portable local backup and restore
 - Optional **Scalable Capital read-only snapshot** source using the official Scalable CLI, sanitized before encrypted Android Keystore storage
 
@@ -120,24 +119,15 @@ touch the Scalable CLI session. See [SECURITY.md](SECURITY.md) for the full trus
 
 ## Money model
 
-
-Folio keeps current money and planning separate:
+Folio now keeps one visible current-cash concept:
 
 ```text
 Available cash
 = liquid money available today
-
-Left to plan
-= expected income for the selected budget month
-  - planned bills
-  - planned investments
-  - spending budgets
-  - planned savings
 ```
 
-They are allowed to be different. **Available cash** reflects recorded real money movements. **Left to plan** is a planning number, not a second cash balance.
+Monthly planning still uses expected income, bills, investments, budgets, and savings internally, but Folio no longer surfaces a second “Left to plan” cash figure alongside Available cash.
 
-Savings are not spendable, but they still count toward net worth. Investments are tracked separately and also count toward net worth at their tracked market value when available.
 
 ## Investment identity, units, and valuation
 
