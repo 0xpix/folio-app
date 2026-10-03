@@ -47,8 +47,8 @@ data class ScalableSnapshot(
     /** Sum of broker-reported holding valuations. */
     val holdingsValue: Double get() = holdings.sumOf { it.valuation }
 
-    /** Connected Portfolio value: only Scalable-returned holdings plus Scalable broker cash. */
-    val brokerAccountValue: Double get() = holdingsValue + cashBalance
+    /** Canonical connected value reported by the Scalable broker snapshot. */
+    val brokerAccountValue: Double get() = totalValue
 
     /**
      * Broker-style invested capital derived entirely from the same Scalable snapshot.
@@ -168,6 +168,10 @@ object ScalableSnapshotCodec {
 
         require(holdings.map { it.isin }.distinct().size == holdings.size) {
             "Scalable snapshot contains duplicate holdings"
+        }
+
+        require(total > 0.0 || holdings.any { it.valuation > 0.0 } || cash > 0.0) {
+            "Scalable snapshot contains no broker value"
         }
 
         return ScalableSnapshot(
