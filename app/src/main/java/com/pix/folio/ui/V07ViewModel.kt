@@ -567,6 +567,8 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
         summary.investments.forEach { trackingStore.clearPurchaseDate(it.id) }
         trackedHistories = emptyMap()
         trackingErrors = emptyMap()
+        scalableStore.clear()
+        scalableSnapshot = null
         planStore.clearAll()
         store.clearAll()
         refresh()
