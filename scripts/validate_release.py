@@ -379,7 +379,7 @@ for token in ["AndroidKeyStore", "AES/GCM/NoPadding", "KeyGenParameterSpec", "se
     if token not in sparkasse_store:
         raise SystemExit(f"Sparkasse encrypted storage safeguard is missing: {token}")
 
-for forbidden in ["HttpURLConnection", "URL(", "Socket(", "access_token", "refresh_token", "client_secret", "banking PIN", "TAN:"]:
+for forbidden in ["HttpURLConnection", "URL(", "Socket(", "access_token", "refresh_token", "client_secret", "FinTS3PinTanClient", "getpass"]:
     if forbidden in sparkasse_codec or forbidden in sparkasse_store:
         raise SystemExit(f"Sparkasse Android snapshot path must not own bank auth/network material: {forbidden}")
 
