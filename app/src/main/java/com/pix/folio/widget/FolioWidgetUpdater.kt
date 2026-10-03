@@ -21,8 +21,10 @@ object FolioWidgetUpdater {
         val appContext = context.applicationContext
         scope.launch {
             FolioBalanceWidget().updateAll(appContext)
+            FolioOverviewWidget().updateAll(appContext)
             delay(180)
             FolioBalanceWidget().updateAll(appContext)
+            FolioOverviewWidget().updateAll(appContext)
         }
     }
 }
