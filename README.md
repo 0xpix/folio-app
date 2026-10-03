@@ -81,6 +81,9 @@ The security boundary is intentionally simple:
 sc login --local-read-only
 ```
 
+   Scalable documents this as a local CLI write guard, not reduced backend token permissions.
+   Folio's helper therefore also hard-limits itself to two fixed read commands.
+
 4. From the Folio repository, create a minimal sanitized snapshot:
 
 ```bash
