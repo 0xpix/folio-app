@@ -406,6 +406,22 @@ for token in [
     if token not in sparkasse_helper:
         raise SystemExit(f"Sparkasse helper read-only safeguard is missing: {token}")
 
+if "FOLIO_SPARKASSE_PIN" in sparkasse_helper:
+    raise SystemExit("Sparkasse PIN must never be accepted from environment or persisted configuration")
+
+for token in [
+    '.put("booking_date"',
+    '.put("amount"',
+    '.put("currency"',
+    '.put("merchant"',
+    '.put("purpose"',
+]:
+    if token not in sparkasse_codec:
+        raise SystemExit(f"Sparkasse sanitized codec field is missing: {token}")
+for forbidden_codec_field in ['.put("iban"', '.put("bic"', '.put("account_id"', '.put("user_id"', '.put("pin"', '.put("tan"']:
+    if forbidden_codec_field in sparkasse_codec.lower():
+        raise SystemExit(f"Sparkasse codec must not persist sensitive bank field: {forbidden_codec_field}")
+
 for forbidden in [
     "client.simple_sepa_transfer(",
     "client.sepa_transfer(",
