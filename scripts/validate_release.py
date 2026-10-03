@@ -221,13 +221,14 @@ except SyntaxError as error:
 for token in [
     'run_sc(sc, "broker", "overview")',
     'run_sc(sc, "broker", "holdings")',
+    'run_sc(sc, "broker", "cash-breakdown")',
     "shell=False",
     "0o600",
 ]:
     if token not in scalable_helper:
         raise SystemExit(f"Scalable helper read-only safeguard is missing: {token}")
-if scalable_helper.count('run_sc(sc, "broker",') != 2:
-    raise SystemExit("Scalable helper may execute only overview and holdings broker reads")
+if scalable_helper.count('run_sc(sc, "broker",') != 3:
+    raise SystemExit("Scalable helper may execute only overview, holdings, and cash-breakdown reads")
 for forbidden in ['run_sc(sc, "broker", "trade"', 'run_sc(sc, "broker", "savings-plans"', "shell=True"]:
     if forbidden in scalable_helper:
         raise SystemExit(f"Unsafe Scalable helper behavior detected: {forbidden}")
@@ -279,6 +280,24 @@ synthetic = helper_module.build_snapshot(
             },
         },
     },
+    {
+        "ok": True,
+        "command": "broker.cash-breakdown",
+        "data": {
+            "account_id": "outer-must-not-leak",
+            "portfolio_id": "outer-must-not-leak",
+            "resolution": {"account": "auto_resolve", "portfolio": "auto_resolve"},
+            "result": {
+                "account_id": "inner-must-not-leak",
+                "portfolio_id": "inner-must-not-leak",
+                "cash_balance": "37.44",
+                "buying_power": "37.44",
+                "buying_power_without_credit": "37.44",
+                "available_credit_line": "0",
+                "loaned": "0",
+            },
+        },
+    },
     "sc 1.1.0",
 )
 synthetic_json = json.dumps(synthetic)
@@ -289,8 +308,12 @@ if (
     or "inner-must-not-leak" in synthetic_json
 ):
     raise SystemExit("Scalable snapshot helper leaked account/portfolio identifiers")
-if synthetic["valuation"]["total"] != 1234.56 or synthetic["holdings"][0]["valuation"] != 1234.56:
-    raise SystemExit("Scalable snapshot helper changed broker-reported valuation")
+if (
+    synthetic["valuation"]["portfolio"] != 1234.56
+    or synthetic["valuation"]["cash"] != 37.44
+    or synthetic["holdings"][0]["valuation"] != 1234.56
+):
+    raise SystemExit("Scalable snapshot helper changed broker-reported valuation/cash")
 if "sc login --local-read-only" not in security_doc or "AES-256-GCM" not in security_doc:
     raise SystemExit("SECURITY.md is missing the Scalable trust boundary")
 
@@ -323,6 +346,7 @@ for name in [
     "absoluteReturnSubtractsInvestedCapitalNotDepositsFromPerformance",
     "brokerStyleAbsoluteReturnUsesCurrentValueMinusInvestedCapital",
     "scalableInvestmentValueExcludesBrokerCash",
+    "scalableAccountTotalAddsBrokerCash",
     "scalablePrimaryReturnPrefersAllTimeStyleFrame",
 ]:
     if name not in tests:
