@@ -6,6 +6,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
@@ -217,59 +219,55 @@ private fun OverviewWidgetContent(values: WidgetValues) {
             .fillMaxSize()
             .appWidgetBackground()
             .background(WidgetBackground)
-            .cornerRadius(26.dp)
+            .cornerRadius(24.dp)
             .clickable(actionStartActivity<MainActivity>())
-            .padding(18.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Row(
             verticalAlignment = Alignment.Vertical.CenterVertically,
         ) {
+            Image(
+                provider = ImageProvider(R.drawable.folio_widget_logo),
+                contentDescription = "Folio",
+                modifier = GlanceModifier.width(20.dp).height(20.dp),
+            )
+            Spacer(GlanceModifier.width(5.dp))
             Text(
                 "Folio",
-                modifier = GlanceModifier.defaultWeight(),
                 style = TextStyle(
                     color = WidgetForeground,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                ),
-            )
-            Text(
-                if (values.scalableConnected) "SCALABLE" else "LOCAL",
-                style = TextStyle(
-                    color = WidgetMuted,
-                    fontSize = 9.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                 ),
             )
         }
 
-        Spacer(GlanceModifier.height(12.dp))
+        Spacer(GlanceModifier.height(5.dp))
         Text(
             "NET WORTH",
             style = TextStyle(
                 color = WidgetMuted,
-                fontSize = 9.sp,
+                fontSize = 7.sp,
                 fontWeight = FontWeight.Medium,
             ),
         )
-        Spacer(GlanceModifier.height(2.dp))
         Text(
             "€" + WidgetMoney.format(values.netWorth),
             style = TextStyle(
                 color = WidgetForeground,
-                fontSize = 30.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Medium,
             ),
         )
 
-        Spacer(GlanceModifier.height(15.dp))
+        Spacer(GlanceModifier.height(7.dp))
         Row {
             OverviewWidgetMetric(
-                label = "INVESTMENTS",
-                amount = values.investments,
+                label = "SAVINGS",
+                amount = values.savings,
                 modifier = GlanceModifier.defaultWeight(),
             )
-            Spacer(GlanceModifier.width(12.dp))
+            Spacer(GlanceModifier.width(8.dp))
             OverviewWidgetMetric(
                 label = "CASH",
                 amount = values.cashLeft,
@@ -277,10 +275,10 @@ private fun OverviewWidgetContent(values: WidgetValues) {
             )
         }
 
-        Spacer(GlanceModifier.height(10.dp))
+        Spacer(GlanceModifier.height(5.dp))
         OverviewWidgetMetric(
-            label = "SAVINGS",
-            amount = values.savings,
+            label = "INVESTMENTS",
+            amount = values.investments,
         )
     }
 }
@@ -296,7 +294,7 @@ private fun OverviewWidgetMetric(
             label,
             style = TextStyle(
                 color = WidgetMuted,
-                fontSize = 8.sp,
+                fontSize = 7.sp,
                 fontWeight = FontWeight.Medium,
             ),
         )
@@ -305,7 +303,7 @@ private fun OverviewWidgetMetric(
             "€" + WidgetMoney.format(amount),
             style = TextStyle(
                 color = WidgetForeground,
-                fontSize = 15.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
             ),
         )
