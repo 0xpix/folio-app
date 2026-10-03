@@ -9,6 +9,24 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.14.0.beta] - 2026-10-03
+
+### Added
+- A redesigned Portfolio hero that makes the active valuation source explicit and groups broker total, invested capital, holdings value, and broker cash/credit in one readable summary.
+- A separate **2×2 Folio overview widget** showing Net worth, Investments, Cash, and Savings, while keeping the existing compact switchable widget.
+- Broker reconciliation details showing the imported holdings sum, overview securities/crypto value, broker cash/credit residual, Scalable CLI version, holding count, and snapshot timestamp.
+
+### Changed
+- Scalable-connected Portfolio mode now keeps broker truth and Folio history visually separate instead of blending them into one performance view.
+- When an all-time Scalable absolute return is available, Folio derives invested capital from the same broker snapshot: broker total minus broker absolute return.
+- Historical Return and Contributions charts are explicitly labelled as Folio history while a Scalable snapshot is active.
+- Both home-screen widgets refresh together after finance changes or a Scalable snapshot import.
+
+### Fixed
+- Fixed Scalable mode still mixing Folio's manual cost basis into broker-mode return/invested calculations.
+- Fixed a successful Scalable import not proving that the encrypted snapshot could be loaded back; Folio now reloads the persisted encrypted snapshot before switching the UI source.
+- Fixed the Portfolio page making a valid broker import look ineffective by hiding source reconciliation behind local-history calculations.
+
 ## [0.13.1.beta] - 2026-10-03
 
 ### Changed
