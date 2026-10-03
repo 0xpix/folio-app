@@ -478,6 +478,39 @@ class V08FinanceModelTest {
     }
 
     @Test
+    fun scalableBrokerInvestedCapitalUsesBrokerReturnNotLocalCostBasis() {
+        val snapshot = ScalableSnapshot(
+            createdAtUtc = Instant.parse("2026-01-01T00:00:00Z"),
+            valuationTimestampUtc = null,
+            cliVersion = "synthetic",
+            currency = "EUR",
+            totalValue = 2_286.0,
+            securitiesValue = 2_286.0,
+            cryptoValue = 0.0,
+            performance = listOf(
+                ScalablePerformanceSnapshot("MAX", 96.0),
+            ),
+            holdings = listOf(
+                ScalableHoldingSnapshot(
+                    isin = "IE00B4L5Y983",
+                    name = "Synthetic ETF",
+                    securityType = "ETF",
+                    quantity = 10.0,
+                    valuation = 2_286.0,
+                    valuationCurrency = "EUR",
+                    quoteMidPrice = 228.6,
+                    quoteCurrency = "EUR",
+                    quoteTimestampUtc = null,
+                    quoteOutdated = false,
+                ),
+            ),
+        )
+
+        assertEquals(2_190.0, snapshot.brokerInvestedCapital ?: 0.0, 0.001)
+        assertEquals(2_286.0, snapshot.holdingsValue, 0.001)
+    }
+
+    @Test
     fun scalablePrimaryReturnPrefersAllTimeStyleFrame() {
         val snapshot = ScalableSnapshot(
             createdAtUtc = Instant.parse("2026-01-01T00:00:00Z"),
