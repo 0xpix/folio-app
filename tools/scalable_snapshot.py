@@ -5,7 +5,7 @@ Create a minimal Folio snapshot from the official Scalable Capital CLI.
 Security properties:
 - never logs in and never reads Scalable CLI session files
 - never accepts a password, token, account id, or portfolio id
-- executes only three fixed read commands with shell=False
+- executes only four fixed read commands with shell=False
 - strips account_id / portfolio_id and other nonessential metadata
 - writes the output with owner-only permissions (0600)
 
@@ -95,11 +95,13 @@ def build_snapshot(
     overview: dict[str, Any],
     holdings: dict[str, Any],
     cash_breakdown: dict[str, Any],
+    portfolio_groups: dict[str, Any],
     cli_version: str,
 ) -> dict[str, Any]:
     overview = unwrap_broker_result(overview, "overview")
     holdings = unwrap_broker_result(holdings, "holdings")
     cash_breakdown = unwrap_broker_result(cash_breakdown, "cash breakdown")
+    portfolio_groups = unwrap_broker_result(portfolio_groups, "portfolio groups")
 
     valuation = overview.get("valuation")
     if not isinstance(valuation, dict):
@@ -155,6 +157,60 @@ def build_snapshot(
     if currency != "EUR":
         raise RuntimeError(f"Only EUR Scalable broker snapshots are supported, got {currency}")
 
+    holdings_by_isin = {row["isin"]: row for row in sanitized_holdings}
+    groups = portfolio_groups.get("portfolio_groups")
+    if isinstance(groups, list):
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            performance = group.get("performance")
+            group_items = group.get("items")
+            if not isinstance(performance, dict) or not isinstance(group_items, list):
+                continue
+
+            group_currency = clean_text(performance.get("currency")).upper()
+            group_value = finite_number(
+                performance.get("valuation"),
+                "portfolio_group.valuation",
+                optional=True,
+            )
+            if group_value is None or group_currency not in ("", "EUR"):
+                continue
+
+            missing_items: list[dict[str, Any]] = []
+            known_value = 0.0
+            for group_item in group_items:
+                if not isinstance(group_item, dict):
+                    continue
+                isin = clean_text(group_item.get("isin")).upper()
+                if not isin:
+                    continue
+                known = holdings_by_isin.get(isin)
+                if known is not None:
+                    known_value += float(known["valuation"])
+                else:
+                    missing_items.append(group_item)
+
+            residual = group_value - known_value
+            if len(missing_items) == 1 and residual > 0.005:
+                item = missing_items[0]
+                isin = clean_text(item.get("isin")).upper()
+                if isin and isin not in holdings_by_isin:
+                    supplemental_holding = {
+                        "isin": isin,
+                        "name": clean_text(item.get("name")) or isin,
+                        "security_type": clean_text(item.get("security_type")),
+                        "quantity": None,
+                        "valuation": residual,
+                        "valuation_currency": "EUR",
+                        "quote_mid_price": None,
+                        "quote_currency": None,
+                        "quote_timestamp_utc": None,
+                        "quote_is_outdated": False,
+                    }
+                    sanitized_holdings.append(supplemental_holding)
+                    holdings_by_isin[isin] = supplemental_holding
+
     performance_rows: list[dict[str, Any]] = []
     performance = overview.get("performance")
     if isinstance(performance, list):
@@ -177,6 +233,10 @@ def build_snapshot(
 
     timestamps = overview.get("timestamps") if isinstance(overview.get("timestamps"), dict) else {}
 
+    overview_portfolio_value = finite_number(valuation.get("total"), "valuation.total")
+    holdings_portfolio_value = sum(float(row["valuation"]) for row in sanitized_holdings)
+    broker_portfolio_value = max(overview_portfolio_value, holdings_portfolio_value)
+
     return {
         "format": "folio-scalable-snapshot",
         "version": 1,
@@ -186,7 +246,7 @@ def build_snapshot(
         "cli_version": cli_version or None,
         "currency": currency,
         "valuation": {
-            "portfolio": finite_number(valuation.get("total"), "valuation.total"),
+            "portfolio": broker_portfolio_value,
             "cash": finite_number(
                 cash_breakdown.get("cash_balance"),
                 "cash_breakdown.cash_balance",
@@ -233,10 +293,20 @@ def main() -> int:
     overview = run_sc(sc, "broker", "overview")
     holdings = run_sc(sc, "broker", "holdings")
     cash_breakdown = run_sc(sc, "broker", "cash-breakdown")
-    if not all(isinstance(payload, dict) for payload in (overview, holdings, cash_breakdown)):
+    portfolio_groups = run_sc(sc, "broker", "portfolio-groups")
+    if not all(
+        isinstance(payload, dict)
+        for payload in (overview, holdings, cash_breakdown, portfolio_groups)
+    ):
         raise RuntimeError("Unexpected Scalable CLI response shape")
 
-    snapshot = build_snapshot(overview, holdings, cash_breakdown, cli_version)
+    snapshot = build_snapshot(
+        overview,
+        holdings,
+        cash_breakdown,
+        portfolio_groups,
+        cli_version,
+    )
 
     output.parent.mkdir(parents=True, exist_ok=True)
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
@@ -262,7 +332,7 @@ def main() -> int:
         f"{len(snapshot['holdings'])} holdings · "
         f"holdings EUR {holdings_value:.2f} · "
         f"cash EUR {cash_value:.2f} · "
-        f"broker-only total EUR {holdings_value + cash_value:.2f}"
+        f"broker total EUR {float(snapshot['valuation']['portfolio']) + cash_value:.2f}"
     )
     print("Import it into Folio, then delete the plaintext snapshot file when you no longer need it.")
     return 0
