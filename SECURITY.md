@@ -31,6 +31,10 @@ Authentication is completed by the user with Scalable Capital's official CLI out
 sc login --local-read-only
 ```
 
+Scalable documents `--local-read-only` as a **local CLI write guard**; it does not reduce the
+backend token's permissions. Folio therefore does not rely on that flag alone: the included helper
+has no generic command interface and can execute only the two fixed read commands listed below.
+
 The helper in `tools/scalable_snapshot.py` executes only these fixed read commands:
 
 ```text
