@@ -33,6 +33,7 @@ import com.pix.folio.R
 import com.pix.folio.data.FolioStore
 import com.pix.folio.data.InvestmentTrackingStore
 import com.pix.folio.data.SecureScalableStore
+import com.pix.folio.data.SecureSparkasseStore
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -55,6 +56,7 @@ private data class WidgetValues(
 private fun widgetValues(context: Context): WidgetValues {
     val summary = FolioStore(context).summary()
     val scalable = SecureScalableStore(context).load().getOrNull()
+    val sparkasse = SecureSparkasseStore(context).load().getOrNull()
     val tracking = InvestmentTrackingStore(context)
 
     val localInvestments = summary.investments.sumOf { holding ->
@@ -77,10 +79,12 @@ private fun widgetValues(context: Context): WidgetValues {
 
     val investments = scalable?.brokerAccountValue ?: localInvestments
 
+    val cash = sparkasse?.availableBalance ?: summary.cashBalance
+
     return WidgetValues(
-        netWorth = summary.cashBalance + summary.totalSavings + investments,
+        netWorth = cash + summary.totalSavings + investments,
         investments = investments,
-        cash = summary.cashBalance,
+        cash = cash,
         savings = summary.totalSavings,
     )
 }
