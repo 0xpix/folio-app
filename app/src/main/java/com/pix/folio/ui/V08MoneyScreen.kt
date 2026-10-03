@@ -121,13 +121,6 @@ internal fun V08MoneyScreen(vm: V07ViewModel) {
             V07Metric("Spending budgets", "−${v07Euro(envelope.plannedVariableSpending)}")
             V07Divider()
             V07Metric("Savings", "−${v07Euro(envelope.savingsCommitment)}")
-            V07Divider()
-            V07Metric(
-                "Left to plan",
-                v07Euro(envelope.availableCash),
-                if (envelope.availableCash >= 0.0) "Not assigned yet" else "Plan exceeds expected income",
-                valueColor = if (envelope.availableCash < 0.0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground,
-            )
         }
 
         Spacer(Modifier.height(34.dp))
