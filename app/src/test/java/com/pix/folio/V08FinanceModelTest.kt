@@ -456,6 +456,28 @@ class V08FinanceModelTest {
     }
 
     @Test
+    fun scalableBrokerTotalReconcilesCashOrCredit() {
+        val snapshot = ScalableSnapshot(
+            createdAtUtc = Instant.parse("2026-01-01T00:00:00Z"),
+            valuationTimestampUtc = null,
+            cliVersion = "synthetic",
+            currency = "EUR",
+            totalValue = 1_500.0,
+            securitiesValue = 1_200.0,
+            cryptoValue = 50.0,
+            performance = emptyList(),
+            holdings = emptyList(),
+        )
+
+        assertEquals(250.0, snapshot.brokerCashOrCreditValue, 0.001)
+        assertEquals(
+            snapshot.totalValue,
+            snapshot.investmentValue + snapshot.brokerCashOrCreditValue,
+            0.001,
+        )
+    }
+
+    @Test
     fun scalablePrimaryReturnPrefersAllTimeStyleFrame() {
         val snapshot = ScalableSnapshot(
             createdAtUtc = Instant.parse("2026-01-01T00:00:00Z"),
