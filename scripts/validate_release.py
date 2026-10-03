@@ -253,7 +253,7 @@ synthetic = helper_module.build_snapshot(
             "result": {
                 "account_id": "inner-must-not-leak",
                 "portfolio_id": "inner-must-not-leak",
-                "valuation": {"total": "1234.56", "securities": "1234.56", "crypto": "0"},
+                "valuation": {"total": "1280.56", "securities": "1234.56", "crypto": "0"},
                 "timestamps": {"valuation_timestamp_utc": "2026-10-03T07:00:00Z"},
                 "performance": [{"timeframe": "MAX", "simpleAbsoluteReturn": "12.34"}],
             },
@@ -346,12 +346,13 @@ if (
 ):
     raise SystemExit("Scalable snapshot helper leaked account/portfolio identifiers")
 if (
-    synthetic["valuation"]["portfolio"] != 1275.56
+    synthetic["valuation"]["total"] != 1280.56
+    or synthetic["valuation"]["portfolio"] != 1275.56
     or synthetic["valuation"]["cash"] != 5.0
     or len(synthetic["holdings"]) != 2
     or synthetic["holdings"][1]["valuation"] != 41.0
 ):
-    raise SystemExit("Scalable snapshot helper failed broker-only grouped-position reconciliation")
+    raise SystemExit("Scalable snapshot helper failed authoritative broker-total reconciliation")
 if "sc login --local-read-only" not in security_doc or "AES-256-GCM" not in security_doc:
     raise SystemExit("SECURITY.md is missing the Scalable trust boundary")
 
