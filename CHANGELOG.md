@@ -9,6 +9,18 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.14.1.beta] - 2026-10-03
+
+### Changed
+- Scalable-connected Portfolio is now a dedicated broker-only screen. Folio local holdings, local cost basis, purchase history, reconstructed charts, and Yahoo/OpenFIGI valuation do not run while a Scalable snapshot is connected.
+- The connected Portfolio headline, Home net worth, and both widgets now use only Scalable-returned holding valuations plus Scalable broker cash.
+- The snapshot helper now reads `sc broker cash-breakdown --json` in addition to overview and holdings, and prints a local holdings/cash/total reconciliation after snapshot creation.
+
+### Fixed
+- Fixed Scalable-connected Portfolio still inheriting Folio calculations even though the user wanted the broker to be the sole source of truth.
+- Fixed positions present in Scalable holdings, such as an additional broker position outside the previous overview aggregate, being omitted from the connected headline when the holdings sum differed from overview valuation.
+- Fixed broker cash being unavailable to the connected Portfolio snapshot.
+
 ## [0.14.0.beta] - 2026-10-03
 
 ### Added
