@@ -122,7 +122,7 @@ internal fun V08PortfolioHistory(
 }
 
 @Composable
-private fun V08InteractiveValueChart(
+internal fun V08InteractiveValueChart(
     points: List<Pair<Long, Double>>,
     labelFor: (Long) -> String,
     modifier: Modifier = Modifier,
