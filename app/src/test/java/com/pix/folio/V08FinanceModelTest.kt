@@ -293,19 +293,19 @@ class V08FinanceModelTest {
             holdingId = "etf",
             amount = 1_000.0,
             date = LocalDate.of(2026, 10, 1),
-            units = 81.25826058,
+            units = 8.25,
         )
         val inferredUnits = v081ResolvedOwnedUnits(null, listOf(transaction))
         val decision = v081CurrentValue(
-            fallbackValue = 1_980.0,
+            fallbackValue = 990.0,
             units = inferredUnits,
-            latestPrice = 12.44,
+            latestPrice = 12.0,
             quoteCurrency = "EUR",
             unitsAreComplete = false,
         )
 
         assertFalse(decision.exact)
-        assertEquals(1_980.0, decision.value, 0.001)
+        assertEquals(990.0, decision.value, 0.001)
     }
 
     @Test
