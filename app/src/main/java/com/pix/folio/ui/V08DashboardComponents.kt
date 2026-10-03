@@ -217,12 +217,12 @@ internal fun V08InteractiveValueChart(
 
 @Composable
 internal fun V08SpendingBreakdown(summary: FolioSummary, month: java.time.YearMonth) {
-    val rows = ExpenseCategory.entries.mapNotNull { category ->
+    val rows = ExpenseCategory.selectableEntries.mapNotNull { category ->
         val spent = summary.spentFor(category, month)
         if (spent > 0.0) category to spent else null
     }.sortedByDescending { it.second }
     val total = rows.sumOf { it.second }
-    val previousTotal = ExpenseCategory.entries.sumOf { summary.spentFor(it, month.minusMonths(1)) }
+    val previousTotal = ExpenseCategory.selectableEntries.sumOf { summary.spentFor(it, month.minusMonths(1)) }
     val difference = total - previousTotal
     val visibleRows = rows.take(6)
 
