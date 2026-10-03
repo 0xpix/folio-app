@@ -42,7 +42,6 @@ required = [
     "app/src/main/java/com/pix/folio/data/RecurringMoneyProcessor.kt",
     "app/src/main/java/com/pix/folio/widget/FolioWidget.kt",
     "app/src/main/java/com/pix/folio/widget/FolioWidgetUpdater.kt",
-    "app/src/main/res/xml/folio_balance_widget_info.xml",
     "app/src/main/res/xml/folio_overview_widget_info.xml",
     "app/src/beta/java/com/pix/folio/updates/BetaUpdater.kt",
     "app/src/test/java/com/pix/folio/V08FinanceModelTest.kt",
@@ -82,16 +81,24 @@ if 'android:usesCleartextTraffic="false"' not in manifest_text:
     raise SystemExit("Cleartext Android traffic must stay disabled")
 
 for widget_token in [
-    ".widget.FolioBalanceWidgetReceiver",
     ".widget.FolioOverviewWidgetReceiver",
-    "@xml/folio_balance_widget_info",
     "@xml/folio_overview_widget_info",
 ]:
     if widget_token not in manifest_text:
         raise SystemExit(f"Widget registration is incomplete: {widget_token}")
+for forbidden_widget_token in [
+    ".widget.FolioBalanceWidgetReceiver",
+    "@xml/folio_balance_widget_info",
+]:
+    if forbidden_widget_token in manifest_text:
+        raise SystemExit(f"Legacy resizable widget must stay removed: {forbidden_widget_token}")
 
 overview_widget_info = (root / "app/src/main/res/xml/folio_overview_widget_info.xml").read_text()
-for token in ['android:targetCellWidth="2"', 'android:targetCellHeight="2"']:
+for token in [
+    'android:targetCellWidth="2"',
+    'android:targetCellHeight="2"',
+    'android:resizeMode="none"',
+]:
     if token not in overview_widget_info:
         raise SystemExit(f"2x2 widget geometry is incomplete: {token}")
 
@@ -145,12 +152,13 @@ for token in [
 
 source = "\n".join(p.read_text() for p in root.glob("app/src/main/java/**/*.kt"))
 feature_groups = {
-    "money semantics": ["AVAILABLE CASH", "LEFT TO PLAN", "Expected income"],
+    "money semantics": ["AVAILABLE CASH", "Expected income"],
     "spending breakdown": ["Where did my money go?"],
     "interactive net-worth ranges": ["ONE_MONTH", "THREE_MONTHS", "ONE_YEAR", "ALL"],
     "touch chart inspection": ["awaitEachGesture", "selectedIndex"],
     "semantic performance color": ["folioChangeColor", "MaterialTheme.colorScheme.tertiary", "MaterialTheme.colorScheme.error"],
     "semantic chart visuals": ["semanticTrend", "showZeroLine", "signedValues", "lineColor.copy(alpha = 0.08f)"],
+    "Scalable portfolio graph": ["graphPoints", "V08InteractiveValueChart", "scalableFrameLabel"],
     "spending share bars": ["V07Progress(share / 100.0)"],
     "portfolio modes": ["VALUE", "RETURN", "CONTRIBUTIONS"],
     "portfolio performance": ["Portfolio performance", "Portfolio value", "Invested", "Total return", "Time-weighted return", "v081AbsoluteReturn", "v081AbsoluteReturnSeries", "v081TimeWeightedReturnPct"],
@@ -159,8 +167,8 @@ feature_groups = {
     "direct investment contributions": ["Add contribution now", "Units bought", "portfolioCostBasis"],
     "investment purchase history": ["Investment activity", "Edit purchase", "Purchase time · HH:mm", "purchasedAt"],
     "monthly investment totals": ["MONTH TOTAL", "Cumulative", "v081CumulativeMonthlyContributions", "v081PurchaseLotValueAt", "v081ResolvedOwnedUnits"],
-    "widget metrics": ["NET WORTH", "INVESTMENTS", "CASH LEFT", "actionRunCallback", "widgetValues"],
-    "2x2 overview widget": ["FolioOverviewWidget", "FolioOverviewWidgetReceiver", "SAVINGS", "scalableConnected"],
+    "widget metrics": ["NET WORTH", "INVESTMENTS", "CASH", "SAVINGS", "widgetValues"],
+    "2x2 overview widget": ["FolioOverviewWidget", "FolioOverviewWidgetReceiver", "R.drawable.folio_widget_logo"],
     "widget theme": ["folio_widget_background", "folio_widget_foreground", "folio_widget_muted", "WidgetBackground", "WidgetForeground", "WidgetMuted"],
     "Scalable read-only source": ["ScalableSnapshot", "SecureScalableStore", "SCALABLE CAPITAL", "brokerAccountValue", "cashBalance", "V141ScalablePortfolioScreen"],
     "last-page restore": ["folio_navigation_v1", "root_page"],
