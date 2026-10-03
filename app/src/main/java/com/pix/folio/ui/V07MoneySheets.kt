@@ -54,7 +54,7 @@ internal fun V07AddExpenseSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         V07SheetBody(if (existing == null) "Add expense" else "Edit expense") {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(ExpenseCategory.entries) { item ->
+                items(ExpenseCategory.selectableEntries) { item ->
                     OutlinedButton(onClick = { category = item }, shape = RoundedCornerShape(20.dp)) {
                         Text(if (category == item) "• ${item.label}" else item.label)
                     }
@@ -231,7 +231,7 @@ internal fun V07BudgetSheet(
     initialCategory: ExpenseCategory? = null,
     onDismiss: () -> Unit,
 ) {
-    var category by remember(initialCategory) { mutableStateOf(initialCategory ?: ExpenseCategory.FOOD) }
+    var category by remember(initialCategory) { mutableStateOf(initialCategory ?: ExpenseCategory.GROCERIES) }
     var amount by remember(category) {
         mutableStateOf(vm.summary.budgetFor(category)?.monthlyLimit?.toString() ?: "")
     }
@@ -246,7 +246,7 @@ internal fun V07BudgetSheet(
             )
             Spacer(Modifier.height(14.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(ExpenseCategory.entries) { item ->
+                items(ExpenseCategory.selectableEntries) { item ->
                     OutlinedButton(
                         onClick = {
                             category = item
