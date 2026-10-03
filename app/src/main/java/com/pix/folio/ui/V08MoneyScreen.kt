@@ -69,7 +69,7 @@ internal fun V08MoneyScreen(vm: V07ViewModel) {
     val expenses = summary.expenses
         .filter { YearMonth.from(it.date) == currentMonth }
         .sortedByDescending { it.date }
-    val budgetRows = ExpenseCategory.entries.filter { summary.budgetFor(it) != null }
+    val budgetRows = ExpenseCategory.selectableEntries.filter { summary.budgetFor(it) != null }
 
     Column(
         Modifier
