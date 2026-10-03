@@ -65,7 +65,20 @@ def clean_text(value: Any) -> str:
     return str(value).strip() if value is not None else ""
 
 
+def unwrap_broker_result(payload: dict[str, Any], label: str) -> dict[str, Any]:
+    """Accept both legacy direct JSON and the current Scalable broker result envelope."""
+    if "result" not in payload:
+        return payload
+    result = payload.get("result")
+    if not isinstance(result, dict):
+        raise RuntimeError(f"Scalable {label} response has an invalid result envelope")
+    return result
+
+
 def build_snapshot(overview: dict[str, Any], holdings: dict[str, Any], cli_version: str) -> dict[str, Any]:
+    overview = unwrap_broker_result(overview, "overview")
+    holdings = unwrap_broker_result(holdings, "holdings")
+
     valuation = overview.get("valuation")
     if not isinstance(valuation, dict):
         raise RuntimeError("Scalable overview is missing valuation")
