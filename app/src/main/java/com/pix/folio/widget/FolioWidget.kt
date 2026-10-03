@@ -105,7 +105,7 @@ private fun widgetValues(context: Context): WidgetValues {
         exactEurValue ?: summary.marketValueFor(holding)
     }
 
-    val investments = scalable?.totalValue ?: localInvestments
+    val investments = scalable?.brokerAccountValue ?: localInvestments
 
     return WidgetValues(
         netWorth = summary.cashBalance + summary.totalSavings + investments,
