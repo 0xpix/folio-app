@@ -33,8 +33,11 @@ data class ScalableSnapshot(
     val performance: List<ScalablePerformanceSnapshot>,
     val holdings: List<ScalableHoldingSnapshot>,
 ) {
-    /** Investment value only. Broker total may also include broker cash/credit. */
+    /** Security/crypto exposure only. Scalable's broker total may also include broker cash/credit. */
     val investmentValue: Double get() = securitiesValue + cryptoValue
+
+    /** Residual needed to reconcile securities + crypto to Scalable's exact broker total. */
+    val brokerCashOrCreditValue: Double get() = totalValue - investmentValue
 
     val primaryAbsoluteReturn: ScalablePerformanceSnapshot?
         get() {
