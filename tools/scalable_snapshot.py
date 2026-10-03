@@ -254,7 +254,16 @@ def main() -> int:
     except OSError:
         pass
 
+    holdings_value = sum(float(row["valuation"]) for row in snapshot["holdings"])
+    cash_value = float(snapshot["valuation"]["cash"])
     print(f"Created sanitized snapshot: {output}")
+    print(
+        "Scalable broker snapshot: "
+        f"{len(snapshot['holdings'])} holdings · "
+        f"holdings EUR {holdings_value:.2f} · "
+        f"cash EUR {cash_value:.2f} · "
+        f"broker-only total EUR {holdings_value + cash_value:.2f}"
+    )
     print("Import it into Folio, then delete the plaintext snapshot file when you no longer need it.")
     return 0
 
