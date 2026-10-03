@@ -9,6 +9,18 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.13.1.beta] - 2026-10-03
+
+### Changed
+- Scalable-connected Portfolio, Home net worth, and the Investments widget now use Scalable's exact broker total as the authoritative connected value.
+- The Scalable Portfolio card now keeps securities + crypto visible separately and shows the broker cash/credit reconciliation needed to reach the exact broker total.
+- Settings now shows the imported holding count, broker total, and import time so a successful Scalable import is immediately visible.
+
+### Fixed
+- Fixed Scalable imports appearing to do nothing when the broker total differed from securities + crypto because Folio previously kept using only the investment-only subtotal for the Portfolio headline.
+- Fixed the Scalable helper for current CLI machine JSON shaped as `{ ok, command, data }`, including the nested broker `result` envelope.
+- Fixed import failures being communicated only through an easy-to-miss transient Toast; Settings now keeps the latest import success or error visible.
+
 ## [0.13.0.beta] - 2026-10-03
 
 ### Added
