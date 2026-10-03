@@ -14,6 +14,8 @@ import com.pix.folio.data.MarketPriceService
 import com.pix.folio.data.MonthlyPlanStore
 import com.pix.folio.data.RecurringMoneyProcessor
 import com.pix.folio.data.RecurringSavingsRule
+import com.pix.folio.data.ScalableSnapshot
+import com.pix.folio.data.SecureScalableStore
 import com.pix.folio.model.AppFontChoice
 import com.pix.folio.model.Cs2AssetType
 import com.pix.folio.model.ExpenseCategory
@@ -37,6 +39,7 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     private val trackingStore = InvestmentTrackingStore(application)
     private val planStore = MonthlyPlanStore(application)
     private val editor = FinanceEditor(application)
+    private val scalableStore = SecureScalableStore(application)
 
     var summary by mutableStateOf(store.summary())
         private set
@@ -65,6 +68,9 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     var marketRefreshing by mutableStateOf(false)
         private set
 
+    var scalableSnapshot by mutableStateOf<ScalableSnapshot?>(scalableStore.load().getOrNull())
+        private set
+
     var trackedHistories by mutableStateOf<Map<String, MarketPriceService.MarketHistory>>(emptyMap())
         private set
 
@@ -76,6 +82,18 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         refreshTrackedInvestments()
+    }
+
+    fun importScalableSnapshot(raw: String): Result<Unit> =
+        scalableStore.import(raw).map { snapshot ->
+            scalableSnapshot = snapshot
+            FolioWidgetUpdater.request(getApplication())
+        }
+
+    fun disconnectScalable() {
+        scalableStore.clear()
+        scalableSnapshot = null
+        FolioWidgetUpdater.request(getApplication())
     }
 
     fun budgetEnvelope(month: YearMonth): BudgetEnvelope = planStore.envelope(summary, month)
