@@ -50,7 +50,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val scalable = vm.scalableSnapshot
     val valuations = summary.investments.associateWith(vm::v081Valuation)
     val total = scalable?.totalValue ?: valuations.values.sumOf { it.value }
-    val invested = summary.portfolioCostBasis
+    val invested = scalable?.brokerInvestedCapital ?: summary.portfolioCostBasis
     val localGain = v081AbsoluteReturn(total, invested)
     val brokerReturn = scalable?.primaryAbsoluteReturn
     val gain = brokerReturn?.absoluteReturn ?: localGain
@@ -88,51 +88,60 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Text("Portfolio", fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-            TextButton(onClick = { showAdd = true }) { Text("+ Add") }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(v07Euro(total), fontSize = 58.sp, lineHeight = 62.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-        Text(
-            if (scalable != null) {
-                brokerReturn?.let {
-                    "Scalable ${it.timeframe} return · ${v07SignedEuro(it.absoluteReturn)}"
-                } ?: "Exact broker value from Scalable Capital"
-            } else {
-                "${v07SignedEuro(gain)} total return · ${String.format(Locale.US, "%+.1f%%", gainPct)} time-weighted"
-            },
-            fontSize = 13.sp,
-            color = if (scalable != null && brokerReturn == null) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                folioChangeColor(gain)
-            },
+        V14PortfolioHero(
+            vm = vm,
+            total = total,
+            gain = gain,
+            gainPct = gainPct,
+            onAdd = { showAdd = true },
         )
-        if (scalable != null) {
-            Text(
-                "Source: Scalable Capital · encrypted read-only snapshot · ${scalable.createdAtUtc}",
-                fontSize = 10.sp,
-                lineHeight = 15.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 5.dp),
-            )
-        }
         if (hasEstimatedHolding) {
             Text(
-                "Some holdings are estimated. Tap one and enter the exact units from your brokerage for broker-style valuation when the market quote is in EUR.",
+                "Some local holdings are estimated. Add exact owned units for broker-style EUR valuation.",
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp),
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(26.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (scalable != null) "History" else "Performance",
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
+            if (scalable != null) {
+                Text(
+                    "FOLIO HISTORY",
+                    fontSize = 9.sp,
+                    letterSpacing = 1.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (scalable != null) {
+            Text(
+                "The snapshot gives today's broker truth. Historical charts below remain reconstructed from Folio purchase records and are kept separate.",
+                fontSize = 10.sp,
+                lineHeight = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             V08PortfolioGraphMode.entries.forEach { option ->
                 TextButton(onClick = { graphMode = option }, modifier = Modifier.weight(1f)) {
-                    Text(if (graphMode == option) "• ${option.label}" else option.label, fontSize = 10.sp)
+                    val label = if (scalable != null && option != V08PortfolioGraphMode.VALUE) {
+                        "FOLIO ${option.label}"
+                    } else {
+                        option.label
+                    }
+                    Text(if (graphMode == option) "• $label" else label, fontSize = 10.sp)
                 }
             }
         }
@@ -176,16 +185,18 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         Spacer(Modifier.height(28.dp))
         if (scalable != null) {
             V07Panel {
-                Text("Scalable Capital", fontSize = 20.sp, fontWeight = FontWeight.Medium)
+                Text("Broker reconciliation", fontSize = 20.sp, fontWeight = FontWeight.Medium)
                 Text(
-                    "Broker-reported values are authoritative while this snapshot is active.",
+                    "Every number in this card comes from the imported Scalable snapshot.",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(10.dp))
-                V07Metric("Broker total", v07Euro(scalable.totalValue), "Exact total reported by Scalable Capital")
+                V07Metric("Broker total", v07Euro(scalable.totalValue), "Exact snapshot total used by Folio")
                 V07Divider()
-                V07Metric("Securities + crypto", v07Euro(scalable.investmentValue), "Broker investment exposure")
+                V07Metric("Holdings total", v07Euro(scalable.holdingsValue), "Sum of imported broker positions")
+                V07Divider()
+                V07Metric("Securities + crypto", v07Euro(scalable.investmentValue), "Overview investment valuation")
                 if (kotlin.math.abs(scalable.brokerCashOrCreditValue) >= 0.005) {
                     V07Divider()
                     V07Metric(
@@ -200,6 +211,10 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                     V07Divider()
                     V07Metric("Crypto", v07Euro(scalable.cryptoValue))
                 }
+                scalable.brokerInvestedCapital?.let {
+                    V07Divider()
+                    V07Metric("Broker invested", v07Euro(it), "Broker total minus all-time absolute return")
+                }
                 brokerReturn?.let {
                     V07Divider()
                     V07Metric(
@@ -208,6 +223,12 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                         valueColor = folioChangeColor(it.absoluteReturn),
                     )
                 }
+                V07Divider()
+                V07Metric(
+                    "Snapshot source",
+                    scalable.cliVersion ?: "Scalable CLI",
+                    "${scalable.holdings.size} holdings · ${scalable.createdAtUtc}",
+                )
             }
         } else {
             V08PortfolioIntelligence(
@@ -313,9 +334,17 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         }
 
         Spacer(Modifier.height(36.dp))
-        Text("Investment activity", fontSize = 27.sp, fontWeight = FontWeight.Medium)
         Text(
-            "Every saved purchase appears in its real month. Tap any entry to correct its amount, units, date, or exact time — recurring purchases included.",
+            if (scalable != null) "Folio activity" else "Investment activity",
+            fontSize = 27.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Text(
+            if (scalable != null) {
+                "Local Folio purchase records are shown for history only. They do not override the imported Scalable broker total or broker return."
+            } else {
+                "Every saved purchase appears in its real month. Tap any entry to correct its amount, units, date, or exact time — recurring purchases included."
+            },
             fontSize = 11.sp,
             lineHeight = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
