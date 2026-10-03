@@ -28,9 +28,23 @@ import com.pix.folio.data.ScalableSnapshot
 
 @Composable
 internal fun V141ScalablePortfolioScreen(snapshot: ScalableSnapshot) {
-    val frames = snapshot.performance.sortedBy { scalableFrameOrder(it.timeframe) }
+    val frames = snapshot.performance
+        .filter { scalableFrameOrder(it.timeframe) < 8 }
+        .sortedBy { scalableFrameOrder(it.timeframe) }
     val initialFrame = snapshot.primaryAbsoluteReturn ?: frames.lastOrNull()
     var selectedFrame by remember(snapshot.createdAtUtc) { mutableStateOf(initialFrame) }
+
+    val selectedOrder = selectedFrame?.let { scalableFrameOrder(it.timeframe) } ?: 7
+    val graphFrames = frames
+        .filter { scalableFrameOrder(it.timeframe) <= selectedOrder }
+        .sortedByDescending { scalableFrameOrder(it.timeframe) }
+    val graphLabels = graphFrames.map { scalableFrameLabel(it.timeframe) } + "NOW"
+    val graphPoints = buildList {
+        graphFrames.forEachIndexed { index, frame ->
+            add(index.toLong() to (snapshot.brokerAccountValue - frame.absoluteReturn))
+        }
+        add(graphFrames.size.toLong() to snapshot.brokerAccountValue)
+    }
 
     Column(
         Modifier
@@ -62,6 +76,20 @@ internal fun V141ScalablePortfolioScreen(snapshot: ScalableSnapshot) {
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = folioChangeColor(frame.absoluteReturn),
+            )
+        }
+
+        if (graphPoints.size >= 2) {
+            Spacer(Modifier.height(16.dp))
+            V08InteractiveValueChart(
+                points = graphPoints,
+                labelFor = { index ->
+                    graphLabels.getOrElse(index.toInt()) { "NOW" }
+                },
+                semanticTrend = selectedFrame?.absoluteReturn,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(154.dp),
             )
         }
 
