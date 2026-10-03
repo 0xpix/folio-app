@@ -36,7 +36,6 @@ internal fun V08HomeScreen(
 ) {
     val summary = vm.summary
     val month = vm.suggestedBudgetMonth()
-    val envelope = vm.budgetEnvelope(month)
     val netWorth = vm.v081NetWorth
     val startDate = FolioStartMonth.atDay(1)
     val historyStartMillis = startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
@@ -47,14 +46,15 @@ internal fun V08HomeScreen(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 14.dp)
+            .padding(horizontal = 20.dp)
+            .padding(top = 2.dp, bottom = 14.dp)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("F.", fontSize = 22.sp, letterSpacing = 1.8.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
             IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
         }
 
-        Spacer(Modifier.height(34.dp))
+        Spacer(Modifier.height(20.dp))
         Text("NET WORTH", fontSize = 11.sp, letterSpacing = 1.6.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(v07Euro(netWorth), fontSize = 64.sp, lineHeight = 68.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         Spacer(Modifier.height(18.dp))
@@ -68,20 +68,6 @@ internal fun V08HomeScreen(
                 "INVESTED" to v07Euro(summary.portfolioCostBasis),
             )
         )
-
-        Spacer(Modifier.height(34.dp))
-        V07Panel(onClick = onOpenMoney) {
-            Text("LEFT TO PLAN", fontSize = 11.sp, letterSpacing = 1.1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(5.dp))
-            Text(v07Euro(envelope.availableCash), fontSize = 42.sp, lineHeight = 46.sp, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "${v07Euro(envelope.expectedIncome)} expected income − ${v07Euro(envelope.committed)} planned",
-                fontSize = 12.sp,
-                lineHeight = 18.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
 
         Spacer(Modifier.height(30.dp))
         V08SpendingBreakdown(summary, month)
