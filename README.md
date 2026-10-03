@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.13.1.beta`
+**Current beta source:** `0.14.0.beta`
 
 ## What Folio tracks
 
@@ -26,7 +26,7 @@ A minimal, local-first personal-finance companion for Android. Folio is not a br
 - Transaction timeline, monthly comparison, milestones, annual review, and growth projections
 - Automatic market tracking for supported exchange-traded assets plus Steam Community Market support for CS2 assets
 - Optional biometric / device-credential app lock that restores the last root page after unlocking
-- Minimal 3×1 widget with switchable Net worth / Investments / Cash left metrics that follows Android light/dark appearance
+- Compact switchable widget for Net worth / Investments / Cash left, plus a separate **2×2 overview widget** with Net worth, Investments, Cash, and Savings; both follow Android light/dark appearance
 - Portable local backup and restore
 - Optional **Scalable Capital read-only snapshot** source using the official Scalable CLI, sanitized before encrypted Android Keystore storage
 
@@ -107,9 +107,11 @@ performance and holding fields, encrypted with AES-256-GCM using a non-exportabl
 key. The encrypted snapshot is not included in Folio backups and Android backup is disabled.
 
 While a Scalable snapshot is active, Scalable's exact broker total is the source of truth for the
-Portfolio headline, Home net worth, and investment widget. Securities + crypto stay visible as a
-separate investment-exposure subtotal, and Folio shows the broker cash/credit reconciliation needed
-to reach the exact total. Per-holding valuations come directly from Scalable. Yahoo/OpenFIGI
+Portfolio headline, Home net worth, and widgets. The redesigned Portfolio keeps broker truth separate
+from Folio history: securities + crypto, imported holding totals, broker cash/credit reconciliation,
+broker absolute return, CLI version, and snapshot time are shown explicitly. When an all-time broker
+absolute return is present, Folio derives broker invested capital from the same snapshot instead of
+mixing in Folio's manual cost basis. Per-holding valuations come directly from Scalable. Yahoo/OpenFIGI
 valuation is used only when no Scalable snapshot is active.
 
 This snapshot flow is intentionally read-only and does not place trades, modify savings plans, or
