@@ -9,6 +9,19 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.14.2.beta] - 2026-10-03
+
+### Changed
+- Simplified the connected Portfolio screen to a Scalable-style layout: portfolio value, broker absolute return/timeframe, broker cash, and broker positions only.
+- Removed reconciliation/debug cards, snapshot metadata, ISIN/unit noise, local-history explanations, and Folio-derived portfolio metrics from the connected view.
+- The Scalable snapshot helper now reads portfolio groups in addition to overview, holdings, and cash breakdown so grouped positions omitted from the normal holdings response can be recovered from Scalable's own group valuation.
+
+### Fixed
+- Fixed a fresh reset + Scalable import showing €0 when the imported broker overview had a valid value but the holdings array was empty.
+- Fixed the connected headline depending on the summed holdings list instead of the imported broker total.
+- Fixed single grouped broker positions missing from the normal holdings response being absent from the sanitized snapshot when Scalable exposes a group valuation for them.
+- A Scalable snapshot with no broker value now fails import instead of silently becoming a €0 portfolio.
+
 ## [0.14.1.beta] - 2026-10-03
 
 ### Changed
