@@ -62,13 +62,53 @@ After import:
 - Folio's portable backup intentionally does **not** include the Scalable snapshot.
 - Disconnecting Scalable deletes the encrypted snapshot and its Keystore key.
 
+## Sparkasse read-only integration
+
+Folio treats Sparkasse/FinTS as a separate **read-only trust boundary**. The Android app never asks
+for or stores the user's online-banking login ID, PIN, TAN, IBAN, FinTS endpoint credentials, FinTS
+dialog state, or product-registration secret.
+
+The helper in `tools/sparkasse_snapshot.py` runs on the user's own computer and uses
+`python-fints`. FinTS clients require a registered product ID, and some banks can require TAN
+confirmation even for read operations. The helper therefore prompts locally for PIN/TAN and never
+writes either value to disk.
+
+The helper deliberately calls only these read operations:
+
+```text
+get_sepa_accounts()
+get_balance(account)
+get_transactions(account, ...)
+```
+
+It does not expose or call transfer, debit, scheduled-payment, standing-order, or other mutation
+methods. The generated snapshot contains only the selected account's EUR balance and sanitized booked
+transaction fields needed by Folio: booking date, signed amount, merchant/counterparty display text,
+and purpose text. Account numbers, IBANs, BICs, login IDs, PINs, TANs, and FinTS session state are not
+written to the snapshot.
+
+### Sparkasse snapshot handling
+
+The intermediate `folio-sparkasse.snapshot.json` is plaintext so it can be moved to the phone. It is
+excluded by `.gitignore` and should be deleted after import.
+
+After import:
+
+- Folio parses only an allowlist of balance/transaction fields.
+- The snapshot is encrypted with AES-256-GCM using a separate non-exportable Android Keystore key.
+- The encrypted file stays in Folio's private app directory.
+- Android backup remains disabled and Folio's portable backup does not include the Sparkasse snapshot.
+- Disconnecting Sparkasse or clearing all Folio data deletes the encrypted snapshot and its Keystore key.
+- Sparkasse balance becomes the displayed Available cash / net-worth cash component while connected.
+- Booked bank debits are categorized locally on-device; transaction text is not sent to a Folio server.
+
 ## Network and telemetry
 
 - Android cleartext network traffic is disabled.
 - Folio has no analytics SDK and no crash-reporting SDK.
-- The Scalable snapshot import path makes no network requests.
-- The official Scalable CLI, not Folio, talks to Scalable Capital.
-- Folio does not upload imported Scalable data to GitHub or any Folio server.
+- The Scalable and Sparkasse snapshot import paths make no network requests.
+- The official Scalable CLI and the local FinTS helper, not the Android app, talk to the financial providers.
+- Folio does not upload imported Scalable or Sparkasse data to GitHub or any Folio server.
 
 Folio still uses network access for existing non-Scalable features such as market-price refreshes and beta updates. Those paths do not receive the encrypted Scalable snapshot.
 
@@ -78,17 +118,23 @@ When a valid Scalable snapshot is active, the Portfolio screen is Scalable-only:
 
 ## Public repository safety
 
-Never commit a generated Scalable snapshot. The following patterns are ignored:
+Never commit a generated Scalable or Sparkasse snapshot. The following patterns are ignored:
 
 ```text
 folio-scalable*.json
 *.folio-scalable.json
 scalable-snapshot*.json
 private-scalable/
+folio-sparkasse*.json
+*.folio-sparkasse.json
+sparkasse-snapshot*.json
+private-sparkasse/
 ```
 
-Do not add real account responses, account IDs, portfolio IDs, credentials, tokens, screenshots with personal account identifiers, or copied CLI session material to tests, fixtures, issues, or commits.
+Do not add real account responses, bank transactions, IBANs, account IDs, portfolio IDs, credentials,
+PINs, TANs, tokens, screenshots with personal account identifiers, or copied CLI/FinTS session
+material to tests, fixtures, issues, or commits.
 
 ## Reporting a vulnerability
 
-Please use a private GitHub Security Advisory for vulnerabilities or accidental secret exposure. Do not post private financial data, signing material, credentials, backup files, Scalable snapshots, account IDs, portfolio IDs, or other sensitive information in public issues.
+Please use a private GitHub Security Advisory for vulnerabilities or accidental secret exposure. Do not post private financial data, signing material, credentials, backup files, Scalable/Sparkasse snapshots, bank transactions, IBANs, account IDs, portfolio IDs, or other sensitive information in public issues.
