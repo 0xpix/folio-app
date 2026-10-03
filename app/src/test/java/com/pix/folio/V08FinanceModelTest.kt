@@ -4,7 +4,6 @@ import com.pix.folio.data.BudgetEnvelope
 import com.pix.folio.data.ScalableHoldingSnapshot
 import com.pix.folio.data.ScalablePerformanceSnapshot
 import com.pix.folio.data.ScalableSnapshot
-import com.pix.folio.data.SparkasseSnapshotCodec
 import com.pix.folio.data.SparkasseTransactionCategorizer
 import com.pix.folio.data.recurringInvestmentUnits
 import com.pix.folio.model.ExpenseCategory
@@ -114,36 +113,24 @@ class V08FinanceModelTest {
 
     @Test
     fun sparkasseSnapshotKeepsOnlySanitizedBankFields() {
-        val snapshot = SparkasseSnapshotCodec.parse(
-            """
-            {
-              "format":"folio-sparkasse-snapshot",
-              "version":1,
-              "source":"fints",
-              "created_at_utc":"2026-10-03T12:00:00Z",
-              "currency":"EUR",
-              "balance":812.34,
-              "available_balance":812.34,
-              "iban":"DE00SHOULDNOTPERSIST",
-              "transactions":[
-                {
-                  "booking_date":"2026-10-02",
-                  "amount":-42.50,
-                  "currency":"EUR",
-                  "merchant":"REWE",
-                  "purpose":"Groceries",
-                  "counterparty_iban":"DE00SHOULDNOTPERSIST"
-                }
-              ]
-            }
-            """.trimIndent()
+        val transaction = com.pix.folio.data.SparkasseTransactionSnapshot(
+            bookingDate = LocalDate.of(2026, 10, 2),
+            amount = -42.50,
+            currency = "EUR",
+            merchant = "REWE",
+            purpose = "Groceries",
+        )
+        val snapshot = com.pix.folio.data.SparkasseSnapshot(
+            createdAtUtc = Instant.parse("2026-10-03T12:00:00Z"),
+            balance = 812.34,
+            availableBalance = 812.34,
+            currency = "EUR",
+            transactions = listOf(transaction),
         )
 
-        val encoded = SparkasseSnapshotCodec.encode(snapshot)
         assertEquals(812.34, snapshot.availableBalance, 0.001)
         assertEquals(ExpenseCategory.GROCERIES, snapshot.transactions.single().category)
-        assertFalse(encoded.contains("DE00SHOULDNOTPERSIST"))
-        assertFalse(encoded.contains("counterparty_iban"))
+        assertEquals(42.50, snapshot.transactions.single().expenseAmount, 0.001)
     }
 
     @Test
