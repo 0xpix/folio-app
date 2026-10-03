@@ -216,15 +216,27 @@ internal fun V08InteractiveValueChart(
 }
 
 @Composable
-internal fun V08SpendingBreakdown(summary: FolioSummary, month: java.time.YearMonth) {
+internal fun V08SpendingBreakdown(vm: V07ViewModel, month: java.time.YearMonth) {
+    val summary = vm.summary
+    val sparkasse = vm.sparkasseSnapshot
+
+    fun spent(category: ExpenseCategory, targetMonth: java.time.YearMonth): Double =
+        if (sparkasse != null) {
+            sparkasse.expensesForMonth(targetMonth)
+                .filter { it.category == category }
+                .sumOf { it.expenseAmount }
+        } else {
+            summary.spentFor(category, targetMonth)
+        }
+
     val rows = ExpenseCategory.selectableEntries.mapNotNull { category ->
-        val spent = summary.spentFor(category, month)
-        if (spent > 0.0) category to spent else null
+        val amount = spent(category, month)
+        if (amount > 0.0) category to amount else null
     }.sortedByDescending { it.second }
     val total = rows.sumOf { it.second }
-    val previousTotal = ExpenseCategory.selectableEntries.sumOf { summary.spentFor(it, month.minusMonths(1)) }
+    val previousTotal = ExpenseCategory.selectableEntries.sumOf { spent(it, month.minusMonths(1)) }
     val difference = total - previousTotal
-    val visibleRows = rows.take(6)
+    val visibleRows = rows.take(8)
 
     Column(
         Modifier
@@ -234,19 +246,28 @@ internal fun V08SpendingBreakdown(summary: FolioSummary, month: java.time.YearMo
     ) {
         Text("Where did my money go?", fontSize = 20.sp, fontWeight = FontWeight.Medium)
         Text(
-            if (previousTotal > 0.0) "${v07SignedEuro(difference)} vs last month" else "Your spending by category",
+            when {
+                previousTotal > 0.0 -> "${v07SignedEuro(difference)} vs last month"
+                sparkasse != null -> "Booked Sparkasse spending by category"
+                else -> "Your spending by category"
+            },
             fontSize = 11.sp,
             color = if (previousTotal > 0.0) folioChangeColor(difference, positiveIsGood = false)
             else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
         if (visibleRows.isEmpty()) {
-            Text("No spending recorded for this month.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                if (sparkasse != null) "No booked Sparkasse spending for this month."
+                else "No spending recorded for this month.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         } else {
             visibleRows.forEachIndexed { index, (category, amount) ->
                 val share = if (total > 0.0) amount / total * 100.0 else 0.0
                 Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 5.dp)) {
-                    Text(category.label.uppercase(), fontSize = 12.sp, modifier = Modifier.weight(1f))
+                    Text("${category.glyph}  ${category.label.uppercase()}", fontSize = 12.sp, modifier = Modifier.weight(1f))
                     Text("${v07Euro(amount)} · ${String.format(Locale.US, "%.0f", share)}%", fontSize = 12.sp)
                 }
                 V07Progress(share / 100.0)
