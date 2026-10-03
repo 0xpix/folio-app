@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.14.0.beta`
+**Current beta source:** `0.14.1.beta`
 
 ## What Folio tracks
 
@@ -83,7 +83,7 @@ sc login --local-read-only
 ```
 
    Scalable documents this as a local CLI write guard, not reduced backend token permissions.
-   Folio's helper therefore also hard-limits itself to two fixed read commands.
+   Folio's helper therefore also hard-limits itself to three fixed read commands.
 
 4. From the Folio repository, create a minimal sanitized snapshot:
 
@@ -100,19 +100,19 @@ The helper executes only:
 ```text
 sc broker overview --json
 sc broker holdings --json
+sc broker cash-breakdown --json
 ```
 
 It strips account/portfolio identifiers. Folio stores only the allowlisted broker valuation,
 performance and holding fields, encrypted with AES-256-GCM using a non-exportable Android Keystore
 key. The encrypted snapshot is not included in Folio backups and Android backup is disabled.
 
-While a Scalable snapshot is active, Scalable's exact broker total is the source of truth for the
-Portfolio headline, Home net worth, and widgets. The redesigned Portfolio keeps broker truth separate
-from Folio history: securities + crypto, imported holding totals, broker cash/credit reconciliation,
-broker absolute return, CLI version, and snapshot time are shown explicitly. When an all-time broker
-absolute return is present, Folio derives broker invested capital from the same snapshot instead of
-mixing in Folio's manual cost basis. Per-holding valuations come directly from Scalable. Yahoo/OpenFIGI
-valuation is used only when no Scalable snapshot is active.
+While a Scalable snapshot is active, the connected Portfolio is **Scalable-only**. The headline is
+the sum of Scalable-returned holding valuations plus Scalable broker cash; the holdings list, broker
+return, CLI version, and timestamps also come only from the imported snapshot. Folio does not use its
+local investment list, local cost basis, purchase history, Yahoo/OpenFIGI prices, or reconstructed
+charts in the connected Portfolio. Home net worth and both widgets use the same broker-only connected
+value. Local Folio investment tracking is used only when no Scalable snapshot is active.
 
 This snapshot flow is intentionally read-only and does not place trades, modify savings plans, or
 touch the Scalable CLI session. See [SECURITY.md](SECURITY.md) for the full trust boundary.
