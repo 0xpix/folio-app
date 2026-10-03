@@ -66,13 +66,29 @@ def clean_text(value: Any) -> str:
 
 
 def unwrap_broker_result(payload: dict[str, Any], label: str) -> dict[str, Any]:
-    """Accept both legacy direct JSON and the current Scalable broker result envelope."""
-    if "result" not in payload:
-        return payload
-    result = payload.get("result")
-    if not isinstance(result, dict):
-        raise RuntimeError(f"Scalable {label} response has an invalid result envelope")
-    return result
+    """Accept legacy JSON plus Scalable CLI machine/data and broker/result envelopes."""
+    current = payload
+
+    # Current Scalable CLI --json output is a machine envelope:
+    # {"ok": true, "command": "broker.overview", "data": {...}}
+    if {"ok", "command", "data"}.issubset(current.keys()):
+        if current.get("ok") is not True:
+            raise RuntimeError(f"Scalable {label} command returned an unsuccessful JSON envelope")
+        data = current.get("data")
+        if not isinstance(data, dict):
+            raise RuntimeError(f"Scalable {label} response has an invalid data envelope")
+        current = data
+
+    # Broker query output itself may also be wrapped:
+    # {"account_id": "...", "portfolio_id": "...", "resolution": {...}, "result": {...}}
+    # Only the result object is passed onward, so wrapper identifiers are never persisted.
+    if "result" in current:
+        result = current.get("result")
+        if not isinstance(result, dict):
+            raise RuntimeError(f"Scalable {label} response has an invalid result envelope")
+        current = result
+
+    return current
 
 
 def build_snapshot(overview: dict[str, Any], holdings: dict[str, Any], cli_version: str) -> dict[str, Any]:
