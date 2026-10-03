@@ -233,9 +233,14 @@ def build_snapshot(
 
     timestamps = overview.get("timestamps") if isinstance(overview.get("timestamps"), dict) else {}
 
-    overview_portfolio_value = finite_number(valuation.get("total"), "valuation.total")
+    broker_total_value = finite_number(valuation.get("total"), "valuation.total")
+    cash_value = finite_number(
+        cash_breakdown.get("cash_balance"),
+        "cash_breakdown.cash_balance",
+        optional=True,
+    ) or 0.0
     holdings_portfolio_value = sum(float(row["valuation"]) for row in sanitized_holdings)
-    broker_portfolio_value = max(overview_portfolio_value, holdings_portfolio_value)
+    broker_portfolio_value = max(0.0, broker_total_value - cash_value)
 
     return {
         "format": "folio-scalable-snapshot",
@@ -246,12 +251,9 @@ def build_snapshot(
         "cli_version": cli_version or None,
         "currency": currency,
         "valuation": {
+            "total": broker_total_value,
             "portfolio": broker_portfolio_value,
-            "cash": finite_number(
-                cash_breakdown.get("cash_balance"),
-                "cash_breakdown.cash_balance",
-                optional=True,
-            ) or 0.0,
+            "cash": cash_value,
             "securities": finite_number(valuation.get("securities"), "valuation.securities"),
             "crypto": finite_number(valuation.get("crypto"), "valuation.crypto", optional=True) or 0.0,
         },
@@ -332,7 +334,7 @@ def main() -> int:
         f"{len(snapshot['holdings'])} holdings · "
         f"holdings EUR {holdings_value:.2f} · "
         f"cash EUR {cash_value:.2f} · "
-        f"broker total EUR {float(snapshot['valuation']['portfolio']) + cash_value:.2f}"
+        f"broker total EUR {float(snapshot['valuation']['total']):.2f}"
     )
     print("Import it into Folio, then delete the plaintext snapshot file when you no longer need it.")
     return 0
