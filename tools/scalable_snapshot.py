@@ -5,7 +5,7 @@ Create a minimal Folio snapshot from the official Scalable Capital CLI.
 Security properties:
 - never logs in and never reads Scalable CLI session files
 - never accepts a password, token, account id, or portfolio id
-- executes only two fixed read commands with shell=False
+- executes only three fixed read commands with shell=False
 - strips account_id / portfolio_id and other nonessential metadata
 - writes the output with owner-only permissions (0600)
 
@@ -91,9 +91,15 @@ def unwrap_broker_result(payload: dict[str, Any], label: str) -> dict[str, Any]:
     return current
 
 
-def build_snapshot(overview: dict[str, Any], holdings: dict[str, Any], cli_version: str) -> dict[str, Any]:
+def build_snapshot(
+    overview: dict[str, Any],
+    holdings: dict[str, Any],
+    cash_breakdown: dict[str, Any],
+    cli_version: str,
+) -> dict[str, Any]:
     overview = unwrap_broker_result(overview, "overview")
     holdings = unwrap_broker_result(holdings, "holdings")
+    cash_breakdown = unwrap_broker_result(cash_breakdown, "cash breakdown")
 
     valuation = overview.get("valuation")
     if not isinstance(valuation, dict):
@@ -180,7 +186,12 @@ def build_snapshot(overview: dict[str, Any], holdings: dict[str, Any], cli_versi
         "cli_version": cli_version or None,
         "currency": currency,
         "valuation": {
-            "total": finite_number(valuation.get("total"), "valuation.total"),
+            "portfolio": finite_number(valuation.get("total"), "valuation.total"),
+            "cash": finite_number(
+                cash_breakdown.get("cash_balance"),
+                "cash_breakdown.cash_balance",
+                optional=True,
+            ) or 0.0,
             "securities": finite_number(valuation.get("securities"), "valuation.securities"),
             "crypto": finite_number(valuation.get("crypto"), "valuation.crypto", optional=True) or 0.0,
         },
@@ -221,10 +232,11 @@ def main() -> int:
     # These are deliberately the only broker commands this helper can execute.
     overview = run_sc(sc, "broker", "overview")
     holdings = run_sc(sc, "broker", "holdings")
-    if not isinstance(overview, dict) or not isinstance(holdings, dict):
+    cash_breakdown = run_sc(sc, "broker", "cash-breakdown")
+    if not all(isinstance(payload, dict) for payload in (overview, holdings, cash_breakdown)):
         raise RuntimeError("Unexpected Scalable CLI response shape")
 
-    snapshot = build_snapshot(overview, holdings, cli_version)
+    snapshot = build_snapshot(overview, holdings, cash_breakdown, cli_version)
 
     output.parent.mkdir(parents=True, exist_ok=True)
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
