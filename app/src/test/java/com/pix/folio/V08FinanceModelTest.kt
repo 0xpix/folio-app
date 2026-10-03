@@ -1,6 +1,9 @@
 package com.pix.folio
 
 import com.pix.folio.data.BudgetEnvelope
+import com.pix.folio.data.ScalableHoldingSnapshot
+import com.pix.folio.data.ScalablePerformanceSnapshot
+import com.pix.folio.data.ScalableSnapshot
 import com.pix.folio.data.recurringInvestmentUnits
 import com.pix.folio.model.FolioSummary
 import com.pix.folio.model.InvestmentEntrySource
@@ -19,6 +22,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -428,10 +432,61 @@ class V08FinanceModelTest {
     @Test
     fun brokerStyleAbsoluteReturnUsesCurrentValueMinusInvestedCapital() {
         assertEquals(
-            86.0,
-            v081AbsoluteReturn(currentValue = 2_286.0, investedCapital = 2_200.0),
+            50.0,
+            v081AbsoluteReturn(currentValue = 1_250.0, investedCapital = 1_200.0),
             0.001,
         )
+    }
+
+    @Test
+    fun scalableInvestmentValueExcludesBrokerCash() {
+        val snapshot = ScalableSnapshot(
+            createdAtUtc = Instant.parse("2026-01-01T00:00:00Z"),
+            valuationTimestampUtc = null,
+            cliVersion = "synthetic",
+            currency = "EUR",
+            totalValue = 1_500.0,
+            securitiesValue = 1_200.0,
+            cryptoValue = 50.0,
+            performance = emptyList(),
+            holdings = emptyList(),
+        )
+
+        assertEquals(1_250.0, snapshot.investmentValue, 0.001)
+    }
+
+    @Test
+    fun scalablePrimaryReturnPrefersAllTimeStyleFrame() {
+        val snapshot = ScalableSnapshot(
+            createdAtUtc = Instant.parse("2026-01-01T00:00:00Z"),
+            valuationTimestampUtc = null,
+            cliVersion = "synthetic",
+            currency = "EUR",
+            totalValue = 1_250.0,
+            securitiesValue = 1_250.0,
+            cryptoValue = 0.0,
+            performance = listOf(
+                ScalablePerformanceSnapshot("ONE_DAY", 1.0),
+                ScalablePerformanceSnapshot("MAX", 42.0),
+            ),
+            holdings = listOf(
+                ScalableHoldingSnapshot(
+                    isin = "IE00B4L5Y983",
+                    name = "Synthetic ETF",
+                    securityType = "ETF",
+                    quantity = 5.0,
+                    valuation = 1_250.0,
+                    valuationCurrency = "EUR",
+                    quoteMidPrice = 250.0,
+                    quoteCurrency = "EUR",
+                    quoteTimestampUtc = null,
+                    quoteOutdated = false,
+                )
+            ),
+        )
+
+        assertEquals("MAX", snapshot.primaryAbsoluteReturn?.timeframe)
+        assertEquals(42.0, snapshot.primaryAbsoluteReturn?.absoluteReturn ?: 0.0, 0.001)
     }
 
 }
