@@ -104,13 +104,15 @@ object ScalableSnapshotCodec {
 
         val valuation = root.getJSONObject("valuation")
         val hasSplitBrokerValue = valuation.has("portfolio") || valuation.has("cash")
-        val portfolio = if (hasSplitBrokerValue) {
-            valuation.requireFiniteMoney("portfolio")
-        } else {
-            valuation.requireFiniteMoney("total")
-        }
         val cash = if (hasSplitBrokerValue) valuation.optFiniteMoney("cash") ?: 0.0 else 0.0
-        val total = portfolio + cash
+        val total = valuation.optFiniteMoney("total")
+            ?: if (hasSplitBrokerValue) {
+                valuation.requireFiniteMoney("portfolio") + cash
+            } else {
+                valuation.requireFiniteMoney("total")
+            }
+        val portfolio = valuation.optFiniteMoney("portfolio")
+            ?: (total - cash).coerceAtLeast(0.0)
         val securities = valuation.requireFiniteMoney("securities")
         val crypto = valuation.optFiniteMoney("crypto") ?: 0.0
         require(total >= 0.0 && portfolio >= 0.0 && cash >= 0.0 && securities >= 0.0 && crypto >= 0.0) {
