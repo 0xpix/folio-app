@@ -48,6 +48,10 @@ private enum class V08PortfolioGraphMode(val label: String) { VALUE("VALUE"), RE
 internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val summary = vm.summary
     val scalable = vm.scalableSnapshot
+    if (scalable != null) {
+        V141ScalablePortfolioScreen(scalable)
+        return
+    }
     val valuations = summary.investments.associateWith(vm::v081Valuation)
     val total = scalable?.totalValue ?: valuations.values.sumOf { it.value }
     val invested = scalable?.brokerInvestedCapital ?: summary.portfolioCostBasis
