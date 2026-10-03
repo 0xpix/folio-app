@@ -145,7 +145,9 @@ internal fun V141ScalablePortfolioScreen(snapshot: ScalableSnapshot) {
                                 append(" · ")
                             }
                             append("Scalable")
-                            holding.quantity?.let { append(" · " + v081Units(it) + " units") }
+                            holding.quantity?.let {
+                                append(" · " + String.format(Locale.US, "%.6f", it).trimEnd('0').trimEnd('.') + " units")
+                            }
                             if (holding.securityType.isNotBlank()) append(" · " + holding.securityType)
                             append(" · " + holding.isin)
                         },
