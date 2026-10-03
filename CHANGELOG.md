@@ -9,6 +9,20 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.16.1.beta] - 2026-10-03
+
+### Changed
+- Rolled Folio back to the complete **0.15.0.beta feature set** after removing the Sparkasse/FinTS experiment.
+
+### Fixed
+- Removed all Sparkasse connection, snapshot, FinTS helper, bank-transaction categorization, and bank-balance override code introduced in 0.16.0.
+- Restored the pre-Sparkasse spending categories, Money behavior, Home cash behavior, widget behavior, backup/security contract, and release validation rules.
+
+## [0.16.0.beta] - 2026-10-03
+
+### Changed
+- Superseded by 0.16.1.beta. This release briefly introduced the Sparkasse/FinTS experiment that has now been fully removed.
+
 ## [0.15.0.beta] - 2026-10-03
 
 ### Added
