@@ -458,7 +458,7 @@ else:
 
 if f"`{app_version_text}.beta`" not in readme:
     raise SystemExit(f"README current beta source is not {app_version_text}.beta")
-if "Net worth / Investments / Cash left" not in readme or "no transient pager dots" not in readme:
+if "2×2 Folio overview widget" not in readme or "no transient pager dots" not in readme:
     raise SystemExit("README product documentation is incomplete")
 if "Patch releases must not introduce a new user-facing capability" not in readme:
     raise SystemExit("README versioning policy is missing")
