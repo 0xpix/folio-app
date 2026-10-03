@@ -32,12 +32,17 @@ data class ScalableSnapshot(
     val cryptoValue: Double,
     val performance: List<ScalablePerformanceSnapshot>,
     val holdings: List<ScalableHoldingSnapshot>,
+    val portfolioValue: Double = totalValue,
+    val cashBalance: Double = 0.0,
 ) {
     /** Security/crypto exposure only. Scalable's broker total may also include broker cash/credit. */
     val investmentValue: Double get() = securitiesValue + cryptoValue
 
-    /** Residual needed to reconcile securities + crypto to Scalable's exact broker total. */
-    val brokerCashOrCreditValue: Double get() = totalValue - investmentValue
+    /** Broker cash balance reported separately by Scalable's cash-breakdown read. */
+    val brokerCashOrCreditValue: Double get() = cashBalance
+
+    /** Non-cash residual inside the portfolio valuation, if Scalable reports one. */
+    val portfolioResidualValue: Double get() = portfolioValue - investmentValue
 
     /** Sum of broker-reported holding valuations, useful for reconciliation/debugging. */
     val holdingsValue: Double get() = holdings.sumOf { it.valuation }
@@ -51,7 +56,7 @@ data class ScalableSnapshot(
      */
     val brokerInvestedCapital: Double?
         get() = primaryAbsoluteReturn
-            ?.let { totalValue - it.absoluteReturn }
+            ?.let { portfolioValue - it.absoluteReturn }
             ?.takeIf { it.isFinite() && it >= 0.0 }
 
     val primaryAbsoluteReturn: ScalablePerformanceSnapshot?
@@ -95,10 +100,17 @@ object ScalableSnapshotCodec {
         require(currency == "EUR") { "Only EUR Scalable broker snapshots are supported" }
 
         val valuation = root.getJSONObject("valuation")
-        val total = valuation.requireFiniteMoney("total")
+        val hasSplitBrokerValue = valuation.has("portfolio") || valuation.has("cash")
+        val portfolio = if (hasSplitBrokerValue) {
+            valuation.requireFiniteMoney("portfolio")
+        } else {
+            valuation.requireFiniteMoney("total")
+        }
+        val cash = if (hasSplitBrokerValue) valuation.optFiniteMoney("cash") ?: 0.0 else 0.0
+        val total = portfolio + cash
         val securities = valuation.requireFiniteMoney("securities")
         val crypto = valuation.optFiniteMoney("crypto") ?: 0.0
-        require(total >= 0.0 && securities >= 0.0 && crypto >= 0.0) {
+        require(total >= 0.0 && portfolio >= 0.0 && cash >= 0.0 && securities >= 0.0 && crypto >= 0.0) {
             "Scalable valuation cannot be negative"
         }
 
@@ -167,6 +179,8 @@ object ScalableSnapshotCodec {
             cryptoValue = crypto,
             performance = performance,
             holdings = holdings.sortedBy { it.isin },
+            portfolioValue = portfolio,
+            cashBalance = cash,
         )
     }
 
@@ -210,6 +224,8 @@ object ScalableSnapshotCodec {
             .put(
                 "valuation",
                 JSONObject()
+                    .put("portfolio", snapshot.portfolioValue)
+                    .put("cash", snapshot.cashBalance)
                     .put("total", snapshot.totalValue)
                     .put("securities", snapshot.securitiesValue)
                     .put("crypto", snapshot.cryptoValue)
