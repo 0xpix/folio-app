@@ -57,6 +57,8 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
     var downloadedApk by remember { mutableStateOf<File?>(null) }
     var pendingExport by remember { mutableStateOf<String?>(null) }
     var backupRefresh by remember { mutableStateOf(0) }
+    var scalableImportStatus by remember { mutableStateOf<String?>(null) }
+    var scalableImportFailed by remember { mutableStateOf(false) }
 
     val scalableImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -66,19 +68,28 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                 onSuccess = { raw ->
                     vm.importScalableSnapshot(raw).fold(
                         onSuccess = {
-                            Toast.makeText(context, "Scalable snapshot imported securely", Toast.LENGTH_SHORT).show()
+                            val snapshot = vm.scalableSnapshot
+                            scalableImportFailed = false
+                            scalableImportStatus = snapshot?.let {
+                                "Imported ${it.holdings.size} holdings · broker total ${v07Euro(it.totalValue)}"
+                            } ?: "Scalable snapshot imported securely"
+                            Toast.makeText(context, scalableImportStatus, Toast.LENGTH_LONG).show()
                         },
                         onFailure = {
+                            scalableImportFailed = true
+                            scalableImportStatus = it.message ?: "Invalid Scalable snapshot"
                             Toast.makeText(
                                 context,
-                                it.message ?: "Invalid Scalable snapshot",
+                                scalableImportStatus,
                                 Toast.LENGTH_LONG,
                             ).show()
                         },
                     )
                 },
                 onFailure = {
-                    Toast.makeText(context, it.message ?: "Could not read snapshot", Toast.LENGTH_LONG).show()
+                    scalableImportFailed = true
+                    scalableImportStatus = it.message ?: "Could not read snapshot"
+                    Toast.makeText(context, scalableImportStatus, Toast.LENGTH_LONG).show()
                 },
             )
         }
@@ -168,7 +179,7 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                 V07Metric(
                     "Scalable Capital",
                     "Imported",
-                    "Encrypted locally with Android Keystore · $importedAt",
+                    "${scalable.holdings.size} holdings · ${v07Euro(scalable.totalValue)} broker total · encrypted locally · $importedAt",
                     onClick = {
                         scalableImportLauncher.launch(arrayOf("application/json", "text/plain"))
                     },
@@ -197,6 +208,15 @@ internal fun V08SettingsSheet(vm: V07ViewModel, onDismiss: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
+            scalableImportStatus?.let { status ->
+                Text(
+                    status,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    color = if (scalableImportFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
 
             Spacer(Modifier.height(26.dp))
             V07SectionLabel("Recurring")
