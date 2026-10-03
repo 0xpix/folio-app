@@ -227,7 +227,7 @@ internal val V07ViewModel.v081PortfolioGainPct: Double
     }
 
 internal val V07ViewModel.v081NetWorth: Double
-    get() = summary.cashBalance + summary.totalSavings + v081PortfolioTotal
+    get() = availableCash + summary.totalSavings + v081PortfolioTotal
 
 /** Keep the reconstructed historical curve, but make today's endpoint match one shared current total. */
 internal fun V07ViewModel.v081PortfolioHistory(currentValue: Double): List<Pair<LocalDate, Double>> {
