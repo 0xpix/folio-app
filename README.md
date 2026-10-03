@@ -2,7 +2,7 @@
 
 A minimal, local-first personal-finance companion for Android. Folio is not a brokerage and does not place trades. It tracks spendable money, monthly plans, spending, savings, investments, recurring money, and net worth in one quiet interface.
 
-**Current beta source:** `0.13.0.beta`
+**Current beta source:** `0.13.1.beta`
 
 ## What Folio tracks
 
@@ -106,8 +106,10 @@ It strips account/portfolio identifiers. Folio stores only the allowlisted broke
 performance and holding fields, encrypted with AES-256-GCM using a non-exportable Android Keystore
 key. The encrypted snapshot is not included in Folio backups and Android backup is disabled.
 
-While a Scalable snapshot is active, Scalable's broker-reported portfolio value and per-holding
-valuation are the source of truth for the Portfolio screen and investment widget. Yahoo/OpenFIGI
+While a Scalable snapshot is active, Scalable's exact broker total is the source of truth for the
+Portfolio headline, Home net worth, and investment widget. Securities + crypto stay visible as a
+separate investment-exposure subtotal, and Folio shows the broker cash/credit reconciliation needed
+to reach the exact total. Per-holding valuations come directly from Scalable. Yahoo/OpenFIGI
 valuation is used only when no Scalable snapshot is active.
 
 This snapshot flow is intentionally read-only and does not place trades, modify savings plans, or
