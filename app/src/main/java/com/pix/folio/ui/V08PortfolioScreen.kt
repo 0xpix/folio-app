@@ -49,7 +49,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
     val summary = vm.summary
     val scalable = vm.scalableSnapshot
     val valuations = summary.investments.associateWith(vm::v081Valuation)
-    val total = scalable?.investmentValue ?: valuations.values.sumOf { it.value }
+    val total = scalable?.totalValue ?: valuations.values.sumOf { it.value }
     val invested = summary.portfolioCostBasis
     val localGain = v081AbsoluteReturn(total, invested)
     val brokerReturn = scalable?.primaryAbsoluteReturn
@@ -183,9 +183,17 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(10.dp))
-                V07Metric("Investments", v07Euro(scalable.investmentValue), "Securities + crypto reported by Scalable")
+                V07Metric("Broker total", v07Euro(scalable.totalValue), "Exact total reported by Scalable Capital")
                 V07Divider()
-                V07Metric("Broker total", v07Euro(scalable.totalValue), "May include broker cash / credit")
+                V07Metric("Securities + crypto", v07Euro(scalable.investmentValue), "Broker investment exposure")
+                if (kotlin.math.abs(scalable.brokerCashOrCreditValue) >= 0.005) {
+                    V07Divider()
+                    V07Metric(
+                        "Broker cash / credit",
+                        v07SignedEuro(scalable.brokerCashOrCreditValue),
+                        "Reconciles investment exposure to Scalable's broker total",
+                    )
+                }
                 V07Divider()
                 V07Metric("Securities", v07Euro(scalable.securitiesValue))
                 if (scalable.cryptoValue > 0.0) {
@@ -229,7 +237,7 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
         }
         Text(
             if (scalable != null) {
-                "Exact broker holdings from the imported snapshot. Import a newer snapshot in Settings → Connections to refresh them."
+                "Exact broker holdings from the imported snapshot. The headline uses Scalable's full broker total, including its cash/credit component. Import a newer snapshot in Settings → Connections to refresh."
             } else {
                 "Tap a holding to edit its purchase date, time, and exact owned units."
             },
@@ -256,7 +264,8 @@ internal fun V08PortfolioScreen(vm: V07ViewModel) {
                         val localHolding = summary.investments.firstOrNull {
                             it.isin.isNotBlank() && it.isin.equals(brokerHolding.isin, ignoreCase = true)
                         }
-                        val allocation = if (total > 0.0) brokerHolding.valuation / total * 100.0 else 0.0
+                        val allocationBase = scalable.investmentValue
+                        val allocation = if (allocationBase > 0.0) brokerHolding.valuation / allocationBase * 100.0 else 0.0
                         V07Metric(
                             label = brokerHolding.name,
                             value = v07Euro(brokerHolding.valuation),
