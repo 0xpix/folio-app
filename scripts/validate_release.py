@@ -220,32 +220,47 @@ helper_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(helper_module)
 synthetic = helper_module.build_snapshot(
     {
-        "account_id": "must-not-leak",
-        "portfolio_id": "must-not-leak",
-        "valuation": {"total": "1234.56", "securities": "1234.56", "crypto": "0"},
-        "timestamps": {"valuation_timestamp_utc": "2026-10-03T07:00:00Z"},
-        "performance": [{"timeframe": "MAX", "simpleAbsoluteReturn": "12.34"}],
+        "account_id": "outer-must-not-leak",
+        "portfolio_id": "outer-must-not-leak",
+        "resolution": {"account": "auto_resolve", "portfolio": "auto_resolve"},
+        "result": {
+            "account_id": "inner-must-not-leak",
+            "portfolio_id": "inner-must-not-leak",
+            "valuation": {"total": "1234.56", "securities": "1234.56", "crypto": "0"},
+            "timestamps": {"valuation_timestamp_utc": "2026-10-03T07:00:00Z"},
+            "performance": [{"timeframe": "MAX", "simpleAbsoluteReturn": "12.34"}],
+        },
     },
     {
-        "account_id": "must-not-leak",
-        "portfolio_id": "must-not-leak",
-        "items": [{
-            "isin": "IE00B4L5Y983",
-            "name": "Synthetic ETF",
-            "security_type": "ETF",
-            "quantity": "10",
-            "valuation": "1234.56",
-            "valuation_currency": "EUR",
-            "quote_mid_price": "123.45",
-            "quote_currency": "EUR",
-            "quote_timestamp_utc": "2026-10-03T07:00:00Z",
-            "quote_is_outdated": False,
-        }],
+        "account_id": "outer-must-not-leak",
+        "portfolio_id": "outer-must-not-leak",
+        "resolution": {"account": "auto_resolve", "portfolio": "auto_resolve"},
+        "result": {
+            "account_id": "inner-must-not-leak",
+            "portfolio_id": "inner-must-not-leak",
+            "items": [{
+                "isin": "IE00B4L5Y983",
+                "name": "Synthetic ETF",
+                "security_type": "ETF",
+                "quantity": "10",
+                "valuation": "1234.56",
+                "valuation_currency": "EUR",
+                "quote_mid_price": "123.45",
+                "quote_currency": "EUR",
+                "quote_timestamp_utc": "2026-10-03T07:00:00Z",
+                "quote_is_outdated": False,
+            }],
+        },
     },
     "sc 1.1.0",
 )
 synthetic_json = json.dumps(synthetic)
-if "account_id" in synthetic_json or "portfolio_id" in synthetic_json or "must-not-leak" in synthetic_json:
+if (
+    "account_id" in synthetic_json
+    or "portfolio_id" in synthetic_json
+    or "outer-must-not-leak" in synthetic_json
+    or "inner-must-not-leak" in synthetic_json
+):
     raise SystemExit("Scalable snapshot helper leaked account/portfolio identifiers")
 if synthetic["valuation"]["total"] != 1234.56 or synthetic["holdings"][0]["valuation"] != 1234.56:
     raise SystemExit("Scalable snapshot helper changed broker-reported valuation")
