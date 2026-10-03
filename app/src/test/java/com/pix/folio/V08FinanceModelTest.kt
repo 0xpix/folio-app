@@ -4,7 +4,10 @@ import com.pix.folio.data.BudgetEnvelope
 import com.pix.folio.data.ScalableHoldingSnapshot
 import com.pix.folio.data.ScalablePerformanceSnapshot
 import com.pix.folio.data.ScalableSnapshot
+import com.pix.folio.data.SparkasseSnapshotCodec
+import com.pix.folio.data.SparkasseTransactionCategorizer
 import com.pix.folio.data.recurringInvestmentUnits
+import com.pix.folio.model.ExpenseCategory
 import com.pix.folio.model.FolioSummary
 import com.pix.folio.model.InvestmentEntrySource
 import com.pix.folio.model.InvestmentPricePoint
@@ -91,6 +94,56 @@ class V08FinanceModelTest {
         )
         assertEquals(500.0, envelope.savingsCommitment, 0.001)
         assertEquals(204.0, envelope.availableCash, 0.001)
+    }
+
+    @Test
+    fun sparkasseMerchantRulesSeparateGroceriesAndSubscriptions() {
+        assertEquals(
+            ExpenseCategory.GROCERIES,
+            SparkasseTransactionCategorizer.categoryFor("REWE Markt", "Kartenzahlung"),
+        )
+        assertEquals(
+            ExpenseCategory.SUBSCRIPTIONS,
+            SparkasseTransactionCategorizer.categoryFor("Netflix.com", "Monthly subscription"),
+        )
+        assertEquals(
+            ExpenseCategory.DINING,
+            SparkasseTransactionCategorizer.categoryFor("Cafe Heidelberg", "Kartenzahlung"),
+        )
+    }
+
+    @Test
+    fun sparkasseSnapshotKeepsOnlySanitizedBankFields() {
+        val snapshot = SparkasseSnapshotCodec.parse(
+            """
+            {
+              "format":"folio-sparkasse-snapshot",
+              "version":1,
+              "source":"fints",
+              "created_at_utc":"2026-10-03T12:00:00Z",
+              "currency":"EUR",
+              "balance":812.34,
+              "available_balance":812.34,
+              "iban":"DE00SHOULDNOTPERSIST",
+              "transactions":[
+                {
+                  "booking_date":"2026-10-02",
+                  "amount":-42.50,
+                  "currency":"EUR",
+                  "merchant":"REWE",
+                  "purpose":"Groceries",
+                  "counterparty_iban":"DE00SHOULDNOTPERSIST"
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+
+        val encoded = SparkasseSnapshotCodec.encode(snapshot)
+        assertEquals(812.34, snapshot.availableBalance, 0.001)
+        assertEquals(ExpenseCategory.GROCERIES, snapshot.transactions.single().category)
+        assertFalse(encoded.contains("DE00SHOULDNOTPERSIST"))
+        assertFalse(encoded.contains("counterparty_iban"))
     }
 
     @Test
