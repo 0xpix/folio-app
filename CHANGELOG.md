@@ -9,6 +9,13 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.14.3.beta] - 2026-10-03
+
+### Fixed
+- Fixed Scalable broker cash being counted twice in the connected Portfolio total.
+- Scalable's `overview.valuation.total` is now stored and displayed as the authoritative broker total; `cash-breakdown.cash_balance` remains a separate informational component and is no longer added on top.
+- Updated snapshot validation so broker total, non-cash portfolio value, cash, grouped positions, and displayed Portfolio value stay internally consistent.
+
 ## [0.14.2.beta] - 2026-10-03
 
 ### Changed
