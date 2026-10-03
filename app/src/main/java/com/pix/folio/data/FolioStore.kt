@@ -141,7 +141,7 @@ class FolioStore(context: Context) {
     fun expenses(): List<Expense> = parseArray("expenses") { json ->
         Expense(
             id = json.getString("id"),
-            category = runCatching { ExpenseCategory.valueOf(json.getString("category")) }.getOrDefault(ExpenseCategory.OTHER),
+            category = runCatching { ExpenseCategory.valueOf(json.getString("category")).canonical }.getOrDefault(ExpenseCategory.OTHER),
             amount = json.getDouble("amount"),
             date = LocalDate.parse(json.getString("date")),
             note = json.optString("note"),
@@ -150,7 +150,7 @@ class FolioStore(context: Context) {
 
     fun budgets(): List<Budget> = parseArray("budgets") { json ->
         Budget(
-            category = runCatching { ExpenseCategory.valueOf(json.getString("category")) }.getOrDefault(ExpenseCategory.OTHER),
+            category = runCatching { ExpenseCategory.valueOf(json.getString("category")).canonical }.getOrDefault(ExpenseCategory.OTHER),
             monthlyLimit = json.getDouble("monthlyLimit"),
         )
     }
