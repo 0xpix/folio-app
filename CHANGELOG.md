@@ -9,6 +9,24 @@ All notable Folio changes are documented here. Release tags use the same convent
 
 The GitHub release workflow publishes the matching section of this file as the release notes, and the Android beta updater shows the same **Added / Changed / Fixed** notes before installation.
 
+## [0.16.0.beta] - 2026-10-03
+
+### Added
+- Added a **Sparkasse read-only FinTS connection** using a local snapshot helper. The helper reads only the selected account balance and booked transactions; Folio never stores the online-banking PIN, TAN, login ID, IBAN, or FinTS session.
+- Added encrypted Sparkasse snapshot storage with a separate Android Keystore key and automatic removal on disconnect/full reset.
+- Added local bank-transaction categorization for **Groceries, Dining, Home, Utilities, Transport, Shopping, Health, Entertainment, Subscriptions, Travel, Fees, and Other**.
+- Added Sparkasse-backed spending analytics and a read-only bank-spending list in Money.
+
+### Changed
+- When Sparkasse is connected, its imported available balance becomes Folio's displayed **Available cash** and the cash component of Net worth and the 2×2 widget.
+- Spending budgets and the Home spending breakdown use categorized booked Sparkasse debits while a Sparkasse snapshot is connected.
+- Manual expense entry/editing is hidden in the connected bank-spending view to avoid double-counting imported bank transactions.
+- Legacy **Food** and **Leisure** expense records remain readable and map to Groceries and Entertainment.
+
+### Security
+- Added git-ignore rules and CI checks preventing private Sparkasse snapshots, account identifiers, or write-capable FinTS operations from entering the public repository.
+- Sparkasse snapshot files are sanitized before import and encrypted locally with AES-256-GCM after import.
+
 ## [0.15.0.beta] - 2026-10-03
 
 ### Added
