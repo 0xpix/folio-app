@@ -85,8 +85,10 @@ class V07ViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun importScalableSnapshot(raw: String): Result<Unit> =
-        scalableStore.import(raw).map { snapshot ->
-            scalableSnapshot = snapshot
+        scalableStore.import(raw).mapCatching {
+            val storedSnapshot = scalableStore.load().getOrThrow()
+                ?: error("Scalable snapshot was not persisted")
+            scalableSnapshot = storedSnapshot
             FolioWidgetUpdater.request(getApplication())
         }
 
