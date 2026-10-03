@@ -26,6 +26,7 @@ required = [
     "app/src/main/java/com/pix/folio/ui/V08DashboardComponents.kt",
     "app/src/main/java/com/pix/folio/ui/V08ViewModelExtensions.kt",
     "app/src/main/java/com/pix/folio/ui/V081Valuation.kt",
+    "app/src/main/java/com/pix/folio/ui/V14PortfolioOverview.kt",
     "app/src/main/java/com/pix/folio/ui/theme/FolioTheme.kt",
     "app/src/main/java/com/pix/folio/data/FolioStore.kt",
     "app/src/main/java/com/pix/folio/data/MonthlyPlanStore.kt",
@@ -38,7 +39,10 @@ required = [
     "app/src/main/java/com/pix/folio/data/OpenFigiService.kt",
     "app/src/main/java/com/pix/folio/data/MarketPriceService.kt",
     "app/src/main/java/com/pix/folio/data/RecurringMoneyProcessor.kt",
+    "app/src/main/java/com/pix/folio/widget/FolioWidget.kt",
     "app/src/main/java/com/pix/folio/widget/FolioWidgetUpdater.kt",
+    "app/src/main/res/xml/folio_balance_widget_info.xml",
+    "app/src/main/res/xml/folio_overview_widget_info.xml",
     "app/src/beta/java/com/pix/folio/updates/BetaUpdater.kt",
     "app/src/test/java/com/pix/folio/V08FinanceModelTest.kt",
     ".github/workflows/build-apk.yml",
@@ -75,6 +79,20 @@ if 'android:allowBackup="false"' not in manifest_text:
     raise SystemExit("Android backup must stay disabled")
 if 'android:usesCleartextTraffic="false"' not in manifest_text:
     raise SystemExit("Cleartext Android traffic must stay disabled")
+
+for widget_token in [
+    ".widget.FolioBalanceWidgetReceiver",
+    ".widget.FolioOverviewWidgetReceiver",
+    "@xml/folio_balance_widget_info",
+    "@xml/folio_overview_widget_info",
+]:
+    if widget_token not in manifest_text:
+        raise SystemExit(f"Widget registration is incomplete: {widget_token}")
+
+overview_widget_info = (root / "app/src/main/res/xml/folio_overview_widget_info.xml").read_text()
+for token in ['android:targetCellWidth="2"', 'android:targetCellHeight="2"']:
+    if token not in overview_widget_info:
+        raise SystemExit(f"2x2 widget geometry is incomplete: {token}")
 
 light_colors = (root / "app/src/main/res/values/colors.xml").read_text()
 dark_colors = (root / "app/src/main/res/values-night/colors.xml").read_text()
@@ -141,8 +159,9 @@ feature_groups = {
     "investment purchase history": ["Investment activity", "Edit purchase", "Purchase time · HH:mm", "purchasedAt"],
     "monthly investment totals": ["MONTH TOTAL", "Cumulative", "v081CumulativeMonthlyContributions", "v081PurchaseLotValueAt", "v081ResolvedOwnedUnits"],
     "widget metrics": ["NET WORTH", "INVESTMENTS", "CASH LEFT", "actionRunCallback", "widgetValues"],
+    "2x2 overview widget": ["FolioOverviewWidget", "FolioOverviewWidgetReceiver", "SAVINGS", "scalableConnected"],
     "widget theme": ["folio_widget_background", "folio_widget_foreground", "folio_widget_muted", "WidgetBackground", "WidgetForeground", "WidgetMuted"],
-    "Scalable read-only source": ["ScalableSnapshot", "SecureScalableStore", "Scalable Capital", "Broker-reported values", "encrypted read-only snapshot"],
+    "Scalable read-only source": ["ScalableSnapshot", "SecureScalableStore", "SCALABLE CAPITAL", "Broker reconciliation", "brokerInvestedCapital", "holdingsValue"],
     "last-page restore": ["folio_navigation_v1", "root_page"],
     "portable backup": ["folio-backup", "Export Folio", "Restore Folio"],
     "backup validation": ["Unsupported Folio backup version", "Backup data is incomplete"],
